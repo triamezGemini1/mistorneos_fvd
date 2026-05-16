@@ -1,10 +1,6 @@
-RewriteEngine On
-RewriteBase /mistorneos/public/api/
-
-# Si el archivo o directorio existe, servirlo directamente
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-
-# Redirigir todo a index.php
-RewriteRule ^(.*)$ index.php/$1 [L,QSA]
-
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /mistorneos_fvd/public/api/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L,QSA]
+</IfModule>

@@ -1,0 +1,44 @@
+name: Despliegue Beta FVD
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  deploy:
+    name: FTP → mistorneos_beta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar dependencias PHP (vendor)
+        uses: php-actions/composer@v1
+        with:
+          php_version: "8.2"
+          args: --no-dev --optimize-autoloader --no-interaction
+
+      - name: Subir a public_html/mistorneos_beta
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: public_html/mistorneos_beta/
+          security: loose
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.github/**
+            **/node_modules/**
+            .env
+            .env.*
+            !.env.production.example
+            **/database/*.sql
+            **/tests/**
+            **/.idea/**
+            **/.vscode/**
+            scripts/test_*.php
+            **/storage/cache/*.json
+            vendor (2).zip
+            vendor.zip

@@ -1,23 +1,13 @@
-# Forzar HTTPS en producción; en localhost (desarrollo) permitir HTTP.
-# Front controller: rutas que no son archivos/directorios existentes van a index.php (ej. /auth/login, /api/...).
-# Si la app está en una subcarpeta (ej. /pruebas/public/ o /mistorneos_beta/public/), descomenta y ajusta RewriteBase.
+# MisTorneos FVD — public/ (https://laestaciondeldominohoy.com/mistorneos_fvd/public/)
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    RewriteBase /mistorneos_fvd/public/
 
-    # Subcarpeta WAMP: http://localhost/mistorneos/public/
-    RewriteBase /mistorneos/public/
-
-    # Producción (ej. pruebas): descomenta la que corresponda y comenta la de arriba
-    # RewriteBase /pruebas/public/
-    # RewriteBase /mistorneos_beta/public/
-
-    # Redirección HTTPS (producción)
     RewriteCond %{HTTPS} off
     RewriteCond %{HTTP_HOST} !^localhost(:\d+)?$ [NC]
     RewriteCond %{HTTP_HOST} !^127\.0\.0\.1(:\d+)?$ [NC]
     RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-    # Front controller: para rutas modernas (/auth/, /api/, /dashboard, etc.) y subpath (ej. /pruebas/auth/login)
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ index.php [L,QSA]

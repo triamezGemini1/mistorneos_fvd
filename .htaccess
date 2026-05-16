@@ -1,19 +1,14 @@
-# Redirigir todas las peticiones a /public (la URL no mostrará "public")
+# MisTorneos FVD — raíz del proyecto (public_html/mistorneos_fvd/)
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    RewriteBase /mistorneos_fvd/
 
-    # WAMP local: proyecto en htdocs/mistorneos
-    RewriteBase /mistorneos/
-
-    # Producción bajo /pruebas/: comenta RewriteBase de arriba y usa:
-    # RewriteBase /pruebas/
-
-    # Bloquear acceso directo a archivos sensibles
     RewriteRule ^\.env - [F,L]
     RewriteRule ^config/ - [F,L]
     RewriteRule ^vendor/ - [F,L]
+    RewriteRule ^database/ - [F,L]
+    RewriteRule ^scripts/ - [F,L]
 
-    # Enviar el resto de peticiones a la carpeta public/ (sin mostrar "public" en la URL)
-    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteCond %{REQUEST_URI} !^/mistorneos_fvd/public/
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>

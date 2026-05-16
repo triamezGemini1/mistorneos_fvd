@@ -3,10 +3,15 @@
 .env.*.local
 /vendor/
 
-# Subidas y caché local (no versionar)
-/upload/
-/uploads/
-/storage/cache/
+# Subidas y caché (mantener estructura; no versionar contenido)
+/upload/*
+!/upload/.gitkeep
+/uploads/*
+!/uploads/.gitkeep
+/storage/cache/*
+!/storage/cache/.gitkeep
+/logs/*
+!/logs/.gitkeep
 
 # Volcados de BD locales
 /database/*.sql

@@ -1,7 +1,7 @@
 ﻿<?php
 /**
  * Script de verificación para producción
- * Acceder: https://laestaciondeldominohoy.com/mistorneos/public/verificar_produccion.php
+ * Acceder: https://laestaciondeldominohoy.com/mistorneos_fvd/public/verificar_produccion.php
  * 
  * IMPORTANTE: Eliminar o proteger este archivo después del deploy
  */
@@ -19,9 +19,11 @@ $checks = [];
 try {
     $pdo = DB::pdo();
     $stmt = $pdo->query("SELECT 1");
-    $checks['BD Principal (mistorneos)'] = ['ok' => true, 'msg' => 'Conectado'];
+    $dbName = $GLOBALS['APP_CONFIG']['db']['name'] ?? 'mistorneos_fvd';
+    $checks['BD Principal (' . $dbName . ')'] = ['ok' => true, 'msg' => 'Conectado'];
 } catch (Exception $e) {
-    $checks['BD Principal (mistorneos)'] = ['ok' => false, 'msg' => $e->getMessage()];
+    $dbName = $GLOBALS['APP_CONFIG']['db']['name'] ?? 'mistorneos_fvd';
+    $checks['BD Principal (' . $dbName . ')'] = ['ok' => false, 'msg' => $e->getMessage()];
 }
 
 // 2. Conexión BD secundaria (fvdadmin)
@@ -53,7 +55,24 @@ try {
     $checks['Tabla persona'] = ['ok' => false, 'msg' => $e->getMessage()];
 }
 
-// 4. URLs críticas
+// 4. Carpetas escribibles
+foreach (['upload', 'uploads', 'storage/cache', 'logs'] as $dir) {
+    $abs = dirname(__DIR__) . '/' . $dir;
+    $writable = is_dir($abs) && is_writable($abs);
+    $checks['Carpeta ' . $dir] = [
+        'ok' => $writable,
+        'msg' => $writable ? 'Existe y es escribible' : (is_dir($abs) ? 'Sin permiso de escritura' : 'No existe'),
+    ];
+}
+
+// 5. vendor (PDF, Excel, mail)
+$vendorOk = is_file(dirname(__DIR__) . '/vendor/autoload.php');
+$checks['Composer vendor'] = [
+    'ok' => $vendorOk,
+    'msg' => $vendorOk ? 'autoload.php presente' : 'Ejecutar composer install --no-dev en el servidor',
+];
+
+// 6. URLs críticas
 $urls = [
     'Landing SPA' => $base . '/public/landing-spa.php',
     'Login' => $base . '/public/login.php',
