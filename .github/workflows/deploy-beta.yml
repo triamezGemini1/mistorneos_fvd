@@ -13,14 +13,14 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: 🚀 Subiendo a carpeta BETA
+    - name: 🚀 Subiendo a carpeta BETA_FVD
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         # NOTA: Asegúrate de que esta carpeta exista en tu cPanel
-        server-dir: public_html/mistorneos_beta/
+        server-dir: public_html/mistorneos_fvd/
         security: loose
         dangerous-clean-slate: false
         exclude: |
