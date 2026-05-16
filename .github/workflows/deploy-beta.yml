@@ -20,7 +20,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         # NOTA: Asegúrate de que esta carpeta exista en tu cPanel
-        server-dir: public_html/mistorneos_beta/ 
+        server-dir: public_html/mistorneos_beta/
         security: loose
         dangerous-clean-slate: false
         exclude: |
