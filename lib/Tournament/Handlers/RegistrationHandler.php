@@ -456,8 +456,24 @@ final class RegistrationHandler
 
     private static function notificarInscripcion(PDO $pdo, int $idUsuario, int $torneoId, ?int $idClub, int $idInscrito): void
     {
+        $notifierPath = __DIR__ . '/../../InscripcionTorneoNotifier.php';
+        if (!is_readable($notifierPath)) {
+            return;
+        }
+
         try {
-            require_once __DIR__ . '/../../InscripcionTorneoNotifier.php';
+            require_once $notifierPath;
+        } catch (\Throwable $e) {
+            error_log('notificarInscripcion require: ' . $e->getMessage());
+
+            return;
+        }
+
+        if (!class_exists(\InscripcionTorneoNotifier::class, false)) {
+            return;
+        }
+
+        try {
             \InscripcionTorneoNotifier::notificarTrasInscripcion(
                 $pdo,
                 $idUsuario,
@@ -465,7 +481,7 @@ final class RegistrationHandler
                 (int) ($idClub ?? 0),
                 $idInscrito
             );
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             error_log('notificarInscripcion: ' . $e->getMessage());
         }
     }
