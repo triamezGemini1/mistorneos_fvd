@@ -138,6 +138,7 @@ $modo_prueba_badge_class = $role_badge_class[$role_activo_layout] ?? 'bg-warning
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="<?= htmlspecialchars($layout_asset_base) ?>/assets/dashboard.css">
+  <link rel="stylesheet" href="<?= htmlspecialchars($layout_asset_base) ?>/assets/app-search.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"></noscript>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" media="print" onload="this.media='all'">
@@ -657,7 +658,7 @@ if ($current_page === 'estadisticas_torneos') {
                 <span class="input-group-text bg-light border-end-0">
                   <i class="fas fa-search text-muted"></i>
                 </span>
-                <input type="text" class="form-control border-start-0" placeholder="Buscar..." id="searchInput">
+                <input type="text" class="form-control border-start-0" placeholder="Buscar (mín. 3 caracteres)…" id="searchInput" minlength="3" autocomplete="off">
               </div>
             </div>
             
@@ -777,7 +778,7 @@ if (str_ends_with($app_base_for_js, '/public')) {
     $app_base_for_js = rtrim($app_base_for_js, '/');
 }
 ?>
-  <script>window.APP_BASE_URL = '<?= htmlspecialchars($app_base_for_js) ?>'; window.notifAjaxUrl = '<?= htmlspecialchars($layout_asset_base . "/notificaciones_ajax.php") ?>';</script>
+  <script>window.APP_BASE_URL = '<?= htmlspecialchars($app_base_for_js) ?>'; window.APP_PUBLIC_BASE = '<?= htmlspecialchars(rtrim($layout_asset_base, '/')) ?>'; window.notifAjaxUrl = '<?= htmlspecialchars($layout_asset_base . "/notificaciones_ajax.php") ?>';</script>
 
   <?php
   $pages_needing_image_preview = ['mi_organizacion', 'admin_org', 'tournaments', 'tournament_admin', 'users', 'clubs', 'clubes_asociados', 'admin_clubs', 'directorio_clubes'];
@@ -790,6 +791,7 @@ if (str_ends_with($app_base_for_js, '/public')) {
   <script src="<?= htmlspecialchars($layout_asset_base) ?>/assets/notifications-toast.js" defer></script>
   <script src="<?= htmlspecialchars($layout_asset_base) ?>/assets/breadcrumb-back.js" defer></script>
   <script src="<?= htmlspecialchars($layout_asset_base) ?>/assets/single-tab-enforcer.js" defer></script>
+  <script src="<?= htmlspecialchars($layout_asset_base) ?>/assets/app-search.js" defer></script>
   <script src="<?= htmlspecialchars($layout_asset_base) ?>/assets/dashboard-init.js" defer></script>
 <?php
 $layout_asset_base = $layout_asset_base ?? '';

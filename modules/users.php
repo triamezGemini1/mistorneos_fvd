@@ -12,6 +12,11 @@ Auth::requireRole(['admin_general', 'admin_club']);
 $action = $_GET['action'] ?? 'list';
 $user_id = (int)($_GET['id'] ?? 0);
 
+if ($action === 'send_access_notification' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+    require __DIR__ . '/users/send_access_notification.php';
+    exit;
+}
+
 // Procesar acciones
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? $action;

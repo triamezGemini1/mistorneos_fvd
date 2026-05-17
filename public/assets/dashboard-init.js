@@ -86,59 +86,7 @@
       }
     };
 
-    // Search
-    var searchTimeout;
-    var searchResults = null;
-    var searchInput = document.getElementById('searchInput');
-
-    window.hideSearchResults = function () {
-      if (searchResults && searchResults.parentNode) {
-        searchResults.parentNode.removeChild(searchResults);
-      }
-      searchResults = null;
-    };
-
-    function performSearch(term) {
-      fetch('api/search.php?q=' + encodeURIComponent(term))
-        .then(function (r) { return r.json(); })
-        .then(function (data) { showSearchResults(data.results, term); })
-        .catch(function (e) { console.error('Error en búsqueda:', e); });
-    }
-
-    function showSearchResults(results, query) {
-      window.hideSearchResults();
-      if (!results || results.length === 0) return;
-      var searchBox = document.querySelector('.search-box');
-      if (!searchBox) return;
-      searchResults = document.createElement('div');
-      searchResults.className = 'search-results';
-      searchResults.innerHTML = '<div class="search-results-header"><small class="text-muted">Resultados para "' + query + '"</small><button type="button" class="btn-close" onclick="hideSearchResults()"></button></div><div class="search-results-list">' + results.map(function (r) {
-        return '<a href="' + r.url + '" class="search-result-item"><div class="search-result-icon"><i class="' + r.icon + '"></i></div><div class="search-result-content"><div class="search-result-title">' + r.title + '</div><div class="search-result-subtitle">' + r.subtitle + '</div></div><div class="search-result-badge"><span class="badge bg-secondary">' + r.badge + '</span></div></a>';
-      }).join('') + '</div>';
-      searchBox.appendChild(searchResults);
-    }
-
-    if (searchInput) {
-      searchInput.addEventListener('input', function (e) {
-        var term = e.target.value.trim();
-        clearTimeout(searchTimeout);
-        if (term.length < 2) {
-          window.hideSearchResults();
-          return;
-        }
-        searchTimeout = setTimeout(function () { performSearch(term); }, 300);
-      });
-    }
-
-    document.addEventListener('click', function (e) {
-      if (!e.target.closest('.search-box')) window.hideSearchResults();
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') {
-        window.hideSearchResults();
-        if (searchInput) searchInput.blur();
-      }
-    });
+    // Búsqueda global: public/assets/app-search.js (AppSearch.wireDashboardSearch)
 
     // Auto-hide alerts
     setTimeout(function () {

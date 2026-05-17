@@ -12,6 +12,7 @@ ob_start();
 
 require_once __DIR__ . '/../../config/bootstrap.php';
 require_once __DIR__ . '/../../config/db_config.php';
+require_once __DIR__ . '/../../lib/AppSearchService.php';
 
 ob_end_clean();
 if (!headers_sent()) {
@@ -31,8 +32,11 @@ if ($buscar_por === 'id') {
         exit;
     }
 } elseif ($buscar_por === 'usuario') {
-    if (strlen($usuario) < 2) {
-        echo json_encode(['success' => false, 'error' => 'Nombre de usuario requerido (mín. 2 caracteres)']);
+    if (!AppSearchService::isQueryActive($usuario)) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Nombre de usuario requerido (mín. ' . AppSearchService::MIN_QUERY_LENGTH . ' caracteres)',
+        ]);
         exit;
     }
 } elseif (empty($cedula)) {

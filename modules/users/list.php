@@ -726,6 +726,71 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                                 title="Cambiar contrase�a">
                                             <i class="fas fa-key"></i>
                                         </button>
+
+                                        <?php
+                                        $notify_return = 'index.php?page=users&action=list';
+                                        if (!empty($_GET['search'])) {
+                                            $notify_return .= '&search=' . rawurlencode((string) $_GET['search']);
+                                        }
+                                        if (!empty($_GET['club_id'])) {
+                                            $notify_return .= '&club_id=' . rawurlencode((string) $_GET['club_id']);
+                                        }
+                                        $notify_base = class_exists('AppHelpers')
+                                            ? AppHelpers::dashboard('users', [
+                                                'action' => 'send_access_notification',
+                                                'user_id' => (int) $u['id'],
+                                                'return' => $notify_return,
+                                            ])
+                                            : '?page=users&action=send_access_notification&user_id=' . (int) $u['id'] . '&return=' . rawurlencode($notify_return);
+                                        $has_celular = !empty(trim((string) ($u['celular'] ?? '')));
+                                        $role_labels_notify = [
+                                            'admin_general' => 'Admin General',
+                                            'admin_torneo' => 'Admin Torneo',
+                                            'admin_club' => 'Admin Organización',
+                                            'usuario' => 'Usuario',
+                                            'operador' => 'Operador',
+                                        ];
+                                        ?>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-success dropdown-toggle"
+                                                    data-bs-toggle="dropdown" aria-expanded="false"
+                                                    title="Enviar datos de acceso y enlace para cambiar clave">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li><h6 class="dropdown-header">Notificar a <?= htmlspecialchars($u['username']) ?></h6></li>
+                                                <li>
+                                                    <a class="dropdown-item <?= $has_celular ? '' : 'disabled' ?>"
+                                                       href="<?= $has_celular ? htmlspecialchars($notify_base . '&canal=whatsapp') : '#' ?>"
+                                                       <?= $has_celular ? '' : 'tabindex="-1" aria-disabled="true"' ?>>
+                                                        <i class="fab fa-whatsapp text-success me-2"></i>WhatsApp
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="<?= htmlspecialchars($notify_base . '&canal=web') ?>">
+                                                        <i class="fas fa-bell text-primary me-2"></i>Notificación web
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="<?= htmlspecialchars($notify_base . '&canal=telegram') ?>">
+                                                        <i class="fab fa-telegram-plane text-info me-2"></i>Telegram
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <button type="button" class="dropdown-item"
+                                                            onclick="previewAccessNotify(<?= htmlspecialchars(json_encode([
+                                                                'nombre' => $u['nombre'] ?? '',
+                                                                'username' => $u['username'] ?? '',
+                                                                'cedula' => $u['cedula'] ?? '',
+                                                                'id' => (int) $u['id'],
+                                                                'role' => $role_labels_notify[$u['role'] ?? ''] ?? ($u['role'] ?? ''),
+                                                            ]), ENT_QUOTES, 'UTF-8') ?>)">
+                                                        <i class="fas fa-eye text-secondary me-2"></i>Vista previa
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                        </div>
                                         
                                         <?php if ($u['id'] !== $current_user['id']): ?>
                                             <button type="button" class="btn btn-sm btn-outline-<?= $u['status'] ? 'warning' : 'success' ?>" 
@@ -1042,6 +1107,22 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                         <i class="fas fa-trash"></i> Eliminar
                     </button>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vista previa notificación de acceso -->
+<div class="modal fade" id="accessNotifyPreviewModal" tabindex="-1" aria-labelledby="accessNotifyPreviewLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="accessNotifyPreviewLabel"><i class="fas fa-paper-plane me-2"></i>Datos del mensaje</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body" id="accessNotifyPreviewBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -1518,6 +1599,25 @@ function toggleStatus(id, newStatus) {
     }
     
     const modal = new bootstrap.Modal(document.getElementById('toggleStatusModal'));
+    modal.show();
+}
+
+function previewAccessNotify(data) {
+    var body = document.getElementById('accessNotifyPreviewBody');
+    if (!body) return;
+    var lines = [
+        'Nombre: ' + (data.nombre || '—'),
+        'Usuario: ' + (data.username || '—'),
+        'Cédula: ' + (data.cedula || '—'),
+        'ID usuario: ' + (data.id || '—'),
+        'Rol: ' + (data.role || '—'),
+        '',
+        'El mensaje incluirá un enlace personalizado para cambiar la contraseña y la URL de inicio de sesión.'
+    ];
+    body.innerHTML = '<pre class="mb-0 small" style="white-space:pre-wrap;">' + lines.map(function (l) {
+        return l.replace(/</g, '&lt;');
+    }).join('\n') + '</pre>';
+    var modal = new bootstrap.Modal(document.getElementById('accessNotifyPreviewModal'));
     modal.show();
 }
 
