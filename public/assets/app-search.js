@@ -206,6 +206,14 @@
         run();
       }
     });
+    input.addEventListener('blur', function () {
+      setTimeout(function () {
+        if (input.dataset.appSearchBlurSkip === '1') {
+          return;
+        }
+        run();
+      }, 120);
+    });
     document.addEventListener('click', function (e) {
       if (!wrap.contains(e.target)) {
         hideDropdown(wrap);
@@ -299,6 +307,14 @@
     }, config.debounceMs || DEBOUNCE_MS);
 
     input.addEventListener('input', run);
+    input.addEventListener('blur', function () {
+      setTimeout(function () {
+        if (input.dataset.appSearchBlurSkip === '1') {
+          return;
+        }
+        run();
+      }, 120);
+    });
     input.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -307,6 +323,199 @@
     });
 
     return { trigger: run, destroy: function () {} };
+  }
+
+  function isSearchTriggerButton(btn) {
+    if (!btn || btn.tagName !== 'BUTTON') {
+      return false;
+    }
+    if (btn.dataset.appSearchKeepButton === '1') {
+      return false;
+    }
+    if (btn.dataset.appSearchBlurTrigger === '1' || /buscar/i.test(btn.id || '')) {
+      return true;
+    }
+    var label = (btn.textContent || '').trim().toLowerCase();
+    if (btn.querySelector('.fa-search, .fa-magnifying-glass')) {
+      return label.indexOf('aplicar') === -1 && label.indexOf('filtro') === -1 && label.indexOf('sustituir') === -1;
+    }
+    return label === 'buscar' || label.indexOf('buscar ') === 0 || label === 'añadir';
+  }
+
+  function hideSearchButton(btn) {
+    if (btn) {
+      btn.classList.add('app-search-submit-hidden');
+      btn.setAttribute('aria-hidden', 'true');
+      btn.tabIndex = -1;
+    }
+  }
+
+  function isReadyBlurQuery(input, raw) {
+    raw = trim(raw);
+    if (!raw) {
+      return true;
+    }
+    if (input && (input.type === 'number' || /id_usuario/i.test(input.id || ''))) {
+      return raw.length >= 1;
+    }
+    if (input && input.dataset.appSearchPersona === '1') {
+      return isReadyPersonaQuery(raw);
+    }
+    return isReady(raw);
+  }
+
+  function wireBlurInputGroupSearch(input) {
+    if (!input || input.dataset.appSearchBlurWired === '1') {
+      return;
+    }
+    var group = input.closest('.input-group');
+    if (!group) {
+      return;
+    }
+    var btn = group.querySelector('button');
+    if (!btn || !isSearchTriggerButton(btn)) {
+      return;
+    }
+    input.dataset.appSearchBlurWired = '1';
+    input.classList.add('app-search-blur-input');
+    hideSearchButton(btn);
+
+    var lastTriggered = trim(input.value);
+    input.addEventListener('blur', function () {
+      setTimeout(function () {
+        if (input.dataset.appSearchBlurSkip === '1') {
+          return;
+        }
+        var q = trim(input.value);
+        if (q === lastTriggered) {
+          return;
+        }
+        if (!isReadyBlurQuery(input, q)) {
+          if (q.length > 0) {
+            input.classList.add('is-invalid');
+            setTimeout(function () {
+              input.classList.remove('is-invalid');
+            }, 2000);
+          }
+          return;
+        }
+        lastTriggered = q;
+        btn.click();
+      }, 150);
+    });
+  }
+
+  function wireBlurFormSearch(input) {
+    if (!input || input.dataset.appSearchBlurWired === '1') {
+      return;
+    }
+    var form = input.closest('form');
+    if (!form || (form.method && String(form.method).toUpperCase() !== 'GET')) {
+      return;
+    }
+    input.dataset.appSearchBlurWired = '1';
+    input.classList.add('app-search-blur-input');
+    input.setAttribute('autocomplete', 'off');
+
+    var row = input.closest('.row');
+    if (row) {
+      row.querySelectorAll('button[type="submit"]').forEach(function (btn) {
+        if (isSearchTriggerButton(btn)) {
+          hideSearchButton(btn);
+        }
+      });
+    }
+    form.querySelectorAll('button[type="submit"]').forEach(function (btn) {
+      if (isSearchTriggerButton(btn) && !btn.classList.contains('app-search-submit-hidden')) {
+        var onlySearch =
+          form.querySelectorAll('input[name="search"], input[name="q"]').length === 1 &&
+          !form.querySelector('select[name], input[type="date"], input[type="hidden"][name="filter"]');
+        if (onlySearch || btn.closest('.col-md-2, .col-2')) {
+          hideSearchButton(btn);
+        }
+      }
+    });
+
+    var lastSubmitted = trim(input.value);
+    input.addEventListener('blur', function () {
+      setTimeout(function () {
+        if (input.dataset.appSearchBlurSkip === '1') {
+          return;
+        }
+        var q = trim(input.value);
+        if (q === lastSubmitted) {
+          return;
+        }
+        if (!isReadyBlurQuery(input, q)) {
+          if (q.length > 0) {
+            input.classList.add('is-invalid');
+            setTimeout(function () {
+              input.classList.remove('is-invalid');
+            }, 2000);
+          }
+          return;
+        }
+        lastSubmitted = q;
+        if (typeof form.requestSubmit === 'function') {
+          form.requestSubmit();
+        } else {
+          form.submit();
+        }
+      }, 150);
+    });
+  }
+
+  function wireFilterFormSearchBlur(input) {
+    if (!input || input.dataset.appSearchFilterBlurWired === '1') {
+      return;
+    }
+    var form = input.closest('form');
+    if (!form || !form.querySelector('select, input[type="date"], input[name^="filter"]')) {
+      return;
+    }
+    input.dataset.appSearchFilterBlurWired = '1';
+    var lastSubmitted = trim(input.value);
+    input.addEventListener('blur', function () {
+      setTimeout(function () {
+        var q = trim(input.value);
+        if (q === lastSubmitted) {
+          return;
+        }
+        if (!isReadyBlurQuery(input, q)) {
+          return;
+        }
+        lastSubmitted = q;
+        if (typeof form.requestSubmit === 'function') {
+          form.requestSubmit();
+        } else {
+          form.submit();
+        }
+      }, 150);
+    });
+  }
+
+  function wireAllBlurSearches() {
+    document.querySelectorAll('input[name="search"], input[name="q"].app-search-q').forEach(function (input) {
+      if (input.closest('.app-search-wrap')) {
+        return;
+      }
+      if (input.closest('form')) {
+        wireBlurFormSearch(input);
+        wireFilterFormSearchBlur(input);
+      }
+    });
+
+    document.querySelectorAll('.input-group input.form-control').forEach(function (input) {
+      if (input.type === 'hidden' || input.disabled) {
+        return;
+      }
+      wireBlurInputGroupSearch(input);
+    });
+
+    document.querySelectorAll('[data-app-search-persona]').forEach(function (input) {
+      input.dataset.appSearchPersona = '1';
+      wireBlurInputGroupSearch(input);
+    });
   }
 
   function globalSearch(term, apiBase) {
@@ -381,7 +590,7 @@
   }
 
   function wireDashboardSearch() {
-    var searchInput = document.getElementById('searchInput');
+    var searchInput = document.getElementById('topbarSearchInput') || document.getElementById('searchInput');
     if (!searchInput || searchInput.dataset.appSearchWired === '1') {
       return;
     }
@@ -401,6 +610,14 @@
     }, DEBOUNCE_MS);
 
     searchInput.addEventListener('input', run);
+    searchInput.addEventListener('blur', function () {
+      setTimeout(function () {
+        if (searchInput.dataset.appSearchBlurSkip === '1') {
+          return;
+        }
+        run();
+      }, 120);
+    });
     document.addEventListener('click', function (e) {
       if (!e.target.closest('.search-box')) {
         hideDashboardResults();
@@ -426,14 +643,22 @@
     buscarPersona: buscarPersona,
     globalSearch: globalSearch,
     wireDashboardSearch: wireDashboardSearch,
+    wireAllBlurSearches: wireAllBlurSearches,
+    wireBlurFormSearch: wireBlurFormSearch,
+    wireBlurInputGroupSearch: wireBlurInputGroupSearch,
     hideDashboardResults: hideDashboardResults,
   };
 
   global.hideSearchResults = hideDashboardResults;
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', wireDashboardSearch);
-  } else {
+  function initAppSearch() {
     wireDashboardSearch();
+    wireAllBlurSearches();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAppSearch);
+  } else {
+    initAppSearch();
   }
 })(typeof window !== 'undefined' ? window : this);

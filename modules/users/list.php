@@ -1,8 +1,8 @@
-<?php
+﻿<?php
 
 if (!defined('APP_BOOTSTRAPPED')) { require __DIR__ . '/../../config/bootstrap.php'; }
 
-$page_title = 'Administraci�n de Usuarios';
+$page_title = 'Administraciï¿½n de Usuarios';
 $current_user = Auth::user();
 ?>
 
@@ -50,7 +50,7 @@ $users_bulk_asset_base = class_exists('AppHelpers')
 <link rel="stylesheet" href="<?= htmlspecialchars($users_bulk_asset_base) ?>/assets/users-bulk-notify.css">
 
 <?php
-// Cargar estadísticas para widgets
+// Cargar estadÃ­sticas para widgets
 require_once __DIR__ . '/../../lib/StatisticsHelper.php';
 $stats = StatisticsHelper::generateStatistics();
 
@@ -65,7 +65,7 @@ if (!empty($entidades_options)) {
     }
 }
 
-// Widget de estadísticas de usuarios
+// Widget de estadÃ­sticas de usuarios
 if (!empty($stats) && !isset($stats['error'])):
 ?>
 <div class="row g-4 mb-4">
@@ -98,7 +98,7 @@ if (!empty($stats) && !isset($stats['error'])):
             <div class="card border-warning">
                 <div class="card-body text-center">
                     <h3 class="text-warning mb-0"><?= number_format($stats['total_admin_clubs'] ?? 0) ?></h3>
-                    <p class="text-muted mb-0">Admin. de organización</p>
+                    <p class="text-muted mb-0">Admin. de organizaciÃ³n</p>
                 </div>
             </div>
         </div>
@@ -165,7 +165,7 @@ if (!empty($stats) && !isset($stats['error'])):
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">
-        <i class="fas fa-user-cog"></i> Administraci�n de Usuarios
+        <i class="fas fa-user-cog"></i> Administraciï¿½n de Usuarios
     </h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
@@ -173,7 +173,7 @@ if (!empty($stats) && !isset($stats['error'])):
         </button>
     </div>
 </div>
-<!-- Pestañas -->
+<!-- PestaÃ±as -->
 <ul class="nav nav-tabs" id="userTabs" role="tablist">
     <li class="nav-item" role="presentation">
         <button class="nav-link <?= $action !== 'requests' ? 'active' : '' ?>" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab" aria-controls="users" aria-selected="true">
@@ -188,7 +188,7 @@ if (!empty($stats) && !isset($stats['error'])):
 </ul>
 
 <div class="tab-content" id="userTabsContent">
-    <!-- Pestaña de Usuarios -->
+    <!-- PestaÃ±a de Usuarios -->
     <div class="tab-pane fade <?= $action !== 'requests' ? 'show active' : '' ?>" id="users" role="tabpanel" aria-labelledby="users-tab">
 <!-- Mensajes -->
 <?php if ($success_message): ?>
@@ -225,12 +225,12 @@ $is_admin_club = $current_user['role'] === 'admin_club';
     $total_torneos = $users_result['total_torneos'] ?? 0;
     ?>
     
-    <!-- Información del Administrador -->
+    <!-- InformaciÃ³n del Administrador -->
     <div class="card mb-4 border-primary shadow-sm">
         <div class="card-header bg-primary text-white">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    <i class="fas fa-user-shield me-2"></i>Información del Administrador de organización
+                    <i class="fas fa-user-shield me-2"></i>InformaciÃ³n del Administrador de organizaciÃ³n
                 </h5>
                 <a href="?action=list" class="btn btn-sm btn-light">
                     <i class="fas fa-arrow-left"></i> Volver a Administradores
@@ -260,7 +260,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                 <td><?= htmlspecialchars($admin_info['email'] ?? '-') ?></td>
                             </tr>
                             <tr>
-                                <td class="text-muted"><strong>Teléfono:</strong></td>
+                                <td class="text-muted"><strong>TelÃ©fono:</strong></td>
                                 <td><?= htmlspecialchars($admin_info['celular'] ?? '-') ?></td>
                             </tr>
                             <tr>
@@ -289,13 +289,13 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                             <?php endif; ?>
                             <?php if ($admin_info['club_telefono']): ?>
                             <tr>
-                                <td class="text-muted"><strong>Teléfono:</strong></td>
+                                <td class="text-muted"><strong>TelÃ©fono:</strong></td>
                                 <td><?= htmlspecialchars($admin_info['club_telefono']) ?></td>
                             </tr>
                             <?php endif; ?>
                             <?php if ($admin_info['club_direccion']): ?>
                             <tr>
-                                <td class="text-muted"><strong>Dirección:</strong></td>
+                                <td class="text-muted"><strong>DirecciÃ³n:</strong></td>
                                 <td><?= htmlspecialchars($admin_info['club_direccion']) ?></td>
                             </tr>
                             <?php endif; ?>
@@ -308,7 +308,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                 
                 <hr class="my-4">
                 
-                <!-- Estadísticas -->
+                <!-- EstadÃ­sticas -->
                 <div class="row text-center">
                     <div class="col-md-4">
                         <div class="card border-info">
@@ -338,7 +338,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                 
                 <hr class="my-4">
                 
-                <!-- Opciones de Navegación -->
+                <!-- Opciones de NavegaciÃ³n -->
                 <div class="d-flex gap-2 flex-wrap justify-content-center">
                     <a href="?admin_id=<?= $admin_id ?>&view=clubes" class="btn btn-info btn-lg">
                         <i class="fas fa-building me-2"></i>Ver Clubes Supervisados
@@ -365,7 +365,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
             </div>
         </div>
         <div class="card-body">
-            <p class="text-muted mb-3">Seleccione un club para ver los afiliados registrados en él, o use el botón "Ver Todos los Afiliados" para ver todos.</p>
+            <p class="text-muted mb-3">Seleccione un club para ver los afiliados registrados en Ã©l, o use el botÃ³n "Ver Todos los Afiliados" para ver todos.</p>
             <?php if (empty($users)): ?>
                 <div class="text-center py-4">
                     <i class="fas fa-building fa-3x text-muted mb-3"></i>
@@ -419,7 +419,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
             </h5>
         </div>
         <div class="card-body">
-            <p class="text-muted mb-3">Seleccione un club para ver los usuarios registrados en él.</p>
+            <p class="text-muted mb-3">Seleccione un club para ver los usuarios registrados en Ã©l.</p>
             <?php if (empty($users)): ?>
                 <div class="text-center py-4">
                     <i class="fas fa-building fa-3x text-muted mb-3"></i>
@@ -455,7 +455,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                         </div>
                                         <div class="col-6">
                                             <strong class="text-success"><?= htmlspecialchars($club['telefono'] ?: '-') ?></strong>
-                                            <br><small class="text-muted">Teléfono</small>
+                                            <br><small class="text-muted">TelÃ©fono</small>
                                         </div>
                                     </div>
                                 </div>
@@ -487,7 +487,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                         <i class="fas fa-building me-2 text-primary"></i>
                         <strong><?= htmlspecialchars($club_info['nombre'] ?? 'Club') ?></strong>
                         <?php if (!empty($club_info['delegado'])): ?>
-                            <span class="text-muted ms-2">— <?= htmlspecialchars($club_info['delegado']) ?></span>
+                            <span class="text-muted ms-2">â€” <?= htmlspecialchars($club_info['delegado']) ?></span>
                         <?php endif; ?>
                     </div>
                     <a href="<?= htmlspecialchars(AppHelpers::dashboard('users')) ?>" class="btn btn-sm btn-outline-secondary">
@@ -518,7 +518,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                     - <span class="text-muted">Sin club asignado</span>
                                 <?php endif; ?>
                             <?php endif; ?>
-                            <span class="mx-2">→</span>
+                            <span class="mx-2">â†’</span>
                             <i class="fas fa-building text-info"></i> 
                             Club: 
                             <?php
@@ -562,7 +562,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                     - <span class="text-muted">Sin club asignado</span>
                                 <?php endif; ?>
                             <?php endif; ?>
-                            <span class="mx-2">→</span>
+                            <span class="mx-2">â†’</span>
                             <i class="fas fa-users text-success"></i> 
                             <strong>Todos los Afiliados</strong>
                         </h6>
@@ -603,7 +603,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
         </div>
     <?php endif; ?>
     
-    <!-- Barra de búsqueda -->
+    <!-- Barra de bÃºsqueda -->
     <div class="card mb-3">
         <div class="card-body">
             <form method="GET" class="row g-3">
@@ -614,23 +614,19 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                 <?php if ($club_id): ?>
                     <input type="hidden" name="club_id" value="<?= $club_id === 'all' ? 'all' : $club_id ?>">
                 <?php endif; ?>
-                <div class="col-md-10">
+                <div class="col-12">
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-search"></i></span>
-                        <input type="text" class="form-control" name="search" 
-                               placeholder="Buscar por ID, cédula, correo, nombre o usuario..." 
-                               value="<?= htmlspecialchars($search ?? '') ?>">
+                        <input type="text" class="form-control app-search-blur-input" name="search"
+                               placeholder="Buscar por ID, cÃ©dula, correo, nombre o usuario (mÃ­n. 3 caracteres; al salir del campo)â€¦"
+                               value="<?= htmlspecialchars($search ?? '') ?>"
+                               autocomplete="off" minlength="3">
                     </div>
-                </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-search"></i> Buscar
-                    </button>
                 </div>
                 <?php if ($search): ?>
                     <div class="col-12">
                         <a href="?page=users<?= $admin_id ? '&admin_id=' . $admin_id : '' ?><?= $club_id ? '&club_id=' . ($club_id === 'all' ? 'all' : $club_id) : '' ?>" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-times"></i> Limpiar búsqueda
+                            <i class="fas fa-times"></i> Limpiar bÃºsqueda
                         </a>
                     </div>
                 <?php endif; ?>
@@ -644,7 +640,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
             <h5 class="card-title mb-0">
                 <i class="fas fa-list"></i> Lista de Usuarios
                 <?php if ($search): ?>
-                    <span class="badge bg-info">Búsqueda: "<?= htmlspecialchars($search) ?>"</span>
+                    <span class="badge bg-info">BÃºsqueda: "<?= htmlspecialchars($search) ?>"</span>
                 <?php endif; ?>
             </h5>
         </div>
@@ -654,7 +650,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                     <i class="fas fa-users fa-3x text-muted mb-3"></i>
                     <p class="text-muted">
                         <?php if ($search): ?>
-                            No se encontraron usuarios con la búsqueda "<?= htmlspecialchars($search) ?>"
+                            No se encontraron usuarios con la bÃºsqueda "<?= htmlspecialchars($search) ?>"
                         <?php else: ?>
                             No hay usuarios registrados
                         <?php endif; ?>
@@ -667,7 +663,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                         <tr>
                             <th class="text-center" style="width:2.5rem;">
                                 <input type="checkbox" class="users-table-checkbox" id="users-bulk-select-all"
-                                       title="Seleccionar todos en esta página" aria-label="Seleccionar todos">
+                                       title="Seleccionar todos en esta pÃ¡gina" aria-label="Seleccionar todos">
                             </th>
                             <th>ID</th>
                             <th>Nombre</th>
@@ -696,7 +692,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                 <td>
                                     <strong><?= htmlspecialchars($u['username']) ?></strong>
                                     <?php if ($u['id'] === $current_user['id']): ?>
-                                        <span class="badge bg-info">Tú</span>
+                                        <span class="badge bg-info">TÃº</span>
                                     <?php endif; ?>
                                 </td>
                                 <td><?= htmlspecialchars($u['email'] ?: '-') ?></td>
@@ -719,7 +715,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                     $role_labels = [
                                         'admin_general' => 'Admin General',
                                         'admin_torneo' => 'Admin Torneo',
-                                        'admin_club' => 'Admin Organización',
+                                        'admin_club' => 'Admin OrganizaciÃ³n',
                                         'usuario' => 'Usuario',
                                         'operador' => 'Operador'
                                     ];
@@ -745,7 +741,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                         
                                         <button type="button" class="btn btn-sm btn-outline-info" 
                                                 onclick="changePassword(<?= $u['id'] ?>, '<?= htmlspecialchars($u['username']) ?>')"
-                                                title="Cambiar contrase�a">
+                                                title="Cambiar contraseï¿½a">
                                             <i class="fas fa-key"></i>
                                         </button>
 
@@ -768,7 +764,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                         $role_labels_notify = [
                                             'admin_general' => 'Admin General',
                                             'admin_torneo' => 'Admin Torneo',
-                                            'admin_club' => 'Admin Organización',
+                                            'admin_club' => 'Admin OrganizaciÃ³n',
                                             'usuario' => 'Usuario',
                                             'operador' => 'Operador',
                                         ];
@@ -790,7 +786,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                                 </li>
                                                 <li>
                                                     <a class="dropdown-item" href="<?= htmlspecialchars($notify_base . '&canal=web') ?>">
-                                                        <i class="fas fa-bell text-primary me-2"></i>Notificación web
+                                                        <i class="fas fa-bell text-primary me-2"></i>NotificaciÃ³n web
                                                     </a>
                                                 </li>
                                                 <li>
@@ -835,7 +831,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                 </table>
             </div>
             
-            <!-- Paginaci�n -->
+            <!-- Paginaciï¿½n -->
             <?php if (isset($pagination)): ?>
                 <?= $pagination->render() ?>
             <?php endif; ?>
@@ -851,7 +847,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                             <i class="fab fa-telegram-plane"></i> Notificar por Telegram (Directo)
                         </button>
                         <button type="button" class="ubn-btn ubn-btn-web" id="users-bulk-btn-web">
-                            <i class="fas fa-bell"></i> Encolar Notificación Web
+                            <i class="fas fa-bell"></i> Encolar NotificaciÃ³n Web
                         </button>
                         <button type="button" class="ubn-btn ubn-btn-clear" id="users-bulk-btn-clear">
                             <i class="fas fa-times"></i> Limpiar
@@ -863,9 +859,9 @@ $is_admin_club = $current_user['role'] === 'admin_club';
             <div id="users-bulk-progress" aria-hidden="true">
                 <div class="ubn-progress-card">
                     <div class="spinner-border text-primary mb-2" role="status">
-                        <span class="visually-hidden">Procesando…</span>
+                        <span class="visually-hidden">Procesandoâ€¦</span>
                     </div>
-                    <p class="mb-0 small fw-semibold" id="users-bulk-progress-text">Procesando lote…</p>
+                    <p class="mb-0 small fw-semibold" id="users-bulk-progress-text">Procesando loteâ€¦</p>
                     <div class="ubn-progress-bar-wrap">
                         <div class="ubn-progress-bar-fill" id="users-bulk-progress-fill"></div>
                     </div>
@@ -926,17 +922,17 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Sección de búsqueda: cédula o usuario (para Admin Torneo = tomar de afiliados) -->
+                    <!-- SecciÃ³n de bÃºsqueda: cÃ©dula o usuario (para Admin Torneo = tomar de afiliados) -->
                     <div class="card mb-3 border-primary">
                         <div class="card-header bg-light">
-                            <i class="fas fa-search"></i> Buscar por Cédula o Usuario (afiliado)
+                            <i class="fas fa-search"></i> Buscar por CÃ©dula o Usuario (afiliado)
                         </div>
                         <div class="card-body">
-                            <p class="text-muted small mb-2">Registrar un Admin Torneo: busque por cédula o nombre de usuario. Si existe en la plataforma, asígnelo; si no existe, debe registrarlo primero.</p>
+                            <p class="text-muted small mb-2">Registrar un Admin Torneo: busque por cÃ©dula o nombre de usuario. Si existe en la plataforma, asÃ­gnelo; si no existe, debe registrarlo primero.</p>
                             <div class="mb-2">
                                 <label class="form-label">Buscar por</label>
                                 <div class="d-flex gap-3">
-                                    <label class="form-check"><input type="radio" class="form-check-input" name="buscar_por_tipo" value="cedula" id="buscar_por_cedula" checked> Cédula</label>
+                                    <label class="form-check"><input type="radio" class="form-check-input" name="buscar_por_tipo" value="cedula" id="buscar_por_cedula" checked> CÃ©dula</label>
                                     <label class="form-check"><input type="radio" class="form-check-input" name="buscar_por_tipo" value="usuario" id="buscar_por_usuario"> Usuario (nombre de usuario)</label>
                                 </div>
                             </div>
@@ -951,10 +947,10 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Cédula</label>
+                                    <label class="form-label">CÃ©dula</label>
                                     <div class="input-group">
-                                        <input type="text" class="form-control" id="cedula_busqueda" name="cedula" placeholder="Ingrese la cédula">
-                                        <button type="button" class="btn btn-primary" onclick="buscarPersona()" title="Buscar persona"><i class="fas fa-search"></i> Buscar</button>
+                                        <input type="text" class="form-control" id="cedula_busqueda" name="cedula" placeholder="Ingrese la cÃ©dula (mÃ­n. 3; busca al salir del campo)" data-app-search-persona="1">
+                                        <button type="button" class="btn btn-primary app-search-submit-hidden" onclick="buscarPersona()" title="Buscar persona" tabindex="-1" aria-hidden="true"><i class="fas fa-search"></i> Buscar</button>
                                     </div>
                                 </div>
                             </div>
@@ -962,8 +958,8 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                 <div class="col-md-8">
                                     <label class="form-label">Nombre de usuario</label>
                                     <div class="input-group">
-                                        <input type="text" class="form-control" id="usuario_busqueda" placeholder="Nombre de usuario del afiliado">
-                                        <button type="button" class="btn btn-primary" onclick="buscarPersona()" title="Buscar usuario"><i class="fas fa-search"></i> Buscar</button>
+                                        <input type="text" class="form-control" id="usuario_busqueda" placeholder="Nombre de usuario (mÃ­n. 3; busca al salir del campo)" data-app-search-persona="1">
+                                        <button type="button" class="btn btn-primary app-search-submit-hidden" onclick="buscarPersona()" title="Buscar usuario" tabindex="-1" aria-hidden="true"><i class="fas fa-search"></i> Buscar</button>
                                     </div>
                                 </div>
                             </div>
@@ -998,7 +994,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="entidad" class="form-label">Entidad (Ubicación) *</label>
+                            <label for="entidad" class="form-label">Entidad (UbicaciÃ³n) *</label>
                             <select class="form-select" id="entidad" name="entidad" required>
                                 <option value="">-- Seleccione --</option>
                                 <?php if (!empty($entidades_options)): ?>
@@ -1011,13 +1007,13 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                     <option value="" disabled>No hay entidades disponibles</option>
                                 <?php endif; ?>
                             </select>
-                            <small class="form-text text-muted">Se guardará en usuarios.entidad</small>
+                            <small class="form-text text-muted">Se guardarÃ¡ en usuarios.entidad</small>
                         </div>
                     </div>
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="password" class="form-label">Contraseña *</label>
+                            <label for="password" class="form-label">ContraseÃ±a *</label>
                             <input type="password" class="form-control" id="password" name="password" required>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -1025,7 +1021,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                             <select class="form-select" id="role" name="role" required onchange="toggleClubField('create')">
                                 <?php if (Auth::isAdminGeneral()): ?>
                                     <option value="usuario" <?= ($form_data['role'] ?? '') === 'usuario' ? 'selected' : '' ?>>Usuario</option>
-                                    <option value="admin_club" <?= ($form_data['role'] ?? '') === 'admin_club' ? 'selected' : '' ?>>Admin Organización</option>
+                                    <option value="admin_club" <?= ($form_data['role'] ?? '') === 'admin_club' ? 'selected' : '' ?>>Admin OrganizaciÃ³n</option>
                                     <option value="admin_torneo" <?= ($form_data['role'] ?? '') === 'admin_torneo' ? 'selected' : '' ?>>Admin Torneo</option>
                                     <option value="admin_general" <?= ($form_data['role'] ?? '') === 'admin_general' ? 'selected' : '' ?>>Admin General</option>
                                 <?php else: ?>
@@ -1063,7 +1059,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                         </small>
                     </div>
                     <?php else: ?>
-                    <!-- admin_club: el club se asigna automáticamente -->
+                    <!-- admin_club: el club se asigna automÃ¡ticamente -->
                     <input type="hidden" name="club_id" id="club_id" value="<?= (int)$current_user['club_id'] ?>">
                     <?php endif; ?>
                 </div>
@@ -1103,7 +1099,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                     </div>
 
                     <div class="mb-3">
-                        <label for="edit_entidad" class="form-label">Entidad (Ubicación) *</label>
+                        <label for="edit_entidad" class="form-label">Entidad (UbicaciÃ³n) *</label>
                         <select class="form-select" id="edit_entidad" name="entidad" required>
                             <option value="">-- Seleccione --</option>
                             <?php if (!empty($entidades_options)): ?>
@@ -1116,11 +1112,11 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                 <option value="" disabled>No hay entidades disponibles</option>
                             <?php endif; ?>
                         </select>
-                        <small class="form-text text-muted">Se guardará en usuarios.entidad</small>
+                        <small class="form-text text-muted">Se guardarÃ¡ en usuarios.entidad</small>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="edit_password" class="form-label">Nueva Contrase�a (dejar vac�o para mantener la actual)</label>
+                        <label for="edit_password" class="form-label">Nueva Contraseï¿½a (dejar vacï¿½o para mantener la actual)</label>
                         <input type="password" class="form-control" id="edit_password" name="password">
                     </div>
                     
@@ -1129,7 +1125,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                         <select class="form-select" id="edit_role" name="role" required onchange="toggleClubField('edit')">
                             <?php if (Auth::isAdminGeneral()): ?>
                                 <option value="usuario">Usuario</option>
-                                <option value="admin_club">Admin Organización</option>
+                                <option value="admin_club">Admin OrganizaciÃ³n</option>
                                 <option value="admin_torneo">Admin Torneo</option>
                                 <option value="admin_general">Admin General</option>
                             <?php else: ?>
@@ -1174,19 +1170,19 @@ $is_admin_club = $current_user['role'] === 'admin_club';
     </div>
 </div>
 
-<!-- Modal Confirmar Eliminaci�n -->
+<!-- Modal Confirmar Eliminaciï¿½n -->
 <div class="modal fade" id="deleteUserModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title text-danger">
-                    <i class="fas fa-exclamation-triangle"></i> Confirmar Eliminaci�n
+                    <i class="fas fa-exclamation-triangle"></i> Confirmar Eliminaciï¿½n
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>�Est� seguro de que desea eliminar el usuario <strong id="delete_username"></strong>?</p>
-                <p class="text-danger"><small>Esta acci�n no se puede deshacer.</small></p>
+                <p>ï¿½Estï¿½ seguro de que desea eliminar el usuario <strong id="delete_username"></strong>?</p>
+                <p class="text-danger"><small>Esta acciï¿½n no se puede deshacer.</small></p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -1202,7 +1198,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
     </div>
 </div>
 
-<!-- Vista previa notificación de acceso -->
+<!-- Vista previa notificaciÃ³n de acceso -->
 <div class="modal fade" id="accessNotifyPreviewModal" tabindex="-1" aria-labelledby="accessNotifyPreviewLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -1245,7 +1241,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
     </div>
 </div>
 
-<!-- Modal Cambiar Contrase�a -->
+<!-- Modal Cambiar Contraseï¿½a -->
 <div class="modal fade" id="changePasswordModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -1254,31 +1250,31 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                 <input type="hidden" name="user_id" id="change_password_user_id">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="fas fa-key"></i> Cambiar Contrase�a
+                        <i class="fas fa-key"></i> Cambiar Contraseï¿½a
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i>
-                        Cambiando contrase�a para: <strong id="change_password_username"></strong>
+                        Cambiando contraseï¿½a para: <strong id="change_password_username"></strong>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="new_password" class="form-label">Nueva Contrase�a *</label>
+                        <label for="new_password" class="form-label">Nueva Contraseï¿½a *</label>
                         <input type="password" class="form-control" id="new_password" name="new_password" required>
-                        <div class="form-text">M�nimo 6 caracteres</div>
+                        <div class="form-text">Mï¿½nimo 6 caracteres</div>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="confirm_password" class="form-label">Confirmar Contrase�a *</label>
+                        <label for="confirm_password" class="form-label">Confirmar Contraseï¿½a *</label>
                         <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Cambiar Contrase�a
+                        <i class="fas fa-save"></i> Cambiar Contraseï¿½a
                     </button>
                 </div>
             </form>
@@ -1286,7 +1282,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
     </div>
 </div>
 
-<!-- Pestaña de Solicitudes de Registro -->
+<!-- PestaÃ±a de Solicitudes de Registro -->
 <div class="tab-pane fade <?= $action === 'requests' ? 'show active' : '' ?>" id="requests" role="tabpanel" aria-labelledby="requests-tab">
     <!-- Mensajes -->
     <?php if ($success_message && $action === 'requests'): ?>
@@ -1358,7 +1354,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                         <?php
                                         $role_labels = [
                                             'usuario' => 'Usuario',
-                                            'admin_club' => 'Admin Organización'
+                                            'admin_club' => 'Admin OrganizaciÃ³n'
                                         ];
                                         ?>
                                         <span class="badge bg-info role-badge">
@@ -1391,7 +1387,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                     </table>
                 </div>
 
-                <!-- Paginación -->
+                <!-- PaginaciÃ³n -->
                 <?php if (isset($pagination)): ?>
                     <?= $pagination->render() ?>
                 <?php endif; ?>
@@ -1411,8 +1407,8 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>¿Está seguro de que desea aprobar la solicitud de registro de <strong id="approve_request_name"></strong>?</p>
-                <p class="text-success"><small>Se creará un nuevo usuario con los datos proporcionados.</small></p>
+                <p>Â¿EstÃ¡ seguro de que desea aprobar la solicitud de registro de <strong id="approve_request_name"></strong>?</p>
+                <p class="text-success"><small>Se crearÃ¡ un nuevo usuario con los datos proporcionados.</small></p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -1442,10 +1438,10 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p>¿Está seguro de que desea rechazar la solicitud de registro de <strong id="reject_request_name"></strong>?</p>
+                    <p>Â¿EstÃ¡ seguro de que desea rechazar la solicitud de registro de <strong id="reject_request_name"></strong>?</p>
                     <div class="mb-3">
-                        <label for="rejection_reason" class="form-label">Razón del rechazo (opcional)</label>
-                        <textarea class="form-control" id="rejection_reason" name="reason" rows="3" placeholder="Explique por qué se rechaza la solicitud..."></textarea>
+                        <label for="rejection_reason" class="form-label">RazÃ³n del rechazo (opcional)</label>
+                        <textarea class="form-control" id="rejection_reason" name="reason" rows="3" placeholder="Explique por quÃ© se rechaza la solicitud..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1486,7 +1482,7 @@ function buscarPersona() {
         const cedula = document.getElementById('cedula_busqueda').value.trim();
         const nacionalidad = document.getElementById('nacionalidad').value;
         if (!cedula) {
-            resultadoDiv.innerHTML = '<div class="alert alert-warning py-2"><i class="fas fa-exclamation-triangle"></i> Ingrese una cédula para buscar</div>';
+            resultadoDiv.innerHTML = '<div class="alert alert-warning py-2"><i class="fas fa-exclamation-triangle"></i> Ingrese una cÃ©dula para buscar</div>';
             return;
         }
         apiUrl = getBaseUrlForApi() + '/api/search_user_persona.php?cedula=' + encodeURIComponent(cedula) + '&nacionalidad=' + encodeURIComponent(nacionalidad);
@@ -1545,7 +1541,7 @@ function buscarPersona() {
                 resultadoDiv.innerHTML = `
                     <div class="alert alert-info py-2">
                         <i class="fas fa-info-circle"></i> ${d.mensaje}
-                        <br>Datos precargados desde solicitud. Complete contraseña, club y guarde para <strong>registrarlo y asignar como Admin Torneo</strong>.
+                        <br>Datos precargados desde solicitud. Complete contraseÃ±a, club y guarde para <strong>registrarlo y asignar como Admin Torneo</strong>.
                     </div>`;
                 if (roleSelect) roleSelect.value = 'admin_torneo';
                 toggleClubField('create');
@@ -1594,10 +1590,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const cedulaInput = document.getElementById('cedula_busqueda');
     if (cedulaInput) {
         cedulaInput.addEventListener('blur', function() {
-            if (document.getElementById('buscar_por_cedula').checked && this.value.trim().length >= 6) buscarPersona();
+            if (document.getElementById('buscar_por_cedula').checked && this.value.trim().length >= 3) buscarPersona();
         });
         cedulaInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') { e.preventDefault(); buscarPersona(); }
+        });
+    }
+    const usuarioInputBuscar = document.getElementById('usuario_busqueda');
+    if (usuarioInputBuscar) {
+        usuarioInputBuscar.addEventListener('blur', function() {
+            if (document.getElementById('buscar_por_usuario').checked && this.value.trim().length >= 3) buscarPersona();
         });
     }
     const usuarioInput = document.getElementById('usuario_busqueda');
@@ -1608,7 +1610,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Función para mostrar/ocultar el campo de club según el rol
+// FunciÃ³n para mostrar/ocultar el campo de club segÃºn el rol
 function toggleClubField(formType) {
     const roleSelect = document.getElementById(formType === 'create' ? 'role' : 'edit_role');
     const clubField = document.getElementById('club_field_' + formType);
@@ -1631,11 +1633,11 @@ function toggleClubField(formType) {
         
         if (role === 'admin_torneo') {
             clubSelect.setAttribute('required', 'required');
-            clubHelp.innerHTML = '<strong class="text-danger">Obligatorio para Admin Torneo.</strong> Los torneos solo mostrar�n los del club asignado.';
+            clubHelp.innerHTML = '<strong class="text-danger">Obligatorio para Admin Torneo.</strong> Los torneos solo mostrarï¿½n los del club asignado.';
         } else if (role === 'admin_club') {
             clubSelect.removeAttribute('required');
             clubRequired.style.display = 'none';
-            clubHelp.innerHTML = 'Opcional para Admin Organización. Podr� crear sus clubes desde su panel.';
+            clubHelp.innerHTML = 'Opcional para Admin OrganizaciÃ³n. Podrï¿½ crear sus clubes desde su panel.';
         } else {
             clubSelect.removeAttribute('required');
             clubRequired.style.display = 'none';
@@ -1657,7 +1659,7 @@ function editUser(id, username, email, role, club_id, entidad) {
     document.getElementById('edit_club_id').value = club_id || '';
     document.getElementById('edit_entidad').value = entidad || '';
     
-    // Actualizar visibilidad del campo club seg�n el rol
+    // Actualizar visibilidad del campo club segï¿½n el rol
     toggleClubField('edit');
     
     const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
@@ -1679,11 +1681,11 @@ function toggleStatus(id, newStatus) {
     const btn = document.getElementById('toggle_confirm_btn');
     
     if (newStatus === 'true') {
-        message.textContent = '�Est� seguro de que desea activar este usuario?';
+        message.textContent = 'ï¿½Estï¿½ seguro de que desea activar este usuario?';
         btn.className = 'btn btn-success';
         btn.innerHTML = '<i class="fas fa-check"></i> Activar';
     } else {
-        message.textContent = '�Est� seguro de que desea desactivar este usuario?';
+        message.textContent = 'ï¿½Estï¿½ seguro de que desea desactivar este usuario?';
         btn.className = 'btn btn-warning';
         btn.innerHTML = '<i class="fas fa-ban"></i> Desactivar';
     }
@@ -1696,13 +1698,13 @@ function previewAccessNotify(data) {
     var body = document.getElementById('accessNotifyPreviewBody');
     if (!body) return;
     var lines = [
-        'Nombre: ' + (data.nombre || '—'),
-        'Usuario: ' + (data.username || '—'),
-        'Cédula: ' + (data.cedula || '—'),
-        'ID usuario: ' + (data.id || '—'),
-        'Rol: ' + (data.role || '—'),
+        'Nombre: ' + (data.nombre || 'â€”'),
+        'Usuario: ' + (data.username || 'â€”'),
+        'CÃ©dula: ' + (data.cedula || 'â€”'),
+        'ID usuario: ' + (data.id || 'â€”'),
+        'Rol: ' + (data.role || 'â€”'),
         '',
-        'El mensaje incluirá un enlace personalizado para cambiar la contraseña y la URL de inicio de sesión.'
+        'El mensaje incluirÃ¡ un enlace personalizado para cambiar la contraseÃ±a y la URL de inicio de sesiÃ³n.'
     ];
     body.innerHTML = '<pre class="mb-0 small" style="white-space:pre-wrap;">' + lines.map(function (l) {
         return l.replace(/</g, '&lt;');
@@ -1735,14 +1737,14 @@ function rejectRequest(id, name) {
     document.getElementById('reject_request_id').value = id;
     document.getElementById('reject_request_name').textContent = name;
     
-    // Limpiar campo de razón
+    // Limpiar campo de razÃ³n
     document.getElementById('rejection_reason').value = '';
     
     const modal = new bootstrap.Modal(document.getElementById('rejectRequestModal'));
     modal.show();
 }
 
-// Manejar cambio de pestañas
+// Manejar cambio de pestaÃ±as
 document.addEventListener('DOMContentLoaded', function() {
     const tabs = document.querySelectorAll('#userTabs .nav-link');
     tabs.forEach(tab => {

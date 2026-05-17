@@ -3,6 +3,10 @@
  * Actualizar deudas de clubs basado en inscritos
  */
 
+while (ob_get_level() > 0) {
+    ob_end_clean();
+}
+
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../../config/bootstrap.php';

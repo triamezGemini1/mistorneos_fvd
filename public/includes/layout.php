@@ -658,7 +658,7 @@ if ($current_page === 'estadisticas_torneos') {
                 <span class="input-group-text bg-light border-end-0">
                   <i class="fas fa-search text-muted"></i>
                 </span>
-                <input type="text" class="form-control border-start-0" placeholder="Buscar (mín. 3 caracteres)…" id="searchInput" minlength="3" autocomplete="off">
+                <input type="text" class="form-control border-start-0 app-search-blur-input" placeholder="Buscar (mín. 3 caracteres; al salir del campo)…" id="topbarSearchInput" minlength="3" autocomplete="off">
               </div>
             </div>
             

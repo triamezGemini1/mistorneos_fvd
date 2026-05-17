@@ -197,9 +197,10 @@ if (!empty($filter_torneo)) {
                 <!-- Búsqueda -->
                 <div class="col-md-9">
                     <label class="form-label"><i class="fas fa-search me-1"></i>Buscar</label>
-                    <input type="text" name="search" class="form-control" id="searchInput" 
-                           value="<?= htmlspecialchars($search) ?>" 
-                           placeholder="Buscar por nombre...">
+                    <input type="text" name="search" class="form-control app-search-blur-input" id="registrantsReportSearch"
+                           value="<?= htmlspecialchars($search) ?>"
+                           placeholder="Buscar por nombre (mín. 3 caracteres; al salir del campo)…"
+                           autocomplete="off" minlength="3">
                 </div>
             </div>
             

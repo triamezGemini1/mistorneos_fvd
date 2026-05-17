@@ -771,6 +771,23 @@ function handleRejectRequest() {
     exit;
 }
 
+/**
+ * Orden SQL: admin general → admin organización → admin torneo → operador → usuario.
+ */
+function sqlOrderUsuariosPorRol(string $alias = 'u'): string {
+    $col = $alias !== '' ? $alias . '.role' : 'role';
+    $nombre = $alias !== '' ? $alias . '.nombre' : 'nombre';
+    $id = $alias !== '' ? $alias . '.id' : 'id';
+    return "CASE {$col}
+        WHEN 'admin_general' THEN 1
+        WHEN 'admin_club' THEN 2
+        WHEN 'admin_torneo' THEN 3
+        WHEN 'operador' THEN 4
+        WHEN 'usuario' THEN 5
+        ELSE 99
+    END ASC, {$nombre} ASC, {$id} ASC";
+}
+
 function getUsers($page = 1, $per_page = 25, $admin_id = null, $search = null, $club_id = null, $role_filter = null) {
     $pdo = DB::pdo();
     $current_user = Auth::user();
@@ -1000,7 +1017,7 @@ function getUsers($page = 1, $per_page = 25, $admin_id = null, $search = null, $
         FROM usuarios u 
         LEFT JOIN clubes c ON u.club_id = c.id 
         $where
-        ORDER BY u.created_at DESC
+        ORDER BY " . sqlOrderUsuariosPorRol('u') . "
         LIMIT {$pagination->getLimit()} OFFSET {$pagination->getOffset()}
     ";
     $stmt = $pdo->prepare($sql);

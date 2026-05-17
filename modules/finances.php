@@ -593,7 +593,30 @@ if ($torneo_id > 0) {
     </div>
 </div>
 
+<?php
+$finances_actualizar_deudas_url = class_exists('AppHelpers')
+    ? rtrim(AppHelpers::getPublicUrl(), '/') . '/api/finances_actualizar_deudas.php'
+    : '/public/api/finances_actualizar_deudas.php';
+?>
 <script>
+const FINANCES_ACTUALIZAR_DEUDAS_URL = <?= json_encode($finances_actualizar_deudas_url, JSON_UNESCAPED_UNICODE) ?>;
+
+function parseFinancesJsonResponse(response) {
+    return response.text().then(function (text) {
+        const trimmed = (text || '').trim();
+        if (!trimmed) {
+            throw new Error('Respuesta vacía del servidor');
+        }
+        if (trimmed.charAt(0) === '<') {
+            throw new Error('El servidor devolvió HTML en lugar de JSON. Verifique sesión o permisos.');
+        }
+        try {
+            return JSON.parse(trimmed);
+        } catch (e) {
+            throw new Error('Respuesta no válida del servidor');
+        }
+    });
+}
 console.log('M�dulo de finanzas cargado');
 
 // ============================================
@@ -764,19 +787,20 @@ async function cargarTorneoConActualizacion(event) {
     }
     
     try {
-        // Primero actualizar las deudas
-        const baseUrl = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
-        const url = baseUrl + '/../modules/finances/actualizar_deudas.php';
-        
+        const url = (typeof FINANCES_ACTUALIZAR_DEUDAS_URL === 'string' && FINANCES_ACTUALIZAR_DEUDAS_URL)
+            ? FINANCES_ACTUALIZAR_DEUDAS_URL
+            : ((window.APP_PUBLIC_BASE || '') + '/api/finances_actualizar_deudas.php');
+
         console.log('Actualizando deudas del torneo', torneoId, 'en:', url);
-        
+
         const response = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
+            credentials: 'same-origin',
             body: JSON.stringify({ torneo_id: torneoId })
         });
-        
-        const data = await response.json();
+
+        const data = await parseFinancesJsonResponse(response);
         console.log('Resultado actualizaci�n:', data);
         
         if (data.success) {

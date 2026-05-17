@@ -33,3 +33,12 @@
 .app-search-wrap {
   position: relative;
 }
+
+/* Botones «Buscar» sustituidos por búsqueda al salir del campo (blur) */
+.app-search-submit-hidden {
+  display: none !important;
+}
+
+input.app-search-blur-input {
+  min-width: 0;
+}

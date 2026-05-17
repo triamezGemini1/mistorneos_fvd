@@ -25,8 +25,8 @@ $club_id_val = $club_id ?? 0;
     <div class="col-md-6">
         <label class="form-label">ID de Usuario</label>
         <div class="input-group input-group-sm">
-            <input type="number" class="form-control" id="id_usuario_<?= $modal_role ?>" placeholder="Ej: 123" min="1">
-            <button type="button" class="btn btn-primary" onclick="buscarPersonaRol('<?= $modal_role ?>')"><i class="fas fa-search"></i> Buscar</button>
+            <input type="number" class="form-control" id="id_usuario_<?= $modal_role ?>" placeholder="Ej: 123 (busca al salir del campo)" min="1" data-app-search-persona="1">
+            <button type="button" class="btn btn-primary app-search-submit-hidden" onclick="buscarPersonaRol('<?= $modal_role ?>')" tabindex="-1" aria-hidden="true"><i class="fas fa-search"></i> Buscar</button>
         </div>
     </div>
 </div>
@@ -43,8 +43,8 @@ $club_id_val = $club_id ?? 0;
     <div class="col-md-6">
         <label class="form-label">Cédula</label>
         <div class="input-group input-group-sm">
-            <input type="text" class="form-control" id="cedula_<?= $modal_role ?>" placeholder="Cédula">
-            <button type="button" class="btn btn-primary" onclick="buscarPersonaRol('<?= $modal_role ?>')"><i class="fas fa-search"></i> Buscar</button>
+            <input type="text" class="form-control" id="cedula_<?= $modal_role ?>" placeholder="Cédula (mín. 3; busca al salir del campo)" data-app-search-persona="1">
+            <button type="button" class="btn btn-primary app-search-submit-hidden" onclick="buscarPersonaRol('<?= $modal_role ?>')" tabindex="-1" aria-hidden="true"><i class="fas fa-search"></i> Buscar</button>
         </div>
     </div>
 </div>

@@ -216,7 +216,7 @@ if (!empty($filter_torneo)) {
 
                 <div class="col-md-9">
                     <label class="form-label"><i class="fas fa-search me-1"></i>Buscar</label>
-                    <input type="text" name="search" class="form-control" value="<?= htmlspecialchars($search) ?>" placeholder="Buscar por nombre, cédula o username...">
+                    <input type="text" name="search" class="form-control app-search-blur-input" value="<?= htmlspecialchars($search) ?>" placeholder="Buscar por nombre, cédula o username (mín. 3; al salir del campo)…" autocomplete="off" minlength="3">
                 </div>
             </div>
 

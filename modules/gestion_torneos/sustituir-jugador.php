@@ -179,7 +179,7 @@ $url_panel = $base_url . ($use_standalone ? '?' : '&') . 'action=panel&torneo_id
                                     <li>Ingrese solo los <strong>dígitos</strong> de la cédula (ej: <code>12345678</code>)</li>
                                     <li>O el <strong>ID de usuario</strong> si lo conoce (ej: <code>42</code>)</li>
                                     <li>También acepta formato con nacionalidad: <code>V12345678</code> o <code>E12345678</code></li>
-                                    <li>Presione <strong>Buscar</strong> y luego <strong>Sustituir</strong> cuando aparezca el resultado</li>
+                                    <li>Escriba la cédula o ID y salga del campo para buscar; luego pulse <strong>Sustituir</strong> cuando aparezca el resultado</li>
                                 </ul>
                             </div>
                             <div class="card">
@@ -187,8 +187,8 @@ $url_panel = $base_url . ($use_standalone ? '?' : '&') . 'action=panel&torneo_id
                                     <div class="mb-3">
                                         <label class="form-label fw-bold">Cédula / ID de Usuario <span class="text-danger">*</span></label>
                                         <div class="input-group">
-                                            <input type="text" id="input_cedula" class="form-control" placeholder="Ej: 12345678 o ID de usuario">
-                                            <button type="button" class="btn btn-info" id="btn_buscar_cedula">
+                                            <input type="text" id="input_cedula" class="form-control" placeholder="Ej: 12345678 o ID (mín. 3; busca al salir del campo)" data-app-search-persona="1">
+                                            <button type="button" class="btn btn-info app-search-submit-hidden" id="btn_buscar_cedula" tabindex="-1" aria-hidden="true">
                                                 <i class="fas fa-search me-2"></i>Buscar
                                             </button>
                                             <button type="button" class="btn btn-success" id="btn_sustituir_cedula" disabled>

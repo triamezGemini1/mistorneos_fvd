@@ -61,8 +61,8 @@ $es_reactivacion = (($_GET['from'] ?? '') === 'reactivar');
                     <div class="col-md-4">
                         <label class="form-label">Cédula</label>
                         <div class="input-group">
-                            <input type="text" class="form-control" id="cedula_busqueda" placeholder="Número de cédula" autocomplete="off">
-                            <button type="button" class="btn btn-primary" id="btn_buscar_responsable" title="Buscar en usuarios, base externa o solicitudes">
+                            <input type="text" class="form-control" id="cedula_busqueda" placeholder="Número de cédula (mín. 3; busca al salir del campo)" autocomplete="off" data-app-search-persona="1">
+                            <button type="button" class="btn btn-primary app-search-submit-hidden" id="btn_buscar_responsable" title="Buscar en usuarios, base externa o solicitudes" tabindex="-1" aria-hidden="true">
                                 <i class="fas fa-search"></i> Buscar
                             </button>
                         </div>

@@ -666,11 +666,11 @@ $api_guardar_equipo = $base_url . ($use_standalone ? '?' : '&') . 'action=guarda
                                    inputmode="numeric"
                                    autocomplete="off"
                                    aria-describedby="hintLazyCedula">
-                            <button type="button" class="btn btn-primary" id="btnBuscarCedulaLazy" title="Consultar y añadir a la lista">
+                            <button type="button" class="btn btn-primary app-search-submit-hidden" id="btnBuscarCedulaLazy" title="Consultar y añadir a la lista" tabindex="-1" aria-hidden="true">
                                 <i class="fas fa-plus"></i> Añadir
                             </button>
                         </div>
-                        <small id="hintLazyCedula" class="text-muted d-block">1) Club y nombre del equipo. 2) Busque por cédula; el jugador aparece abajo para asignar.</small>
+                        <small id="hintLazyCedula" class="text-muted d-block">1) Club y nombre del equipo. 2) Escriba la cédula y salga del campo para consultar; el jugador aparece abajo para asignar.</small>
                         <input type="text" id="searchJugadores" class="form-control form-control-sm mt-1 d-none" disabled aria-hidden="true">
                     <?php else: ?>
                     <input type="text"
@@ -1232,9 +1232,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const btn = document.getElementById('btnBuscarCedulaLazy');
     const inp = document.getElementById('buscarCedulaLazy');
     if (btn) btn.addEventListener('click', function () { buscarCedulaLazyAnadir(); });
-    if (inp) inp.addEventListener('keydown', function (ev) {
-        if (ev.key === 'Enter') { ev.preventDefault(); buscarCedulaLazyAnadir(); }
-    });
+    if (inp) {
+        inp.addEventListener('blur', function () {
+            if (inp.value.trim().replace(/\D/g, '').length >= 3 || inp.value.trim().length >= 3) {
+                buscarCedulaLazyAnadir();
+            }
+        });
+        inp.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter') { ev.preventDefault(); buscarCedulaLazyAnadir(); }
+        });
+    }
 });
 
 // Buscar jugador por cédula
