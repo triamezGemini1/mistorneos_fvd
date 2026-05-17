@@ -498,6 +498,27 @@ final class AsociacionAdminHelper
         return null;
     }
 
+    /**
+     * FVD: el selector de "asociación" envía entidad; en clubes id suele coincidir con entidad.
+     */
+    public static function resolverClubIdDesdeEntidad(PDO $pdo, int $entidadId): ?int
+    {
+        if ($entidadId <= 0) {
+            return null;
+        }
+        $st = $pdo->prepare('SELECT id FROM clubes WHERE id = ? AND estatus = 1 LIMIT 1');
+        $st->execute([$entidadId]);
+        $id = (int) ($st->fetchColumn() ?: 0);
+        if ($id > 0) {
+            return $id;
+        }
+        $st = $pdo->prepare('SELECT id FROM clubes WHERE entidad = ? AND estatus = 1 ORDER BY id ASC LIMIT 1');
+        $st->execute([$entidadId]);
+        $id = (int) ($st->fetchColumn() ?: 0);
+
+        return $id > 0 ? $id : null;
+    }
+
     public static function validarClubPermitido(PDO $pdo, ?int $idClub): bool
     {
         $forzado = self::idClubForzadoInscripcion($pdo);

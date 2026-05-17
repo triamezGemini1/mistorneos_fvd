@@ -10,6 +10,7 @@ require_once __DIR__ . '/../lib/app_helpers.php';
 require_once __DIR__ . '/../lib/security.php';
 require_once __DIR__ . '/../lib/RateLimiter.php';
 require_once __DIR__ . '/../lib/TournamentScopeHelper.php';
+require_once __DIR__ . '/../lib/AsociacionAdminHelper.php';
 
 /**
  * Busca usuario por cédula (variantes con/sin nacionalidad).
@@ -209,6 +210,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $torneo) {
 
                 if (!empty($usuario_row['club_id']) && (int)$usuario_row['club_id'] > 0) {
                     $id_club_inscripcion = (int)$usuario_row['club_id'];
+                } elseif ($entidad > 0) {
+                    $id_club_inscripcion = AsociacionAdminHelper::resolverClubIdDesdeEntidad($pdo, $entidad);
                 }
 
                 $stmtUpd = $pdo->prepare(
@@ -266,6 +269,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $torneo) {
                     }
                 }
                 
+                $club_id_nuevo = AsociacionAdminHelper::resolverClubIdDesdeEntidad($pdo, $entidad);
+                if ($club_id_nuevo === null || $club_id_nuevo <= 0) {
+                    throw new Exception('La asociación seleccionada no está registrada como club en el sistema. Contacte a la FVD.');
+                }
                 $userData = [
                     'username' => $username,
                     'password' => $password,
@@ -277,10 +284,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $torneo) {
                     'celular' => $celular ?: null,
                     'fechnac' => $fechnac ?: null,
                     'sexo' => $sexo,
-                    'entidad' => $entidad > 0 ? $entidad : null,
+                    'entidad' => $entidad,
+                    'club_id' => $club_id_nuevo,
                     'status' => 'approved',
                     '_allow_club_for_usuario' => true,
                 ];
+                if ($club_id_nuevo !== null && $club_id_nuevo > 0) {
+                    $id_club_inscripcion = $club_id_nuevo;
+                }
                 
                 $result = Security::createUser($userData);
                 
@@ -297,16 +308,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $torneo) {
             require_once __DIR__ . '/../lib/InscritosHelper.php';
             
             if ($id_club_inscripcion === null && $entidad > 0) {
-                $stClub = $pdo->prepare("SELECT id FROM clubes WHERE entidad = ? AND cod_org = 1 ORDER BY id ASC LIMIT 1");
-                try {
-                    $stClub->execute([$entidad]);
-                    $cid = (int)$stClub->fetchColumn();
-                    if ($cid > 0) {
-                        $id_club_inscripcion = $cid;
-                    }
-                } catch (Throwable $e) {
-                    // cod_org puede no existir en esquemas legacy
-                }
+                $id_club_inscripcion = AsociacionAdminHelper::resolverClubIdDesdeEntidad($pdo, $entidad);
             }
 
             $id_inscrito = InscritosHelper::insertarInscrito($pdo, [

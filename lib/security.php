@@ -223,11 +223,19 @@ final class Security
         $allow_club_usuario = !empty($data['_allow_club_for_usuario']);
         unset($data['_allow_club_for_usuario']);
         if ($allow_club_usuario && ($data['role'] ?? '') === 'usuario') {
-            $club_id_val = (int)($data['club_id'] ?? 0);
+            $club_id_val = (int) ($data['club_id'] ?? 0);
+            $entidad_val = (int) ($data['entidad'] ?? 0);
+            if ($club_id_val <= 0 && $entidad_val > 0) {
+                require_once __DIR__ . '/AsociacionAdminHelper.php';
+                $club_id_val = (int) (AsociacionAdminHelper::resolverClubIdDesdeEntidad(DB::pdo(), $entidad_val) ?? 0);
+            }
             if ($club_id_val <= 0) {
-                $errors[] = 'Debe seleccionar un club válido';
+                $errors[] = 'Debe seleccionar una asociación válida';
             } else {
                 $data['club_id'] = $club_id_val;
+                if ($entidad_val <= 0) {
+                    $data['entidad'] = $club_id_val;
+                }
             }
         } elseif (!$allow_club_usuario && in_array($data['role'] ?? '', ['admin_general', 'usuario']) && !empty($data['club_id'])) {
             $data['club_id'] = null; // Forzar a null
