@@ -14,6 +14,29 @@ $zipName = "mistorneos_fvd_patch_{$timestamp}.zip";
 $zipPath = $distDir . DIRECTORY_SEPARATOR . $zipName;
 
 $files = [
+    // Versión de despliegue
+    'config/deploy_build.php',
+    'public/verificar_despliegue_version.php',
+    // Rutas / perfil / contraseña
+    'lib/app_helpers.php',
+    'public/switch_role.php',
+    'public/includes/user_menu_dropdown.php',
+    'modules/users/profile.php',
+    'modules/users/profile_save.php',
+    'modules/users/change_password.php',
+    'modules/users/change_password_save.php',
+    'public/change_password_save.php',
+    // Inscritos / reporte torneo
+    'lib/InscritosHelper.php',
+    'lib/InscripcionPagoService.php',
+    'modules/registrants.php',
+    'public/api/inscripcion_admin.php',
+    'public/assets/registrants-inscripciones.js',
+    // Landing SPA
+    'public/landing-spa.php',
+    'public/assets/landing-spa.js',
+    'public/assets/dist/output.css',
+    'lib/app_helpers.php',
     // Finanzas
     'modules/finances.php',
     'modules/finances/actualizar_deudas.php',
@@ -22,19 +45,14 @@ $files = [
     'modules/users.php',
     // Landing contador inscritos
     'lib/LandingDataService.php',
-  // Inscripción en línea
+    // Inscripción en línea
     'public/inscribir_evento_masivo.php',
     // Reportes de pago admin
     'lib/ReportePagoUsuarioService.php',
     'modules/reportes_pago_usuarios.php',
     'public/api/reporte_pago_admin.php',
     'public/assets/reportes-pago-usuarios.js',
-    'config/deploy_build.php',
-    'public/verificar_despliegue_version.php',
     'modules/gestion_torneos/panel-moderno.php',
-    'modules/registrants.php',
-    'public/api/inscripcion_admin.php',
-    'public/assets/registrants-inscripciones.js',
 ];
 
 if (!is_dir($distDir) && !@mkdir($distDir, 0755, true) && !is_dir($distDir)) {
@@ -67,19 +85,27 @@ MISTORNEOS FVD — Parche (últimos cambios)
 
 Extraer en la raíz del proyecto (ej. public_html/mistorneos_fvd/).
 
-1. Finanzas — actualizar deudas (API JSON)
-2. Usuarios — orden por rol en listado
-3. Landing — contador inscritos (incluye pendiente)
-4. Inscripción en línea — cédula/nacionalidad en inscritos
-5. Reportes de pago — switch confirmado, recibo imprimible, notificaciones web/Telegram
-6. Reportes de pago — buscador (cédula, nombre, ID usuario, NUMFVD) y filtro Todos/Pendientes/Confirmados
-7. Gestionar inscripciones (registrants) — buscador, filtro, switch confirmado/pendiente, recibo y notificaciones
+INSCRITOS / REPORTE POR TORNEO (registrants)
+- Filtros Todos / Pendientes / Confirmados / Retirados: botones separados, una fila, alineados con el buscador; sin botón Aplicar (auto al elegir).
+- Columna Pago: switch pendiente ↔ confirmado.
+- Columna Retirado: switch aparte (estatus 9).
+- Acciones: enviar mensaje (web push + Telegram) y recibo al confirmar.
+- Vista compacta torneo: oculta estadísticas globales y panel de filtros antiguo.
+- Redirect correcto al cambiar rol o salir del perfil.
 
-Reportes de pago: Panel torneo → Reportes de pago. Al activar el switch se confirma el pago,
-muestra recibo para imprimir y notifica al atleta (web push + Telegram).
-Use el buscador y los botones de estado en el encabezado del reporte.
+PERFIL / CONTRASEÑA
+- Rutas AppHelpers; guardado de contraseña embebido en layout.
 
-No requiere migración SQL.
+OTROS (paquetes anteriores)
+- Finanzas, reportes de pago, landing, inscripción en línea, orden usuarios por rol.
+
+LANDING
+- Recompilar CSS: npm run build:css (incluido output.css en este parche).
+- Hero sin recorte de título; menú responsive md:flex; logo + nombre en barra.
+
+No requiere migración SQL obligatoria (estatus retirado = 9 ya documentado en migrate si aplica).
+
+Verificar: public/verificar_despliegue_version.php y landing-spa.php (Ctrl+F5).
 TXT;
 
 $zip->addFromString('LEEME_PARCHE.txt', $readme);

@@ -68,7 +68,12 @@ try {
         $_SESSION['user']['telegram_chat_id'] = $telegram_chat_id;
     }
 
-    $redirect = AppHelpers::url('index.php', ['page' => 'users/profile', 'ok' => 1]);
+    $script = $_SERVER['SCRIPT_NAME'] ?? '';
+    $fromProfile = str_ends_with($script, '/profile_save.php')
+        || (isset($_SERVER['HTTP_REFERER']) && str_contains((string) $_SERVER['HTTP_REFERER'], 'profile.php'));
+    $redirect = $fromProfile
+        ? AppHelpers::url('profile.php', ['ok' => 1])
+        : AppHelpers::url('index.php', ['page' => 'users/profile', 'ok' => 1]);
     header("Location: $redirect", true, 302);
     echo '<!doctype html><html><head>';
     echo '<meta http-equiv="refresh" content="0;url=' . htmlspecialchars($redirect, ENT_QUOTES) . '">';
@@ -77,7 +82,12 @@ try {
     exit;
 } catch (Throwable $e) {
     error_log("Perfil save error: " . $e->getMessage());
-    $error_redirect = AppHelpers::url('index.php', ['page' => 'users/profile', 'error' => urlencode($e->getMessage())]);
+    $script = $_SERVER['SCRIPT_NAME'] ?? '';
+    $fromProfile = str_ends_with($script, '/profile_save.php')
+        || (isset($_SERVER['HTTP_REFERER']) && str_contains((string) $_SERVER['HTTP_REFERER'], 'profile.php'));
+    $error_redirect = $fromProfile
+        ? AppHelpers::url('profile.php', ['error' => urlencode($e->getMessage())])
+        : AppHelpers::url('index.php', ['page' => 'users/profile', 'error' => urlencode($e->getMessage())]);
     header("Location: $error_redirect", true, 302);
     echo '<!doctype html><html><head>';
     echo '<meta http-equiv="refresh" content="0;url=' . htmlspecialchars($error_redirect, ENT_QUOTES) . '">';

@@ -14,39 +14,144 @@
         }).then((r) => r.json());
     }
 
-    document.querySelectorAll('.js-switch-pago-inscrito').forEach((el) => {
-        el.addEventListener('change', function () {
-            const inscripcionId = this.dataset.inscripcionId;
-            const torneoId = this.dataset.torneoId;
-            const pagado = this.checked ? '1' : '0';
-            const label = this.closest('.form-check')?.querySelector('.js-switch-pago-label');
-            const prev = !this.checked;
-            this.disabled = true;
+    const filterForm = document.getElementById('registrantsFilterForm');
+    if (filterForm) {
+        filterForm.querySelectorAll('.js-filtro-estatus-insc').forEach((radio) => {
+            radio.addEventListener('change', function () {
+                if (this.checked) filterForm.submit();
+            });
+        });
+        const busqueda = filterForm.querySelector('.js-filtro-busqueda-insc');
+        if (busqueda) {
+            busqueda.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    filterForm.submit();
+                }
+            });
+        }
+    }
 
-            postForm({
-                accion: 'toggle_pago',
-                inscripcion_id: inscripcionId,
-                torneo_id: torneoId,
-                pagado: pagado,
-                csrf_token: csrf,
+    const modalEl = document.getElementById('modalReciboInscrito');
+    const modalBody = document.getElementById('modalReciboInscritoBody');
+    const btnPrint = document.getElementById('btnReciboInscritoImprimir');
+    let modal;
+
+    function showRecibo(html) {
+        if (!modalEl || !modalBody) return;
+        modalBody.innerHTML = html;
+        if (typeof bootstrap !== 'undefined') {
+            modal = modal || new bootstrap.Modal(modalEl, {
+                backdrop: 'static',
+                keyboard: false,
+            });
+            modal.show();
+        }
+    }
+
+    if (btnPrint) {
+        btnPrint.addEventListener('click', () => {
+            const w = window.open('', '_blank');
+            if (!w) {
+                alert('Permita ventanas emergentes para imprimir el recibo.');
+                return;
+            }
+            w.document.write(
+                '<html><head><title>Recibo</title><style>body{font-family:sans-serif;padding:1rem;}</style></head><body>' +
+                    modalBody.innerHTML +
+                    '</body></html>'
+            );
+            w.document.close();
+            w.focus();
+            w.print();
+        });
+    }
+
+    function updatePagoLabel(sw) {
+        const label = sw.closest('.form-check')?.querySelector('.js-switch-pago-label');
+        if (label) label.textContent = sw.checked ? 'Confirmado' : 'Pendiente';
+    }
+
+    function updateRetiradoLabel(sw) {
+        const label = sw.closest('.form-check')?.querySelector('.js-switch-retirado-label');
+        if (label) label.textContent = sw.checked ? 'Retirado' : 'Activo';
+    }
+
+    function setEstatus(inscripcionId, torneoId, estado, onSuccess) {
+        return postForm({
+            accion: 'toggle_estatus',
+            inscripcion_id: inscripcionId,
+            torneo_id: torneoId,
+            estado: estado,
+            csrf_token: csrf,
+        })
+            .then((data) => {
+                if (!data.ok) {
+                    alert(data.message || 'Error al actualizar');
+                    return false;
+                }
+                if (typeof onSuccess === 'function') onSuccess(data);
+                return true;
             })
-                .then((data) => {
-                    if (!data.ok) {
-                        alert(data.message || 'Error al actualizar');
-                        this.checked = prev;
-                        return;
+            .catch(() => {
+                alert('Error de conexión');
+                return false;
+            });
+    }
+
+    document.querySelectorAll('.js-switch-pago-inscrito').forEach((sw) => {
+        sw.addEventListener('change', function () {
+            const el = this;
+            const inscripcionId = el.dataset.inscripcionId || '';
+            const torneoId = el.dataset.torneoId || '';
+            const estado = el.checked ? 'confirmado' : 'pendiente';
+            const prevChecked = !el.checked;
+            el.disabled = true;
+
+            setEstatus(inscripcionId, torneoId, estado, (data) => {
+                updatePagoLabel(el);
+                if (estado === 'confirmado' && data.recibo_html) {
+                    showRecibo(data.recibo_html);
+                } else {
+                    window.location.reload();
+                }
+            }).then((ok) => {
+                if (!ok) {
+                    el.checked = prevChecked;
+                    updatePagoLabel(el);
+                }
+            }).finally(() => {
+                el.disabled = false;
+            });
+        });
+    });
+
+    document.querySelectorAll('.js-switch-retirado-inscrito').forEach((sw) => {
+        sw.addEventListener('change', function () {
+            const inscripcionId = this.dataset.inscripcionId || '';
+            const torneoId = this.dataset.torneoId || '';
+            const marcarRetirado = this.checked;
+            const prevChecked = !this.checked;
+
+            if (marcarRetirado) {
+                if (!confirm('¿Marcar a este jugador como retirado del torneo?')) {
+                    this.checked = false;
+                    return;
+                }
+            }
+
+            this.disabled = true;
+            const estado = marcarRetirado ? 'retirado' : 'pendiente';
+
+            setEstatus(inscripcionId, torneoId, estado, () => {
+                updateRetiradoLabel(this);
+                window.location.reload();
+            })
+                .then((ok) => {
+                    if (!ok) {
+                        this.checked = prevChecked;
+                        updateRetiradoLabel(this);
                     }
-                    if (label) {
-                        label.textContent = this.checked ? 'Confirmado' : 'Pendiente';
-                    }
-                    if (this.checked && data.recibo_html) {
-                        showRecibo(data.recibo_html);
-                    }
-                    setTimeout(() => window.location.reload(), this.checked && data.recibo_html ? 800 : 400);
-                })
-                .catch(() => {
-                    alert('Error de conexión');
-                    this.checked = prev;
                 })
                 .finally(() => {
                     this.disabled = false;
@@ -54,11 +159,14 @@
         });
     });
 
-    document.querySelectorAll('.js-notif-inscrito').forEach((btn) => {
+    document.querySelectorAll('.js-enviar-mensaje-inscrito').forEach((btn) => {
         btn.addEventListener('click', function (e) {
             e.preventDefault();
             const inscripcionId = this.dataset.inscripcionId;
             const torneoId = this.dataset.torneoId;
+            if (!confirm('¿Enviar mensaje al inscrito por notificación web y Telegram?')) {
+                return;
+            }
             this.disabled = true;
             postForm({
                 accion: 'recordatorio_pago',
@@ -67,7 +175,10 @@
                 csrf_token: csrf,
             })
                 .then((data) => {
-                    alert(data.message || (data.ok ? 'Enviado' : 'Error'));
+                    const base = data.ok
+                        ? 'Mensaje enviado por notificación web y Telegram.'
+                        : data.message || 'Error al enviar';
+                    alert(base);
                     if (data.ok && data.whatsapp_url) {
                         window.open(data.whatsapp_url, '_blank');
                     }
@@ -103,29 +214,4 @@
                 });
         });
     });
-
-    const modalEl = document.getElementById('modalReciboInscrito');
-    const modalBody = document.getElementById('modalReciboInscritoBody');
-    const btnPrint = document.getElementById('btnReciboInscritoImprimir');
-    let modal;
-
-    function showRecibo(html) {
-        if (!modalEl || !modalBody) return;
-        modalBody.innerHTML = html;
-        if (typeof bootstrap !== 'undefined') {
-            modal = modal || new bootstrap.Modal(modalEl);
-            modal.show();
-        }
-    }
-
-    if (btnPrint) {
-        btnPrint.addEventListener('click', () => {
-            const w = window.open('', '_blank');
-            if (!w) return;
-            w.document.write('<html><head><title>Recibo</title></head><body>' + modalBody.innerHTML + '</body></html>');
-            w.document.close();
-            w.focus();
-            w.print();
-        });
-    }
 })();

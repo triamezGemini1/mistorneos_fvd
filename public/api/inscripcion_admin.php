@@ -47,13 +47,23 @@ if (!Auth::canAccessTournament($torneoId)) {
 }
 
 try {
-    if ($accion === 'toggle_pago') {
-        $pagado = (int) ($_POST['pagado'] ?? 0) === 1;
-        $res = $pagado
-            ? InscripcionPagoService::validarPagoInscripcion($pdo, $inscripcionId, $torneoId)
-            : InscripcionPagoService::marcarPendienteInscripcion($pdo, $inscripcionId, $torneoId);
-        $payload = ['ok' => $res['ok'], 'message' => $res['message'], 'pagado' => $pagado];
-        if ($res['ok'] && $pagado) {
+    if ($accion === 'toggle_estatus' || $accion === 'toggle_pago') {
+        $estado = trim((string) ($_POST['estado'] ?? ''));
+        if ($estado === '' && $accion === 'toggle_pago') {
+            $estado = (int) ($_POST['pagado'] ?? 0) === 1 ? 'confirmado' : 'pendiente';
+        }
+        if (!in_array($estado, ['pendiente', 'confirmado', 'retirado'], true)) {
+            echo json_encode(['ok' => false, 'message' => 'Estatus no válido'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $res = InscripcionPagoService::establecerEstatusInscripcion($pdo, $inscripcionId, $torneoId, $estado);
+        $payload = [
+            'ok' => $res['ok'],
+            'message' => $res['message'],
+            'estado' => $estado,
+            'pagado' => $estado === 'confirmado',
+        ];
+        if ($res['ok'] && $estado === 'confirmado') {
             $recibo = cargarReciboInscripcion($pdo, $inscripcionId, $torneoId);
             if ($recibo !== null) {
                 $payload['recibo_html'] = $recibo['html'];

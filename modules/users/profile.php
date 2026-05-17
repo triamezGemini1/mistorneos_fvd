@@ -50,7 +50,7 @@ $form_action = AppHelpers::url('profile_save.php');
 $role_original = (string)($_SESSION['user']['role_original'] ?? ($_SESSION['user']['role'] ?? ''));
 $role_mode_actual = (int)($_SESSION['user']['role_switch_mode'] ?? (($role_original === 'admin_general') ? 0 : 0));
 $url_switch_role = AppHelpers::url('switch_role.php');
-$current_uri = $_SERVER['REQUEST_URI'] ?? AppHelpers::url('index.php', ['page' => 'users/profile']);
+$current_uri = AppHelpers::returnToForPost();
 $role_labels = [
   0 => '0 - Admin General',
   1 => '1 - Admin Organización',
@@ -60,7 +60,10 @@ $role_labels = [
 ];
 ?>
 
-<?php $ok = isset($_GET['ok']) ? true : false; ?>
+<?php
+$ok = isset($_GET['ok']) || isset($_GET['pwd_ok']);
+$profile_error = isset($_GET['error']) ? (string) $_GET['error'] : '';
+?>
 
 <style>
 .profile-card .profile-photo-container {
@@ -110,7 +113,13 @@ $role_labels = [
     <div class="col-xl-8 col-lg-9">
       <?php if ($ok): ?>
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-          <i class="fas fa-check-circle me-2"></i>Perfil actualizado correctamente.
+          <i class="fas fa-check-circle me-2"></i><?= isset($_GET['pwd_ok']) ? 'Contraseña actualizada correctamente.' : 'Perfil actualizado correctamente.' ?>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      <?php endif; ?>
+      <?php if ($profile_error !== ''): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <i class="fas fa-exclamation-circle me-2"></i><?= htmlspecialchars(urldecode($profile_error)) ?>
           <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
       <?php endif; ?>
@@ -279,7 +288,7 @@ $role_labels = [
                   <strong><i class="fas fa-key me-2"></i>Cambiar contraseña</strong>
                 </div>
                 <div class="card-body">
-                  <a class="btn btn-sm btn-outline-primary" href="<?= htmlspecialchars(AppHelpers::url('modules/users/change_password.php')) ?>">
+                  <a class="btn btn-sm btn-outline-primary" href="<?= htmlspecialchars(AppHelpers::dashboard('users/change_password')) ?>">
                     <i class="fas fa-key me-1"></i>Ir a cambiar contraseña
                   </a>
                   <div class="mt-2">

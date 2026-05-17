@@ -41,7 +41,8 @@ try {
     <meta property="og:description" content="Plataforma integral para la gestión de torneos de dominó en Venezuela.">
     <link rel="canonical" href="<?= htmlspecialchars($base_url . 'landing-spa.php') ?>">
     
-    <link rel="stylesheet" href="<?= htmlspecialchars($base_url . 'assets/dist/output.css') ?>" media="print" onload="this.media='all'">
+    <?php $landing_css_v = @filemtime(__DIR__ . '/assets/dist/output.css') ?: time(); ?>
+    <link rel="stylesheet" href="<?= htmlspecialchars($base_url . 'assets/dist/output.css') ?>?v=<?= (int)$landing_css_v ?>">
     <noscript><link rel="stylesheet" href="<?= htmlspecialchars($base_url . 'assets/dist/output.css') ?>"></noscript>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"></noscript>
@@ -76,6 +77,14 @@ try {
         /* Shell estático: sin parpadeo antes de Vue (misma jerarquía que nav+hero) */
         #static-landing-shell { flex-shrink: 0; }
         .landing-loading-below-fold { min-height: min(50vh, 28rem); flex: 1 1 auto; }
+        #hero { overflow-x: hidden; overflow-y: visible; }
+        #hero .esports-font-title { line-height: 1.12; }
+        #hero .hero-inner { padding-top: 3rem; padding-bottom: 3rem; }
+        @media (min-width: 768px) {
+            #hero .hero-inner { padding-top: 5rem; padding-bottom: 5rem; }
+        }
+        .landing-nav-logo { height: 2.25rem; width: 2.25rem; object-fit: contain; object-position: center; border-radius: 0.35rem; }
+        @media (min-width: 640px) { .landing-brand-text { display: inline !important; } }
         .esports-theme section:not(#hero) .container .text-center h2,
         .esports-theme section:not(#hero) .container h2 { color: #f1f5f9 !important; font-family: 'Montserrat', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; }
         .esports-theme section:not(#hero) .container h3,
@@ -244,8 +253,9 @@ try {
                 <nav class="esports-nav bg-[#0f172a]/95 border-b border-white/10 shadow-lg sticky top-0 z-50 backdrop-blur-md" aria-label="Principal">
                     <div class="container mx-auto px-4 sm:px-6 lg:px-8">
                         <div class="flex items-center justify-between h-16 md:h-20">
-                            <a href="<?= htmlspecialchars($base_url . 'landing-spa.php') ?>" class="flex items-center text-white font-bold hover:opacity-90 transition-opacity" title="La Estación del Dominó">
-                                <img src="<?= htmlspecialchars($logo_url) ?>" alt="La Estación del Dominó" width="200" height="50" fetchpriority="high" loading="eager" decoding="async" class="h-8 md:h-10 w-auto max-h-10 object-contain object-left">
+                            <a href="<?= htmlspecialchars($base_url . 'landing-spa.php') ?>" class="flex items-center gap-2 text-white font-bold hover:opacity-90 transition-opacity" title="La Estación del Dominó">
+                                <img src="<?= htmlspecialchars($logo_url) ?>" alt="" width="40" height="40" fetchpriority="high" loading="eager" decoding="async" class="landing-nav-logo shrink-0">
+                                <span class="esports-font-title text-sm sm:text-base leading-tight landing-brand-text" style="display:none">La Estación del Dominó</span>
                             </a>
                             <div class="hidden md:flex items-center space-x-1">
                                 <a href="#documentos" class="px-4 py-2 text-slate-300 hover:text-[#00f2ff] hover:bg-white/5 rounded-lg transition-all font-medium">Documentos</a>
@@ -262,10 +272,10 @@ try {
                         </div>
                     </div>
                 </nav>
-                <section id="hero" class="relative overflow-hidden" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);">
+                <section id="hero" class="relative" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);">
                     <div class="absolute inset-0 opacity-30" style="background-image: radial-gradient(circle at 2px 2px, rgba(0,242,255,0.15) 1px, transparent 0); background-size: 32px 32px;"></div>
                     <div class="absolute inset-0 bg-gradient-to-r from-[#00f2ff]/10 via-transparent to-[#00f2ff]/10"></div>
-                    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 lg:py-40 relative z-10">
+                    <div class="container mx-auto px-4 sm:px-6 lg:px-8 hero-inner relative z-10">
                         <div class="max-w-4xl mx-auto text-center">
                             <h1 class="esports-font-title text-4xl md:text-5xl lg:text-7xl mb-6 leading-tight text-white tracking-tight">
                                 Domina la Mesa,<br><span class="text-[#00f2ff]">Conviértete en Leyenda</span>
@@ -310,8 +320,9 @@ try {
             <nav class="esports-nav bg-[#0f172a]/95 border-b border-white/10 shadow-lg sticky top-0 z-50 backdrop-blur-md">
                 <div class="container mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="flex items-center justify-between h-16 md:h-20">
-                        <a :href="baseUrl + 'landing-spa.php'" @click.prevent="scrollToSection('hero')" class="flex items-center text-white font-bold hover:opacity-90 transition-opacity" title="La Estación del Dominó">
-                            <img :src="logoUrl" alt="La Estación del Dominó" width="200" height="50" fetchpriority="high" loading="eager" decoding="async" class="h-8 md:h-10 w-auto max-h-10 object-contain object-left">
+                        <a :href="baseUrl + 'landing-spa.php'" @click.prevent="scrollToSection('hero')" class="flex items-center gap-2 text-white font-bold hover:opacity-90 transition-opacity" title="La Estación del Dominó">
+                            <img :src="logoUrl" alt="" width="40" height="40" fetchpriority="high" loading="eager" decoding="async" class="landing-nav-logo shrink-0">
+                            <span class="esports-font-title text-sm sm:text-base leading-tight hidden sm:inline">La Estación del Dominó</span>
                         </a>
                         <div class="hidden md:flex items-center space-x-1">
                             <a href="#documentos" @click.prevent="scrollToSection('documentos')" class="px-4 py-2 text-slate-300 hover:text-[#00f2ff] hover:bg-white/5 rounded-lg transition-all font-medium">Documentos</a>
@@ -343,10 +354,10 @@ try {
             </nav>
 
             <!-- Hero -->
-            <section id="hero" class="relative overflow-hidden" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);">
+            <section id="hero" class="relative" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);">
                 <div class="absolute inset-0 opacity-30" style="background-image: radial-gradient(circle at 2px 2px, rgba(0,242,255,0.15) 1px, transparent 0); background-size: 32px 32px;"></div>
                 <div class="absolute inset-0 bg-gradient-to-r from-[#00f2ff]/10 via-transparent to-[#00f2ff]/10"></div>
-                <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 lg:py-40 relative z-10">
+                <div class="container mx-auto px-4 sm:px-6 lg:px-8 hero-inner relative z-10">
                     <div class="max-w-4xl mx-auto text-center">
                         <h1 class="esports-font-title text-4xl md:text-5xl lg:text-7xl mb-6 leading-tight text-white tracking-tight">
                             Domina la Mesa,<br><span class="text-[#00f2ff]">Conviértete en Leyenda</span>
@@ -704,6 +715,7 @@ try {
         };
     </script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <script src="<?= htmlspecialchars($base_url . 'assets/landing-spa.js') ?>"></script>
+    <?php $landing_js_v = @filemtime(__DIR__ . '/assets/landing-spa.js') ?: time(); ?>
+    <script src="<?= htmlspecialchars($base_url . 'assets/landing-spa.js') ?>?v=<?= (int)$landing_js_v ?>"></script>
 </body>
 </html>

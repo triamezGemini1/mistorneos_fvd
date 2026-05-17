@@ -1,0 +1,72 @@
+# =============================================================================
+# Despliegue automático por FTP/FTPS → producción (mistorneos_fvd)
+# =============================================================================
+# Disparador: push a la rama `main` únicamente.
+# Transporte: sincronización de archivos (sin php -r ni ejecución PHP en el runner).
+#
+# Secrets (Settings → Secrets and variables → Actions):
+#   FTP_SERVER    → Host FTP (ej. ftp.tudominio.com)
+#   FTP_USERNAME  → Usuario FTP
+#   FTP_PASSWORD  → Contraseña FTP
+#
+# Secret opcional:
+#   FTP_SERVER_DIR → Ruta remota relativa a la raíz de la cuenta FTP:
+#     • Cuenta FTP en la raíz del hosting (/):  public_html/mistorneos_fvd/
+#     • Cuenta FTP ya dentro de mistorneos_fvd:  ./
+#     (Si no defines FTP_SERVER_DIR, se usa public_html/mistorneos_fvd/)
+#
+# Archivos con credenciales de BD/config en producción NO se sobrescriben gracias a
+# **/*config*.php (y .env). Deben existir ya en el servidor.
+# =============================================================================
+
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Sync files to production (FTP)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve remote directory
+        id: ftp
+        shell: bash
+        env:
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+        run: |
+          echo "server_dir=${FTP_SERVER_DIR:-public_html/mistorneos_fvd/}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy via FTP/FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./
+          server-dir: ${{ steps.ftp.outputs.server_dir }}
+          dangerous-clean-slate: false
+          log-level: minimal
+          exclude: |
+            **/*config*.php
+            **/.git/**
+            **/.git*
+            **/.github/**
+            **/dist/**
+            **/*.zip
+            **/.env
+            **/.env.*
+            **/node_modules/**

@@ -40,6 +40,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cambi
         $inscripcion_id = (int)($_POST['inscripcion_id'] ?? 0);
         $torneo_id_redir = (int)($_POST['torneo_id'] ?? 0);
         $nuevo_estatus = (int)($_POST['estatus'] ?? 0);
+        if ($nuevo_estatus === InscritosHelper::ESTATUS_RETIRADO_NUM_LEGACY) {
+            $nuevo_estatus = InscritosHelper::ESTATUS_RETIRADO_NUM;
+        }
         if ($inscripcion_id > 0 && $torneo_id_redir > 0 && InscritosHelper::isValidEstatus($nuevo_estatus) && Auth::canAccessTournament($torneo_id_redir)) {
             $pdo = DB::pdo();
             $stmt = $pdo->prepare("SELECT id FROM inscritos WHERE id = ? AND torneo_id = ?");
@@ -384,7 +387,7 @@ if ($action === 'list') {
             } elseif ($filtro_estatus_insc === 'confirmado') {
                 $where[] = "(r.estatus IN (1, 2, 3) OR r.estatus IN ('confirmado', 'solvente'))";
             } elseif ($filtro_estatus_insc === 'retirado') {
-                $where[] = "(r.estatus = 4 OR r.estatus = 'retirado')";
+                $where[] = InscritosHelper::sqlWhereRetiradoConAlias('r');
             }
 
             if ($filtro_busqueda !== '') {
@@ -1089,26 +1092,62 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                         </h3>
                     </div>
                     <div class="card-body py-3">
-                        <form method="get" class="row g-3 align-items-end">
+                        <style>
+                            .registrants-filtro-toolbar .form-label-spacer {
+                                visibility: hidden;
+                                height: 1.5rem;
+                                margin-bottom: 0.25rem;
+                            }
+                            .registrants-filtro-estatus {
+                                flex-wrap: nowrap;
+                                overflow-x: auto;
+                                padding-bottom: 2px;
+                            }
+                            .registrants-filtro-estatus .btn,
+                            .registrants-filtro-limpiar {
+                                min-width: auto;
+                                white-space: nowrap;
+                                border-width: 2px;
+                                border-radius: .5rem;
+                                font-weight: 500;
+                                height: calc(1.5em + 0.75rem + 2px);
+                                display: inline-flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 0.375rem 0.85rem;
+                            }
+                        </style>
+                        <form method="get" class="row g-3 align-items-end registrants-filtro-toolbar" id="registrantsFilterForm">
                             <input type="hidden" name="page" value="registrants">
                             <input type="hidden" name="filter_torneo" value="<?= (int)$filter_torneo ?>">
-                            <div class="col-lg-5"><label class="form-label mb-1"><i class="fas fa-search me-1"></i>Buscar</label>
-                                <input type="search" name="q" class="form-control" placeholder="Cédula, nombre, ID usuario o NUMFVD" value="<?= htmlspecialchars($filtro_busqueda) ?>"></div>
-                            <div class="col-lg-4"><label class="form-label mb-1 d-block">Estado</label>
-                                <div class="btn-group w-100">
-                                    <input type="radio" class="btn-check" name="estatus_filtro" id="ef_todos" value="todos" <?= $filtro_estatus_insc === 'todos' ? 'checked' : '' ?>>
-                                    <label class="btn btn-outline-secondary btn-sm" for="ef_todos">Todos</label>
-                                    <input type="radio" class="btn-check" name="estatus_filtro" id="ef_pend" value="pendiente" <?= $filtro_estatus_insc === 'pendiente' ? 'checked' : '' ?>>
-                                    <label class="btn btn-outline-warning btn-sm" for="ef_pend">Pendientes</label>
-                                    <input type="radio" class="btn-check" name="estatus_filtro" id="ef_conf" value="confirmado" <?= $filtro_estatus_insc === 'confirmado' ? 'checked' : '' ?>>
-                                    <label class="btn btn-outline-success btn-sm" for="ef_conf">Confirmados</label>
-                                </div></div>
-                            <div class="col-lg-3 d-flex gap-2">
-                                <button type="submit" class="btn btn-primary flex-grow-1"><i class="fas fa-filter me-1"></i>Aplicar</button>
-                                <?php if ($filtro_busqueda !== '' || $filtro_estatus_insc !== 'todos'): ?>
-                                <a href="index.php?page=registrants&amp;filter_torneo=<?= (int)$filter_torneo ?>" class="btn btn-outline-secondary"><i class="fas fa-times"></i></a>
-                                <?php endif; ?>
+                            <?php $hay_filtro_insc_activo = $filtro_busqueda !== '' || $filtro_estatus_insc !== 'todos'; ?>
+                            <div class="<?= $hay_filtro_insc_activo ? 'col-lg-4' : 'col-lg-5' ?>"><label class="form-label mb-1"><i class="fas fa-search me-1"></i>Buscar</label>
+                                <input type="search" name="q" class="form-control js-filtro-busqueda-insc" placeholder="Cédula, nombre, ID usuario o NUMFVD (Enter)" value="<?= htmlspecialchars($filtro_busqueda) ?>"></div>
+                            <?php
+                            $ef_btn_todos = $filtro_estatus_insc === 'todos' ? 'btn-secondary' : 'btn-outline-secondary';
+                            $ef_btn_pend = $filtro_estatus_insc === 'pendiente' ? 'btn-warning text-dark' : 'btn-outline-warning';
+                            $ef_btn_conf = $filtro_estatus_insc === 'confirmado' ? 'btn-success' : 'btn-outline-success';
+                            $ef_btn_ret = $filtro_estatus_insc === 'retirado' ? 'btn-dark' : 'btn-outline-dark';
+                            ?>
+                            <div class="<?= $hay_filtro_insc_activo ? 'col-lg-6' : 'col-lg-7' ?>">
+                                <span class="form-label form-label-spacer mb-1 d-block" aria-hidden="true">Estado</span>
+                                <div class="d-flex flex-nowrap gap-2 registrants-filtro-estatus">
+                                    <input type="radio" class="btn-check js-filtro-estatus-insc" name="estatus_filtro" id="ef_todos" value="todos" <?= $filtro_estatus_insc === 'todos' ? 'checked' : '' ?> autocomplete="off">
+                                    <label class="btn <?= $ef_btn_todos ?>" for="ef_todos"><i class="fas fa-users me-1"></i>Todos</label>
+                                    <input type="radio" class="btn-check js-filtro-estatus-insc" name="estatus_filtro" id="ef_pend" value="pendiente" <?= $filtro_estatus_insc === 'pendiente' ? 'checked' : '' ?> autocomplete="off">
+                                    <label class="btn <?= $ef_btn_pend ?>" for="ef_pend"><i class="fas fa-clock me-1"></i>Pendientes</label>
+                                    <input type="radio" class="btn-check js-filtro-estatus-insc" name="estatus_filtro" id="ef_conf" value="confirmado" <?= $filtro_estatus_insc === 'confirmado' ? 'checked' : '' ?> autocomplete="off">
+                                    <label class="btn <?= $ef_btn_conf ?>" for="ef_conf"><i class="fas fa-check-circle me-1"></i>Confirmados</label>
+                                    <input type="radio" class="btn-check js-filtro-estatus-insc" name="estatus_filtro" id="ef_ret" value="retirado" <?= $filtro_estatus_insc === 'retirado' ? 'checked' : '' ?> autocomplete="off">
+                                    <label class="btn <?= $ef_btn_ret ?>" for="ef_ret"><i class="fas fa-user-slash me-1"></i>Retirados</label>
+                                </div>
                             </div>
+                            <?php if ($hay_filtro_insc_activo): ?>
+                            <div class="col-lg-2">
+                                <span class="form-label form-label-spacer mb-1 d-block" aria-hidden="true">Limpiar</span>
+                                <a href="index.php?page=registrants&amp;filter_torneo=<?= (int)$filter_torneo ?>" class="btn btn-outline-secondary w-100 registrants-filtro-limpiar" title="Limpiar filtros"><i class="fas fa-times me-1"></i>Limpiar</a>
+                            </div>
+                            <?php endif; ?>
                         </form>
                     </div>
                 </div>
@@ -1122,7 +1161,8 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                                 <th>Nombre</th>
                                 <th>Sexo</th>
                                 <th>Celular</th>
-                                <th>Estado</th>
+                                <th class="text-center">Pago</th>
+                                <th class="text-center">Retirado</th>
                                 <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
@@ -1188,21 +1228,18 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                                     <td class="text-center">
                                         <?php
                                         $est = $item['estatus'] ?? 0;
-                                        $est_num = is_numeric($est) ? (int)$est : (InscritosHelper::ESTATUS_REVERSE_MAP[$est] ?? 0);
                                         $es_confirmado = InscritosHelper::esConfirmado($est);
                                         $es_retirado = InscritosHelper::esRetirado($est);
-                                        $puede_switch = empty($torneo_cerrado_reg) && !$es_retirado;
-                                        $csrf_val = class_exists('CSRF') ? CSRF::token() : '';
-                                        if ($es_retirado): ?>
-                                            <span class="badge bg-dark">Retirado</span>
-                                        <?php elseif ($puede_switch): ?>
+                                        $uid_est = (int) $item['id'];
+                                        if (empty($torneo_cerrado_reg) && !$es_retirado): ?>
                                         <div class="form-check form-switch d-inline-flex justify-content-center mb-0">
                                             <input type="checkbox" class="form-check-input js-switch-pago-inscrito" role="switch"
-                                                   data-inscripcion-id="<?= (int)$item['id'] ?>"
-                                                   data-torneo-id="<?= (int)$filter_torneo ?>"
+                                                   data-inscripcion-id="<?= $uid_est ?>" data-torneo-id="<?= (int)$filter_torneo ?>"
                                                    <?= $es_confirmado ? 'checked' : '' ?>>
                                             <label class="form-check-label small ms-1 js-switch-pago-label"><?= $es_confirmado ? 'Confirmado' : 'Pendiente' ?></label>
                                         </div>
+                                        <?php elseif ($es_retirado): ?>
+                                            <span class="text-muted small">—</span>
                                         <?php elseif ($es_confirmado): ?>
                                             <span class="badge bg-success">Confirmado</span>
                                         <?php else: ?>
@@ -1210,14 +1247,23 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center">
-                                        <?php
-                                        $puede_retirar = true;
-                                        ?>
+                                        <?php if (empty($torneo_cerrado_reg)): ?>
+                                        <div class="form-check form-switch d-inline-flex justify-content-center mb-0">
+                                            <input type="checkbox" class="form-check-input js-switch-retirado-inscrito" role="switch"
+                                                   data-inscripcion-id="<?= $uid_est ?>" data-torneo-id="<?= (int)$filter_torneo ?>"
+                                                   <?= $es_retirado ? 'checked' : '' ?>>
+                                            <label class="form-check-label small ms-1 js-switch-retirado-label"><?= $es_retirado ? 'Retirado' : 'Activo' ?></label>
+                                        </div>
+                                        <?php else: ?>
+                                            <span class="badge <?= $es_retirado ? 'bg-dark' : 'bg-secondary' ?>"><?= $es_retirado ? 'Retirado' : 'Activo' ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-center">
                                         <div class="btn-group btn-group-sm flex-wrap justify-content-center">
                                         <?php if (!$es_retirado && empty($torneo_cerrado_reg)): ?>
-                                            <button type="button" class="btn btn-outline-primary js-notif-inscrito" title="Recordatorio de pago"
+                                            <button type="button" class="btn btn-outline-primary js-enviar-mensaje-inscrito" title="Enviar mensaje (notificación web y Telegram)"
                                                     data-inscripcion-id="<?= (int)$item['id'] ?>" data-torneo-id="<?= (int)$filter_torneo ?>">
-                                                <i class="fas fa-bell"></i>
+                                                <i class="fas fa-paper-plane"></i>
                                             </button>
                                             <?php if ($es_confirmado): ?>
                                             <button type="button" class="btn btn-outline-success js-recibo-inscrito" title="Recibo / imprimir"
@@ -1225,79 +1271,13 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                                                 <i class="fas fa-receipt"></i>
                                             </button>
                                             <?php endif; ?>
+                                        <?php elseif ($es_confirmado && empty($torneo_cerrado_reg)): ?>
+                                            <button type="button" class="btn btn-outline-success js-recibo-inscrito" title="Recibo / imprimir"
+                                                    data-inscripcion-id="<?= (int)$item['id'] ?>" data-torneo-id="<?= (int)$filter_torneo ?>">
+                                                <i class="fas fa-receipt"></i>
+                                            </button>
                                         <?php endif; ?>
-                                        <?php if ($puede_retirar && !$es_retirado): ?>
-                                            <form method="post" action="" class="d-inline" onsubmit="return confirm('¿Retirar a este jugador del torneo?');">
-                                                <input type="hidden" name="action" value="cambiar_estatus_inscrito">
-                                                <input type="hidden" name="torneo_id" value="<?= (int)$filter_torneo ?>">
-                                                <input type="hidden" name="inscripcion_id" value="<?= (int)$item['id'] ?>">
-                                                <input type="hidden" name="estatus" value="4">
-                                                <input type="hidden" name="return_to" value="<?= htmlspecialchars($return_to) ?>">
-                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_val) ?>">
-                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Retirar"><i class="fas fa-user-minus"></i></button>
-                                            </form>
-                                        <?php endif; ?>
-                                        <?php
-                                        // Verificar si el admin_torneo tiene permisos sobre este inscrito
-                                        $puede_editar = true;
-                                        $puede_eliminar = true;
-                                        $razon_bloqueado = '';
-                                        // Durante torneo cerrado no se permite eliminar ni editar, solo retirar
-                                        if (!empty($torneo_cerrado_reg)) {
-                                            $puede_editar = false;
-                                            $puede_eliminar = false;
-                                            $razon_bloqueado = $razon_bloqueado ?: 'Torneo cerrado: solo puede retirar jugadores, no eliminar ni editar';
-                                        }
-                                        if ($is_admin_torneo) {
-                                            // Debug: mostrar valores comparados
-                                            $debug_info = sprintf(
-                                                'club_responsable:%d vs user_club_id:%d, estatus:%d',
-                                                (int)$item['club_responsable'],
-                                                (int)$user_club_id,
-                                                (int)$item['torneo_estatus']
-                                            );
-                                            
-                                            // Solo puede editar/eliminar inscritos de torneos de su club que estén activos (estatus = 1)
-                                            if ($item['club_responsable'] != $user_club_id || $item['torneo_estatus'] != 1) {
-                                                $puede_editar = false;
-                                                $puede_eliminar = false;
-                                                $razon_bloqueado = 'Solo puede modificar inscritos de torneos activos de su club';
-                                            }
-                                        }
-                                        
-                                        // Admin club no puede editar/eliminar
-                                        if ($is_admin_club) {
-                                            $puede_editar = false;
-                                            $puede_eliminar = false;
-                                            $razon_bloqueado = 'No tiene permisos para modificar inscritos';
-                                        }
-                                    ?>
-                                    <?php if ($puede_editar): ?>
-                                        <a href="index.php?page=registrants&action=edit&id=<?= $item['id'] ?>" 
-                                           class="btn btn-sm btn-primary" 
-                                           title="Editar">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                    <?php else: ?>
-                                        <span class="btn btn-sm btn-secondary disabled" 
-                                              title="<?= htmlspecialchars($razon_bloqueado) ?>">
-                                            <i class="fas fa-lock"></i>
-                                        </span>
-                                    <?php endif; ?>
-                                    
-                                    <?php if ($puede_eliminar): ?>
-                                        <a href="index.php?page=registrants&action=delete&id=<?= $item['id'] ?>" 
-                                           class="btn btn-sm btn-danger" 
-                                           title="Eliminar"
-                                           onclick="return confirm('¿Está seguro de eliminar este inscrito?');">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                    <?php else: ?>
-                                        <span class="btn btn-sm btn-secondary disabled" 
-                                              title="<?= htmlspecialchars($razon_bloqueado) ?>">
-                                            <i class="fas fa-lock"></i>
-                                        </span>
-                                    <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -1312,17 +1292,18 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
 </div>
 
 <?php if (!empty($filter_torneo) && $action === 'list'): ?>
-<div class="modal fade" id="modalReciboInscrito" tabindex="-1">
+<div class="modal fade" id="modalReciboInscrito" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Recibo para el jugador</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white d-none" data-bs-dismiss="modal" aria-hidden="true"></button>
             </div>
             <div class="modal-body" id="modalReciboInscritoBody"></div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+            <div class="modal-footer flex-wrap">
+                <p class="text-muted small mb-0 me-auto w-100 w-md-auto">Imprima el recibo antes de cerrar esta ventana.</p>
                 <button type="button" class="btn btn-success" id="btnReciboInscritoImprimir"><i class="fas fa-print me-1"></i>Imprimir</button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="btnReciboInscritoCerrar">Cerrar</button>
             </div>
         </div>
     </div>

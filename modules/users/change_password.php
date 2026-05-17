@@ -1,12 +1,23 @@
 <?php
-if (!isset($_SESSION)) { session_start(); }
-if (empty($_SESSION['user'])) { header('Location: /modules/auth/login.php'); exit; }
+if (empty($_SESSION['user'])) {
+    $login = class_exists('AppHelpers') ? AppHelpers::url('login.php') : 'login.php';
+    header('Location: ' . $login);
+    exit;
+}
 
 require_once __DIR__ . '/../../config/csrf.php';
+if (!class_exists('AppHelpers')) {
+    require_once __DIR__ . '/../../lib/app_helpers.php';
+}
 
 $isForced = isset($_GET['force']) && $_GET['force'] == '1';
 $reason = $_SESSION['password_change_reason'] ?? '';
-?>
+$embedded_in_layout = isset($current_page) && $current_page === 'users/change_password';
+$form_action = AppHelpers::url('change_password_save.php');
+$cancel_url = AppHelpers::url('profile.php');
+$pwd_ok = isset($_GET['pwd_ok']) || isset($_SESSION['password_success']);
+
+if (!$embedded_in_layout): ?>
 <!doctype html>
 <html lang="es">
 <head>
@@ -22,93 +33,95 @@ $reason = $_SESSION['password_change_reason'] ?? '';
       align-items: center;
       justify-content: center;
     }
-    .card {
-      max-width: 450px;
-      border: none;
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    }
-    .card-header {
+    .pwd-standalone-card { max-width: 450px; border: none; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .pwd-standalone-card .card-header {
       background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
       border-radius: 16px 16px 0 0 !important;
       padding: 1.5rem;
     }
-    .btn-primary {
+    .pwd-standalone-card .btn-primary {
       background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
       border: none;
-    }
-    .btn-primary:hover {
-      background: linear-gradient(135deg, #d63050 0%, #e55a5a 100%);
     }
   </style>
 </head>
 <body>
-
 <div class="container">
-  <div class="card mx-auto">
-    <div class="card-header text-white text-center">
-      <h4 class="mb-0">
+<?php else: ?>
+<div class="container-fluid">
+  <div class="row justify-content-center">
+    <div class="col-xl-6 col-lg-7">
+<?php endif; ?>
+
+  <div class="card mx-auto <?= $embedded_in_layout ? 'shadow-sm' : 'pwd-standalone-card' ?>">
+    <div class="card-header text-white text-center <?= $embedded_in_layout ? 'bg-primary' : '' ?>">
+      <h4 class="mb-0 h5">
         <?php if ($isForced): ?>
-          <i class="bi bi-shield-exclamation"></i> Cambio de Contraseña Obligatorio
+          <i class="fas fa-shield-alt me-1"></i> Cambio de contraseña obligatorio
         <?php else: ?>
-          Cambiar Contraseña
+          <i class="fas fa-key me-1"></i> Cambiar contraseña
         <?php endif; ?>
       </h4>
     </div>
     <div class="card-body p-4">
-      
+
       <?php if ($isForced && $reason): ?>
       <div class="alert alert-warning">
-        <strong><i class="bi bi-exclamation-triangle"></i> Atención:</strong><br>
+        <strong><i class="fas fa-exclamation-triangle me-1"></i> Atención:</strong><br>
         <?= htmlspecialchars($reason) ?>
       </div>
       <?php endif; ?>
-      
+
       <?php if (isset($_SESSION['password_error'])): ?>
       <div class="alert alert-danger">
         <?= htmlspecialchars($_SESSION['password_error']) ?>
         <?php unset($_SESSION['password_error']); ?>
       </div>
       <?php endif; ?>
-      
+
       <?php if (isset($_SESSION['password_success'])): ?>
       <div class="alert alert-success">
         <?= htmlspecialchars($_SESSION['password_success']) ?>
         <?php unset($_SESSION['password_success']); ?>
       </div>
+      <?php elseif ($pwd_ok && !$embedded_in_layout): ?>
+      <div class="alert alert-success">Contraseña actualizada correctamente.</div>
       <?php endif; ?>
-      
-      <form method="post" action="change_password_save.php">
-        <input type="hidden" name="csrf_token" value="<?= CSRF::token() ?>">
+
+      <form method="post" action="<?= htmlspecialchars($form_action) ?>">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(CSRF::token()) ?>">
         <input type="hidden" name="forced" value="<?= $isForced ? '1' : '0' ?>">
-        
+
         <div class="mb-3">
           <label class="form-label">Nueva contraseña</label>
-          <input type="password" name="new_password" class="form-control" minlength="8" required 
-                 placeholder="Mínimo 8 caracteres">
+          <input type="password" name="new_password" class="form-control" minlength="8" required
+                 placeholder="Mínimo 8 caracteres" autocomplete="new-password">
           <div class="form-text">La contraseña debe tener al menos 8 caracteres.</div>
         </div>
-        
+
         <div class="mb-3">
           <label class="form-label">Confirmar contraseña</label>
-          <input type="password" name="confirm_password" class="form-control" minlength="8" required 
-                 placeholder="Repite la contraseña">
+          <input type="password" name="confirm_password" class="form-control" minlength="8" required
+                 placeholder="Repite la contraseña" autocomplete="new-password">
         </div>
-        
+
         <div class="d-grid gap-2">
-          <button type="submit" class="btn btn-primary btn-lg">
-            Guardar Nueva Contraseña
-          </button>
-          
+          <button type="submit" class="btn btn-primary btn-lg">Guardar nueva contraseña</button>
           <?php if (!$isForced): ?>
-          <a href="../../public/index.php" class="btn btn-outline-secondary">Cancelar</a>
+          <a href="<?= htmlspecialchars($cancel_url) ?>" class="btn btn-outline-secondary">Volver al perfil</a>
           <?php endif; ?>
         </div>
       </form>
     </div>
   </div>
-</div>
 
+<?php if ($embedded_in_layout): ?>
+    </div>
+  </div>
+</div>
+<?php else: ?>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
 </body>
 </html>
+<?php endif; ?>

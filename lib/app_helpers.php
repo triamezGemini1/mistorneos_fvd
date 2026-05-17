@@ -307,6 +307,117 @@ class AppHelpers {
     /**
      * Obtiene informaci�n del entorno para debugging
      */
+
+    /**
+     * Path + query seguro para return_to en formularios (switch rol, etc.).
+     */
+    public static function returnToForPost(): string
+    {
+        $publicPath = parse_url(self::getPublicUrl(), PHP_URL_PATH) ?: '';
+        $publicPath = rtrim($publicPath, '/');
+
+        $uri = $_SERVER['REQUEST_URI'] ?? '';
+        if ($uri !== '') {
+            $path = parse_url($uri, PHP_URL_PATH) ?: '';
+            $query = parse_url($uri, PHP_URL_QUERY);
+            if ($path !== '' && $path !== '/') {
+                if ($publicPath !== '' && !str_starts_with($path, $publicPath)) {
+                    if (preg_match('#^/index\.php#i', $path)) {
+                        $path = $publicPath . $path;
+                    } elseif (str_ends_with($path, '/profile.php') || $path === '/profile.php') {
+                        $path = $publicPath . '/profile.php';
+                    }
+                }
+                return $path . ($query !== null && $query !== '' ? '?' . $query : '');
+            }
+        }
+
+        if (!empty($_GET['page'])) {
+            $params = $_GET;
+            unset($params['page']);
+            $q = array_merge(['page' => (string) $_GET['page']], $params);
+            return $publicPath . '/index.php?' . http_build_query($q);
+        }
+
+        $script = $_SERVER['SCRIPT_NAME'] ?? '';
+        if (str_ends_with($script, '/profile.php')) {
+            return $publicPath . '/profile.php';
+        }
+
+        return $publicPath . '/index.php?page=home';
+    }
+
+    /**
+     * Resuelve return_to a URL absoluta del mismo host.
+     */
+    public static function resolveReturnToUrl(string $returnTo, ?string $fallback = null): string
+    {
+        $fallback = $fallback ?? self::dashboard('home');
+        $returnTo = trim($returnTo);
+        if ($returnTo === '' || preg_match('#^(javascript|data):#i', $returnTo)) {
+            return $fallback;
+        }
+
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+        $hostsMatch = static function (string $urlHost) use ($host): bool {
+            $a = strtolower(preg_replace('#:\d+$#', '', $urlHost));
+            $b = strtolower(preg_replace('#:\d+$#', '', $host));
+            if ($a === $b) {
+                return true;
+            }
+            $local = ['localhost', '127.0.0.1'];
+            return in_array($a, $local, true) && in_array($b, $local, true);
+        };
+
+        $hasDashboardPath = static function (string $path): bool {
+            return str_contains($path, 'index.php') || str_ends_with($path, '/profile.php');
+        };
+
+        if (preg_match('#^https?://#i', $returnTo)) {
+            $p = parse_url($returnTo);
+            if (!$p || empty($p['host']) || !$hostsMatch($p['host'])) {
+                return $fallback;
+            }
+            $path = $p['path'] ?? '';
+            $query = isset($p['query']) && $p['query'] !== '' ? '?' . $p['query'] : '';
+            if ($path === '/' || $path === '' || !$hasDashboardPath($path)) {
+                return $fallback;
+            }
+            $publicPath = parse_url(self::getPublicUrl(), PHP_URL_PATH) ?: '';
+            if ($publicPath !== '' && preg_match('#^/index\.php#i', $path) && !str_starts_with($path, $publicPath)) {
+                $path = rtrim($publicPath, '/') . $path;
+            }
+            return $scheme . '://' . $host . $path . $query;
+        }
+
+        if (str_starts_with($returnTo, '//')) {
+            return $fallback;
+        }
+
+        if (preg_match('#^index\.php#i', $returnTo)) {
+            return rtrim(self::getRequestEntryUrl(), '/') . '/' . ltrim($returnTo, '/');
+        }
+
+        if (str_starts_with($returnTo, '/')) {
+            $pathOnly = strtok($returnTo, '?') ?: '';
+            if ($pathOnly === '/' || !$hasDashboardPath($pathOnly)) {
+                return $fallback;
+            }
+            $publicPath = parse_url(self::getPublicUrl(), PHP_URL_PATH) ?: '';
+            if ($publicPath !== '' && preg_match('#^/index\.php#i', $pathOnly) && !str_starts_with($pathOnly, $publicPath)) {
+                $returnTo = rtrim($publicPath, '/') . $returnTo;
+            }
+            return $scheme . '://' . $host . $returnTo;
+        }
+
+        if (!preg_match('#^[a-zA-Z0-9_\-./?=&%]+$#', $returnTo)) {
+            return $fallback;
+        }
+
+        return rtrim(self::getRequestEntryUrl(), '/') . '/' . ltrim($returnTo, '/');
+    }
     public static function getEnvironmentInfo(): array {
         return [
             'is_production' => self::isProduction(),
@@ -322,6 +433,10 @@ class AppHelpers {
      * Prioridad: public/assets/logo.png (estático) si existe; si no, view_image.php con lib/Assets/mislogos/logo4.png.
      */
     public static function getAppLogo(): string {
+        $logo4 = __DIR__ . '/Assets/mislogos/logo4.png';
+        if (is_file($logo4)) {
+            return rtrim(self::getPublicUrl(), '/') . '/view_image.php?path=' . rawurlencode('lib/Assets/mislogos/logo4.png');
+        }
         $publicLogo = __DIR__ . '/../public/assets/logo.png';
         if (is_file($publicLogo)) {
             return rtrim(self::getPublicUrl(), '/') . '/assets/logo.png';

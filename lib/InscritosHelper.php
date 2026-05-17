@@ -5,7 +5,7 @@
  * Estatus en uso (numérico, FVD):
  * - 0 pendiente: debe pagar (inscripción nueva)
  * - 1 pagado: pago validado / confirmado para jugar
- * - 4 retirado: retirado del torneo
+ * - 9 retirado: retirado del torneo (legacy: 4)
  * Legacy: 2 se trata como pagado (migración a 1).
  *
  * Los valores legacy 'solvente' y 'no_solvente' se obvian; migrar a 'confirmado' si existen.
@@ -25,7 +25,10 @@ class InscritosHelper {
     const ESTATUS_PAGADO_NUM = 1;
 
     /** Valor numérico para retirado (columna INT). */
-    const ESTATUS_RETIRADO_NUM = 4;
+    const ESTATUS_RETIRADO_NUM = 9;
+
+    /** Legacy: retirado guardado como 4 en datos antiguos. */
+    const ESTATUS_RETIRADO_NUM_LEGACY = 4;
 
     /**
      * Condición SQL: solo inscritos confirmados (cuentan para participar en el torneo).
@@ -48,7 +51,7 @@ class InscritosHelper {
      * CAST evita 1292 en MySQL estricto: no comparar literal 'retirado' contra INT.
      * Con estatus NULL, CAST da NULL y NOT IN no coincide (mismo efecto práctico que el != anterior).
      */
-    const SQL_WHERE_NO_RETIRADO = "(CAST(estatus AS CHAR) NOT IN ('4', 'retirado'))";
+    const SQL_WHERE_NO_RETIRADO = "(CAST(estatus AS CHAR) NOT IN ('4', '9', 'retirado'))";
 
     /**
      * Condición SQL: inscrito activo para conteo y rondas (no retirado).
@@ -82,7 +85,7 @@ class InscritosHelper {
     const ESTATUS_MAP = [
         0 => 'pendiente',
         1 => 'confirmado',
-        4 => 'retirado',
+        9 => 'retirado',
     ];
 
     /** Para lectura legacy: solvente/no_solvente se muestran como confirmado */
@@ -98,7 +101,7 @@ class InscritosHelper {
         'pendiente' => 0,
         'confirmado' => 1,
         'pagado' => 1,
-        'retirado' => 4,
+        'retirado' => 9,
     ];
 
     /**
@@ -139,6 +142,9 @@ class InscritosHelper {
      * @return string Texto del estatus o 'desconocido' si no existe
      */
     public static function getEstatusTexto(int $estatus_num): string {
+        if ($estatus_num === self::ESTATUS_RETIRADO_NUM_LEGACY) {
+            return self::ESTATUS_RETIRADO;
+        }
         return self::ESTATUS_MAP[$estatus_num] ?? self::ESTATUS_MAP_LEGACY[$estatus_num] ?? 'desconocido';
     }
     
@@ -218,10 +224,18 @@ class InscritosHelper {
     public static function esRetirado($estatus): bool
     {
         if (is_numeric($estatus)) {
-            return (int) $estatus === self::ESTATUS_RETIRADO_NUM;
+            $n = (int) $estatus;
+            return $n === self::ESTATUS_RETIRADO_NUM || $n === self::ESTATUS_RETIRADO_NUM_LEGACY;
         }
 
         return $estatus === self::ESTATUS_RETIRADO;
+    }
+
+    /** Condición SQL: inscrito retirado (9, legacy 4 o texto). */
+    public static function sqlWhereRetiradoConAlias(string $alias = ''): string
+    {
+        $e = $alias !== '' ? $alias . '.' : '';
+        return '(CAST(' . $e . 'estatus AS CHAR) IN (\'4\', \'9\', \'retirado\'))';
     }
 
     /** @deprecated Cancelado no se usa en FVD (0/1/4). */
@@ -253,7 +267,11 @@ class InscritosHelper {
             1 => 'bg-success text-white',
             2 => 'bg-success text-white',
             4 => 'bg-dark text-white',
+            9 => 'bg-dark text-white',
         ];
+        if ($estatus_num === self::ESTATUS_RETIRADO_NUM_LEGACY) {
+            return $clases[9];
+        }
         return $clases[$estatus_num] ?? $clases[0];
     }
     
