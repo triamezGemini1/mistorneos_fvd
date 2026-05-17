@@ -590,12 +590,17 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
 
 <?php if ($action === 'list'): ?>
     <?php
-    // Cargar estadísticas para widgets
-    require_once __DIR__ . '/../lib/StatisticsHelper.php';
-    $detailed_stats = StatisticsHelper::generateStatistics();
-    
-    // Widget de estadísticas de inscripciones - SOLO mostrar si hay torneo seleccionado
-    if (!empty($filter_torneo) && !empty($detailed_stats) && !isset($detailed_stats['error'])):
+    // Vista enfocada en un torneo: sin widgets globales ni resumen por club
+    $modo_torneo_compacto = !empty($filter_torneo);
+
+    $detailed_stats = null;
+    if (!$modo_torneo_compacto) {
+        require_once __DIR__ . '/../lib/StatisticsHelper.php';
+        $detailed_stats = StatisticsHelper::generateStatistics();
+    }
+
+    // Estadísticas de organización (usuarios, clubes, roles) — no en gestión de inscripciones del torneo
+    if (!$modo_torneo_compacto && !empty($detailed_stats) && !isset($detailed_stats['error'])):
     ?>
     <div class="row g-4 mb-4">
         <?php if ($user_role === 'admin_general'): ?>
@@ -700,6 +705,14 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
     </div>
     <?php endif; ?>
     
+    <?php if ($modo_torneo_compacto): ?>
+    <form id="filterForm" class="d-none" aria-hidden="true">
+        <input type="hidden" name="filter_torneo" value="<?= (int)$filter_torneo ?>">
+        <?php foreach ($filter_clubs as $cid): ?>
+            <input type="hidden" name="filter_clubs[]" value="<?= (int)$cid ?>">
+        <?php endforeach; ?>
+    </form>
+    <?php else: ?>
     <!-- Panel de Filtros y Exportaci�n -->
     <div class="card mb-4">
         <div class="card-header bg-primary text-white">
@@ -860,8 +873,10 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
         </div>
     </div>
     
+    <?php endif; ?>
+
     <!-- Estad�sticas y Resumen por Club -->
-    <?php if (!empty($filter_torneo) && $torneo_stats): ?>
+    <?php if (!empty($filter_torneo) && $torneo_stats && !$modo_torneo_compacto): ?>
         <?php
         $contadores_inscripcion = [
             'inscritos_total' => (int) ($torneo_stats['total'] ?? 0),
@@ -1068,7 +1083,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                 <?php if ($torneo_info): ?>
                 <div class="card border-primary shadow-sm mb-3">
                     <div class="card-header bg-dark text-white py-2">
-                        <h3 class="mb-0 h5"><i class="fas fa-trophy me-2 text-warning"></i>TORNEO <?= htmlspecialchars($torneo_info['nombre']) ?>
+                        <h3 class="mb-0 h5"><i class="fas fa-trophy me-2 text-warning"></i><?= htmlspecialchars($torneo_info['nombre']) ?>
                             <?php if ($club_info): ?><span class="text-white-50">— <?= htmlspecialchars($club_info['nombre']) ?></span>
                             <?php elseif (count($clubes_en_lista) > 1): ?><span class="text-white-50">— <?= count($clubes_en_lista) ?> Clubes</span><?php endif; ?>
                         </h3>
