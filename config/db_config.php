@@ -65,6 +65,17 @@ class DB {
             $dbLabel = 'mistorneos (principal)';
         }
 
+        if (trim((string) $user) === '') {
+            $envPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env';
+            $hint = is_file($envPath)
+                ? 'Revise DB_USERNAME y DB_PASSWORD en .env'
+                : 'Cree .env en la raíz (copie .env.production.example) con DB_USERNAME y DB_PASSWORD';
+            throw new PDOException(
+                "Credenciales de base de datos vacías ({$dbLabel}). {$hint}",
+                1045
+            );
+        }
+
         $dsn = "mysql:host={$host};port={$port};dbname={$name};charset={$charset}";
         $opt = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -84,6 +95,15 @@ class DB {
     }
 
     private static function handleConnectionError(PDOException $e, string $dbLabel): void {
+        if (strpos($e->getMessage(), '1045') !== false || stripos($e->getMessage(), 'Access denied') !== false) {
+            $envPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env';
+            $envHint = is_file($envPath)
+                ? 'Usuario o contraseña incorrectos en .env'
+                : 'Falta el archivo .env en la raíz del proyecto (use .env.production.example)';
+            if (php_sapi_name() !== 'cli') {
+                error_log("[DB] {$dbLabel}: {$envHint} — " . $e->getMessage());
+            }
+        }
         if (strpos($e->getMessage(), '2002') !== false || strpos($e->getMessage(), 'denegó') !== false) {
             $error_msg = "No se puede conectar a MySQL ({$dbLabel}).";
             if (php_sapi_name() !== 'cli') {

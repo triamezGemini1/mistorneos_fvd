@@ -23,8 +23,12 @@ class Env
         $path = $path ?? dirname(__DIR__) . '/.env';
 
         if (!file_exists($path)) {
-            // Si no existe .env, no cargar nada (usar config.php)
             self::$loaded = true;
+            $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+            if (strpos($host, 'laestaciondeldominohoy.com') !== false) {
+                error_log('[ENV] .env no encontrado en producción: ' . $path . ' — copie .env.production.example a .env');
+            }
+
             return;
         }
 

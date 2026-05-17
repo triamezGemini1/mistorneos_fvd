@@ -22,7 +22,8 @@ try {
     $entidad_map = [];
     $pdo = DB::pdo();
     $flags = OrganizacionDashboardStats::columnFlags($pdo);
-    $has_usuario_cod_org = $flags['has_usuario_cod_org'] ?? false;
+    $has_usuario_cod_org = ($flags['has_usuario_cod_org'] ?? false)
+        && OrganizacionDashboardStats::tableHasColumn($pdo, 'usuarios', 'cod_org');
 
     $has_cod_org = false;
     try {

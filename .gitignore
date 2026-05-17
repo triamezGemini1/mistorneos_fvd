@@ -13,6 +13,9 @@
 /logs/*
 !/logs/.gitkeep
 
+# Paquetes ZIP de despliegue (generados localmente)
+/dist/
+
 # Volcados de BD locales
 /database/*.sql
 *.sql.gz

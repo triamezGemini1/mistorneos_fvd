@@ -8,6 +8,7 @@ require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/csrf.php';
+require_once __DIR__ . '/../lib/TournamentScopeHelper.php';
 
 $torneo_id = (int)($_GET['torneo_id'] ?? 0);
 $user_id = (int)($_GET['user_id'] ?? 0);
@@ -81,9 +82,7 @@ if ($usuario) {
     // Validar si puede inscribirse en línea: torneo permite + club permite + mismo ámbito (entidad)
     if (!$ya_inscrito) {
         $club_id = (int)($usuario['club_id'] ?? 0);
-        $entidad_usuario = (int)($usuario['entidad'] ?? 0);
-        $entidad_torneo = (int)($torneo['entidad_torneo'] ?? 0);
-        
+
         if (!$permite_torneo_online) {
             $puede_inscribirse_online = false;
             $mensaje_solo_sitio = 'Este torneo no acepta inscripciones en línea. Contacta al administrador del club para inscribirte en el sitio del evento.';
@@ -96,15 +95,13 @@ if ($usuario) {
                 $permite_club = $club && ((int)($club['permite_inscripcion_linea'] ?? 1) === 1);
             }
             
-            $mismo_ambito = ($entidad_torneo <= 0) || ($entidad_usuario > 0 && $entidad_usuario === $entidad_torneo);
-            
             if ($club_id <= 0) {
                 $puede_inscribirse_online = false;
                 $mensaje_solo_sitio = 'No tienes un club asignado. Debes estar afiliado a un club para inscribirte. Contacta al administrador de tu organización o solicita tu afiliación.';
             } elseif (!$permite_club) {
                 $puede_inscribirse_online = false;
                 $mensaje_solo_sitio = 'Tu club no permite inscripciones en línea. Puedes inscribirte en el sitio del evento.';
-            } elseif (!$mismo_ambito) {
+            } elseif (!TournamentScopeHelper::pasaAmbitoTerritorialInscripcion($torneo, $usuario)) {
                 $puede_inscribirse_online = false;
                 $mensaje_solo_sitio = 'Este torneo está fuera de tu ámbito. Puedes inscribirte en el sitio del evento el día del torneo.';
             } else {
@@ -538,7 +535,7 @@ $clases = [1 => 'Torneo', 2 => 'Campeonato'];
                         <li>Estar registrado e iniciar sesión</li>
                         <li>Estar afiliado a un club que permita inscripción en línea</li>
                         <li>El torneo debe aceptar inscripciones en línea</li>
-                        <li>Mismo ámbito territorial (entidad)</li>
+                        <li>FVD: inscripción nacional (sin límite por entidad territorial)</li>
                     </ul>
                 </div>
             </div>

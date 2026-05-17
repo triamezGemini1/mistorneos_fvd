@@ -1,7 +1,7 @@
 ﻿<?php
 /**
  * Diagnóstico de conexión a Base de Datos
- * Acceder: https://laestaciondeldominohoy.com/mistorneos/public/diagnostico_db.php
+ * Acceder: https://laestaciondeldominohoy.com/mistorneos_fvd/public/diagnostico_db.php
  * 
  * IMPORTANTE: Eliminar este archivo después de resolver el problema
  */
@@ -80,7 +80,7 @@ $diagnostico['pruebas_conexion'] = $resultados;
         <p><strong>Existe:</strong> <?= $diagnostico['archivo_env']['existe'] ? '<span class="ok">Sí</span>' : '<span class="fail">No</span>' ?></p>
         <p><strong>Legible:</strong> <?= $diagnostico['archivo_env']['legible'] ? '<span class="ok">Sí</span>' : '<span class="fail">No</span>' ?></p>
         <?php if (!$diagnostico['archivo_env']['existe']): ?>
-        <p class="tip">Crea el archivo <code>.env</code> en la raíz del proyecto copiando <code>config/env.production.example</code> y completa las credenciales.</p>
+        <p class="tip">Crea el archivo <code>.env</code> en <code>public_html/mistorneos_fvd/</code> copiando <code>.env.production.example</code> y completa <code>DB_USERNAME</code>, <code>DB_PASSWORD</code> y <code>DB_DATABASE</code> (cPanel → MySQL).</p>
         <?php endif; ?>
     </div>
 

@@ -226,13 +226,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $torneo) {
                     $id_usuario,
                 ]);
             } else {
-                // Usuario nuevo: validar ámbito (entidad del form debe coincidir con torneo)
-                $entidad_torneo = (int)($torneo['entidad_torneo'] ?? 0);
-                $mismo_ambito = ($entidad_torneo <= 0) || ($entidad > 0 && $entidad === $entidad_torneo);
-                if (!$mismo_ambito) {
+                if (!TournamentScopeHelper::pasaAmbitoTerritorialInscripcion($torneo, null, $entidad)) {
                     throw new Exception('Este torneo está fuera de tu ámbito. Puedes inscribirte en el sitio del evento el día del torneo.');
                 }
-                
+
                 // Crear usuario nuevo usando Security::createUser
                 $es_nuevo_usuario = true;
                 

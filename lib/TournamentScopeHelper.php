@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/FvdConfig.php';
+
 /**
  * TournamentScopeHelper - Centraliza las reglas de ámbito, visibilidad e inscripción online.
  * Usado por landing, inscripción y formularios de torneos.
@@ -77,6 +79,31 @@ class TournamentScopeHelper
     }
 
     /**
+     * Inscripción sin límite por entidad territorial (FVD = alcance nacional).
+     *
+     * @param array<string, mixed> $torneo
+     * @param array<string, mixed>|null $usuario Usuario en sesión/BD (entidad)
+     * @param int|null $entidadFormulario Entidad elegida en formulario público (usuario nuevo)
+     */
+    public static function pasaAmbitoTerritorialInscripcion(array $torneo, ?array $usuario = null, ?int $entidadFormulario = null): bool
+    {
+        if (class_exists('FvdConfig', false)) {
+            return true;
+        }
+
+        $entidad_torneo = (int) ($torneo['entidad_torneo'] ?? $torneo['entidad'] ?? 0);
+        if ($entidadFormulario !== null) {
+            return ($entidad_torneo <= 0) || ($entidadFormulario > 0 && $entidadFormulario === $entidad_torneo);
+        }
+        if ($usuario === null) {
+            return true;
+        }
+        $entidad_usuario = (int) ($usuario['entidad'] ?? 0);
+
+        return ($entidad_torneo <= 0) || ($entidad_usuario > 0 && $entidad_usuario === $entidad_torneo);
+    }
+
+    /**
      * Verifica si un usuario puede inscribirse en línea en un torneo.
      *
      * Valida según es_evento_masivo (0-4):
@@ -149,12 +176,7 @@ class TournamentScopeHelper
             }
         }
 
-        // Verificar ámbito territorial
-        $entidad_torneo = (int)($torneo['entidad_torneo'] ?? $torneo['entidad'] ?? 0);
-        $entidad_usuario = (int)($usuario['entidad'] ?? 0);
-        $mismo_ambito = ($entidad_torneo <= 0) || ($entidad_usuario > 0 && $entidad_usuario === $entidad_torneo);
-
-        if (!$mismo_ambito) {
+        if (!self::pasaAmbitoTerritorialInscripcion($torneo, $usuario)) {
             return [
                 'can' => false,
                 'message' => 'Este torneo está fuera de tu ámbito. Puedes inscribirte en el sitio del evento el día del torneo.',

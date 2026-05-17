@@ -20,17 +20,31 @@ final class OrganizacionDashboardStats
 
     private static ?bool $clubesHasEntidad = null;
 
+    public static function tableHasColumn(PDO $pdo, string $table, string $column): bool
+    {
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)
+            || !preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $column)) {
+            return false;
+        }
+        try {
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+            );
+            $stmt->execute([$table, $column]);
+
+            return (int) $stmt->fetchColumn() > 0;
+        } catch (Throwable $ignored) {
+            return false;
+        }
+    }
+
     private static function clubesHasCodOrgColumn(PDO $pdo): bool
     {
         if (self::$clubesHasCodOrg !== null) {
             return self::$clubesHasCodOrg;
         }
-        try {
-            $pdo->query('SELECT `cod_org` FROM `clubes` LIMIT 0');
-            self::$clubesHasCodOrg = true;
-        } catch (Throwable $ignored) {
-            self::$clubesHasCodOrg = false;
-        }
+        self::$clubesHasCodOrg = self::tableHasColumn($pdo, 'clubes', 'cod_org');
 
         return self::$clubesHasCodOrg;
     }
@@ -40,12 +54,7 @@ final class OrganizacionDashboardStats
         if (self::$clubesHasEntidad !== null) {
             return self::$clubesHasEntidad;
         }
-        try {
-            $pdo->query('SELECT `entidad` FROM `clubes` LIMIT 0');
-            self::$clubesHasEntidad = true;
-        } catch (Throwable $ignored) {
-            self::$clubesHasEntidad = false;
-        }
+        self::$clubesHasEntidad = self::tableHasColumn($pdo, 'clubes', 'entidad');
 
         return self::$clubesHasEntidad;
     }
@@ -58,11 +67,17 @@ final class OrganizacionDashboardStats
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $alias)) {
             $alias = 'c';
         }
-        if (self::clubesHasEntidadColumn($pdo)) {
+        if (self::clubesHasCodOrgColumn($pdo) && self::clubesHasEntidadColumn($pdo)) {
             return "COALESCE(NULLIF({$alias}.cod_org, 0), NULLIF({$alias}.entidad, 0))";
         }
+        if (self::clubesHasEntidadColumn($pdo)) {
+            return "NULLIF({$alias}.entidad, 0)";
+        }
+        if (self::clubesHasCodOrgColumn($pdo)) {
+            return "{$alias}.cod_org";
+        }
 
-        return "{$alias}.cod_org";
+        return '0';
     }
 
     /** @return array{has_usuario_cod_org: bool, has_tournament_cod_org: bool} */
@@ -72,20 +87,9 @@ final class OrganizacionDashboardStats
             return self::$columnFlags;
         }
         self::$columnFlags = [
-            'has_usuario_cod_org' => false,
-            'has_tournament_cod_org' => false,
+            'has_usuario_cod_org' => self::tableHasColumn($pdo, 'usuarios', 'cod_org'),
+            'has_tournament_cod_org' => self::tableHasColumn($pdo, 'tournaments', 'cod_org'),
         ];
-        // Comprobar columnas con SELECT LIMIT 0: más fiable que SHOW COLUMNS si el esquema difiere entre entornos.
-        try {
-            $pdo->query('SELECT `cod_org` FROM `usuarios` LIMIT 0');
-            self::$columnFlags['has_usuario_cod_org'] = true;
-        } catch (Throwable $ignored) {
-        }
-        try {
-            $pdo->query('SELECT `cod_org` FROM `tournaments` LIMIT 0');
-            self::$columnFlags['has_tournament_cod_org'] = true;
-        } catch (Throwable $ignored) {
-        }
 
         return self::$columnFlags;
     }
