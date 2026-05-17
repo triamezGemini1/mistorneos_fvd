@@ -214,48 +214,98 @@ class DashboardData
 
     private static function loadStatsBasic(array $club_filter, array $tournament_filter): array
     {
+        $pdo = DB::pdo();
         $stats = [];
-        $clubs_query = "SELECT COUNT(*) FROM clubes c WHERE c.estatus = 1" . ($club_filter['where'] ? " AND " . $club_filter['where'] : "");
-        $stmt = DB::pdo()->prepare($clubs_query);
-        $stmt->execute($club_filter['params']);
+        $fvdClubScope = self::fvdClubScopeSql($pdo);
+        $clubs_query = "SELECT COUNT(*) FROM clubes c WHERE {$fvdClubScope['where']}"
+            . ($club_filter['where'] ? ' AND ' . $club_filter['where'] : '');
+        $stmt = $pdo->prepare($clubs_query);
+        $stmt->execute(array_merge($fvdClubScope['params'], $club_filter['params']));
         $stats['clubs'] = (int)$stmt->fetchColumn();
         $tournaments_query = "SELECT COUNT(*) FROM tournaments t WHERE t.estatus = 1" . ($tournament_filter['where'] ? " AND " . $tournament_filter['where'] : "");
-        $stmt = DB::pdo()->prepare($tournaments_query);
+        $stmt = $pdo->prepare($tournaments_query);
         $stmt->execute($tournament_filter['params']);
         $stats['tournaments'] = (int)$stmt->fetchColumn();
         $registrants_query = "SELECT COUNT(*) FROM inscritos r INNER JOIN tournaments t ON r.torneo_id = t.id WHERE 1=1" . ($tournament_filter['where'] ? " AND " . $tournament_filter['where'] : "");
-        $stmt = DB::pdo()->prepare($registrants_query);
+        $stmt = $pdo->prepare($registrants_query);
         $stmt->execute($tournament_filter['params']);
         $stats['registrants'] = (int)$stmt->fetchColumn();
-        $payments_query = "SELECT COUNT(*) FROM payments p INNER JOIN tournaments t ON p.torneo_id = t.id WHERE p.status = 'completed'" . ($tournament_filter['where'] ? " AND " . $tournament_filter['where'] : "");
-        $stmt = DB::pdo()->prepare($payments_query);
-        $stmt->execute($tournament_filter['params']);
-        $stats['payments'] = (int)$stmt->fetchColumn();
+        $stats = array_merge($stats, self::loadPaymentStats($tournament_filter));
         $active_query = "SELECT COUNT(*) FROM tournaments t WHERE t.estatus = 1 AND t.fechator >= CURDATE()" . ($tournament_filter['where'] ? " AND " . $tournament_filter['where'] : "");
-        $stmt = DB::pdo()->prepare($active_query);
+        $stmt = $pdo->prepare($active_query);
         $stmt->execute($tournament_filter['params']);
         $stats['active_tournaments'] = (int)$stmt->fetchColumn();
-        $pending_query = "SELECT COUNT(*) FROM payments p INNER JOIN tournaments t ON p.torneo_id = t.id WHERE p.status = 'pending'" . ($tournament_filter['where'] ? " AND " . $tournament_filter['where'] : "");
-        $stmt = DB::pdo()->prepare($pending_query);
-        $stmt->execute($tournament_filter['params']);
-        $stats['pending_payments'] = (int)$stmt->fetchColumn();
-        $revenue_query = "SELECT COALESCE(SUM(p.amount), 0) FROM payments p INNER JOIN tournaments t ON p.torneo_id = t.id WHERE p.status = 'completed'" . ($tournament_filter['where'] ? " AND " . $tournament_filter['where'] : "");
-        $stmt = DB::pdo()->prepare($revenue_query);
-        $stmt->execute($tournament_filter['params']);
-        $stats['total_revenue'] = (float)$stmt->fetchColumn();
         return $stats;
+    }
+
+    /**
+     * Estadísticas de payments; 0 si la tabla no existe o falla (esquema FVD en transición).
+     *
+     * @return array{payments: int, pending_payments: int, total_revenue: float}
+     */
+    private static function loadPaymentStats(array $tournament_filter): array
+    {
+        $defaults = ['payments' => 0, 'pending_payments' => 0, 'total_revenue' => 0.0];
+        try {
+            $pdo = DB::pdo();
+            $chk = $pdo->query("SHOW TABLES LIKE 'payments'");
+            if (!$chk || $chk->rowCount() === 0) {
+                return $defaults;
+            }
+            $where_t = $tournament_filter['where'] ? ' AND ' . $tournament_filter['where'] : '';
+            $payments_query = "SELECT COUNT(*) FROM payments p INNER JOIN tournaments t ON p.torneo_id = t.id WHERE p.status = 'completed'" . $where_t;
+            $stmt = $pdo->prepare($payments_query);
+            $stmt->execute($tournament_filter['params']);
+            $defaults['payments'] = (int)$stmt->fetchColumn();
+            $pending_query = "SELECT COUNT(*) FROM payments p INNER JOIN tournaments t ON p.torneo_id = t.id WHERE p.status = 'pending'" . $where_t;
+            $stmt = $pdo->prepare($pending_query);
+            $stmt->execute($tournament_filter['params']);
+            $defaults['pending_payments'] = (int)$stmt->fetchColumn();
+            $revenue_query = "SELECT COALESCE(SUM(p.amount), 0) FROM payments p INNER JOIN tournaments t ON p.torneo_id = t.id WHERE p.status = 'completed'" . $where_t;
+            $stmt = $pdo->prepare($revenue_query);
+            $stmt->execute($tournament_filter['params']);
+            $defaults['total_revenue'] = (float)$stmt->fetchColumn();
+        } catch (Throwable $e) {
+            error_log('DashboardData loadPaymentStats: ' . $e->getMessage());
+        }
+        return $defaults;
+    }
+
+    /** @return array{where: string, params: list<mixed>} */
+    private static function fvdClubScopeSql(PDO $pdo): array
+    {
+        require_once __DIR__ . '/OrganizacionesData.php';
+        return OrganizacionesData::sqlClubesAmbitoFvd($pdo, 'c');
     }
 
     private static function loadStatsAdminGeneral(array $entidad_map): array
     {
         $stats = [];
-        $stats['total_users'] = (int)DB::pdo()->query("SELECT COUNT(*) FROM usuarios")->fetchColumn();
-        $stats['active_users'] = (int)DB::pdo()->query("SELECT COUNT(*) FROM usuarios WHERE status = 0")->fetchColumn();
-        $stats['total_admin_clubs'] = (int)DB::pdo()->query("SELECT COUNT(*) FROM usuarios WHERE role = 'admin_club' AND status = 0")->fetchColumn();
-        $stats['total_clubs'] = (int)DB::pdo()->query("SELECT COUNT(*) FROM clubes WHERE estatus = 1")->fetchColumn();
-        $stats['total_afiliados'] = (int)DB::pdo()->query("SELECT COUNT(*) FROM usuarios WHERE role = 'usuario' AND status = 0")->fetchColumn();
-        $stats['total_hombres'] = (int)DB::pdo()->query("SELECT COUNT(*) FROM usuarios WHERE role = 'usuario' AND status = 0 AND (sexo = 'M' OR UPPER(sexo) = 'M')")->fetchColumn();
-        $stats['total_mujeres'] = (int)DB::pdo()->query("SELECT COUNT(*) FROM usuarios WHERE role = 'usuario' AND status = 0 AND (sexo = 'F' OR UPPER(sexo) = 'F')")->fetchColumn();
+        $pdo = DB::pdo();
+        require_once __DIR__ . '/OrganizacionesData.php';
+        [$uScope, $uScopeParams] = OrganizacionesData::sqlUsuarioAmbitoFvd($pdo);
+        [$clubWhere, $clubParams] = OrganizacionesData::sqlClubesAmbitoFvd($pdo, 'c');
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios u WHERE {$uScope}");
+        $stmt->execute($uScopeParams);
+        $stats['total_users'] = (int)$stmt->fetchColumn();
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios u WHERE u.status = 0 AND {$uScope}");
+        $stmt->execute($uScopeParams);
+        $stats['active_users'] = (int)$stmt->fetchColumn();
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios u WHERE u.role = 'admin_club' AND u.status = 0 AND {$uScope}");
+        $stmt->execute($uScopeParams);
+        $stats['total_admin_clubs'] = (int)$stmt->fetchColumn();
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM clubes c WHERE {$clubWhere}");
+        $stmt->execute($clubParams);
+        $stats['total_clubs'] = (int)$stmt->fetchColumn();
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios u WHERE u.role = 'usuario' AND u.status = 0 AND {$uScope}");
+        $stmt->execute($uScopeParams);
+        $stats['total_afiliados'] = (int)$stmt->fetchColumn();
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios u WHERE u.role = 'usuario' AND u.status = 0 AND (u.sexo = 'M' OR UPPER(u.sexo) = 'M') AND {$uScope}");
+        $stmt->execute($uScopeParams);
+        $stats['total_hombres'] = (int)$stmt->fetchColumn();
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios u WHERE u.role = 'usuario' AND u.status = 0 AND (u.sexo = 'F' OR UPPER(u.sexo) = 'F') AND {$uScope}");
+        $stmt->execute($uScopeParams);
+        $stats['total_mujeres'] = (int)$stmt->fetchColumn();
         $stats['entidades_summary'] = self::loadEntidadSummary($entidad_map);
         $admin_clubs_list = [];
         try {
@@ -360,7 +410,7 @@ class DashboardData
                        o.nombre as organizacion_nombre,
                        (SELECT u.entidad FROM usuarios u INNER JOIN organizaciones org ON org.admin_user_id = u.id WHERE org.id = t.club_responsable LIMIT 1) as entidad,
                        (SELECT COUNT(*) FROM inscritos WHERE torneo_id = t.id) as total_inscritos,
-                       (SELECT COUNT(*) FROM inscritos WHERE torneo_id = t.id AND estatus = 'confirmado') as inscritos_confirmados
+                       (SELECT COUNT(*) FROM inscritos WHERE torneo_id = t.id AND estatus = 1) as inscritos_confirmados
                 FROM tournaments t
                 {$org_join}
                 WHERE t.estatus = 1 $where_t
@@ -434,7 +484,7 @@ class DashboardData
                    (SELECT COUNT(*) FROM tournaments t WHERE t.club_responsable = COALESCE(c.cod_org, c.id) AND t.estatus = 1) as torneos_count,
                    (SELECT COUNT(*) FROM inscritos i INNER JOIN tournaments t ON i.torneo_id = t.id WHERE t.club_responsable = COALESCE(c.cod_org, c.id)) as inscritos_count
             FROM clubes c
-            LEFT JOIN usuarios u ON u.entidad = c.id
+            LEFT JOIN usuarios u ON u.club_id = c.id AND u.role = 'usuario' AND u.status = 0
             WHERE c.id IN ($ph)
             GROUP BY c.id, c.nombre, c.cod_org
             ORDER BY c.nombre ASC

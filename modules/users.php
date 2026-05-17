@@ -17,6 +17,11 @@ if ($action === 'send_access_notification' && $_SERVER['REQUEST_METHOD'] === 'GE
     exit;
 }
 
+if ($action === 'send_access_notification_batch' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    require __DIR__ . '/users/send_access_notification_batch.php';
+    exit;
+}
+
 // Procesar acciones
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? $action;

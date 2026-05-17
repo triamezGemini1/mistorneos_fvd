@@ -8,6 +8,93 @@ declare(strict_types=1);
  */
 class OrganizacionesData
 {
+    private static function fvdOrganizacionId(): int
+    {
+        if (defined('ORGANIZACION_ID')) {
+            return (int) ORGANIZACION_ID;
+        }
+        require_once __DIR__ . '/FvdConfig.php';
+
+        return FvdConfig::ORGANIZACION_ID;
+    }
+
+    /**
+     * Fila de organización FVD (ORGANIZACION_ID) para alcance de consultas globales.
+     *
+     * @return array<string, mixed>
+     */
+    private static function fvdOrganizacionRow(PDO $pdo): array
+    {
+        require_once __DIR__ . '/FvdConfig.php';
+        FvdConfig::warmOrganizacionMaestra();
+        $org = FvdConfig::getOrganizacionMaestra();
+        $orgId = self::fvdOrganizacionId();
+        if (!is_array($org) || (int) ($org['id'] ?? 0) <= 0) {
+            $org = ['id' => $orgId, 'cod_org' => $orgId, 'entidad' => 0, 'estatus' => 1];
+        }
+        $org['id'] = $orgId;
+        if (empty($org['cod_org'])) {
+            $org['cod_org'] = $orgId;
+        }
+        if (!array_key_exists('entidad', $org)) {
+            try {
+                $stmt = $pdo->prepare('SELECT entidad FROM organizaciones WHERE id = ? LIMIT 1');
+                $stmt->execute([$orgId]);
+                $ent = $stmt->fetchColumn();
+                $org['entidad'] = $ent !== false ? (int) $ent : 0;
+            } catch (Exception $e) {
+                $org['entidad'] = 0;
+            }
+        }
+
+        return $org;
+    }
+
+    /**
+     * WHERE + params: clubes activos del ámbito FVD (alias c por defecto).
+     *
+     * @return array{where: string, params: list<mixed>}
+     */
+    public static function sqlClubesAmbitoFvd(PDO $pdo, string $alias = 'c'): array
+    {
+        require_once __DIR__ . '/OrganizacionDashboardStats.php';
+        $org = self::fvdOrganizacionRow($pdo);
+        [$clubWhere, $clubParams] = OrganizacionDashboardStats::clubScopeWhereForOrganizacion($pdo, $org);
+        if ($alias !== 'c' && preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $alias)) {
+            $clubWhere = str_replace('c.', $alias . '.', $clubWhere);
+        }
+
+        return ['where' => $clubWhere, 'params' => $clubParams];
+    }
+
+    /**
+     * Condición sobre usuarios (alias u) limitada al ámbito institucional FVD.
+     *
+     * @return array{0: string, 1: list<mixed>}
+     */
+    public static function sqlUsuarioAmbitoFvd(PDO $pdo, string $alias = 'u'): array
+    {
+        require_once __DIR__ . '/FvdConfig.php';
+        require_once __DIR__ . '/OrganizacionDashboardStats.php';
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $alias)) {
+            $alias = 'u';
+        }
+        $org = self::fvdOrganizacionRow($pdo);
+        $orgEnt = FvdConfig::entidadTerritorioEfectivaOrganizacion($org);
+        [$clubWhere, $clubParams] = OrganizacionDashboardStats::clubScopeWhereForOrganizacion($pdo, $org);
+        $terrExpr = OrganizacionDashboardStats::usuarioTerritorioCoalesceExpr($pdo, $alias);
+        $sql = "(
+            (? > 0 AND {$terrExpr} = ?)
+            OR EXISTS (
+                SELECT 1 FROM clubes c
+                WHERE c.id = {$alias}.club_id
+                  AND ({$clubWhere})
+            )
+        )";
+
+        return [$sql, [$orgEnt, $orgEnt, ...$clubParams]];
+    }
+
     private static function hasCodOrg(PDO $pdo): bool
     {
         try {
@@ -35,22 +122,26 @@ class OrganizacionesData
 
         try {
             $pdo = DB::pdo();
-            $where = "role = 'usuario'";
+            $where = "u.role = 'usuario'";
             $params = [];
             if ($entidadId !== null && $entidadId > 0) {
-                $where .= ' AND entidad = ?';
+                $where .= ' AND u.entidad = ?';
                 $params[] = $entidadId;
+            } else {
+                [$fvdScope, $fvdParams] = self::sqlUsuarioAmbitoFvd($pdo);
+                $where .= " AND {$fvdScope}";
+                $params = array_merge($params, $fvdParams);
             }
 
             $sql = "
                 SELECT
-                    SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS activos,
-                    SUM(CASE WHEN status <> 0 THEN 1 ELSE 0 END) AS inactivos,
-                    SUM(CASE WHEN status = 0 AND (sexo = 'M' OR UPPER(COALESCE(sexo,'')) = 'M') THEN 1 ELSE 0 END) AS hombres_activos,
-                    SUM(CASE WHEN status = 0 AND (sexo = 'F' OR UPPER(COALESCE(sexo,'')) = 'F') THEN 1 ELSE 0 END) AS mujeres_activos,
-                    SUM(CASE WHEN status <> 0 AND (sexo = 'M' OR UPPER(COALESCE(sexo,'')) = 'M') THEN 1 ELSE 0 END) AS hombres_inactivos,
-                    SUM(CASE WHEN status <> 0 AND (sexo = 'F' OR UPPER(COALESCE(sexo,'')) = 'F') THEN 1 ELSE 0 END) AS mujeres_inactivos
-                FROM usuarios
+                    SUM(CASE WHEN u.status = 0 THEN 1 ELSE 0 END) AS activos,
+                    SUM(CASE WHEN u.status <> 0 THEN 1 ELSE 0 END) AS inactivos,
+                    SUM(CASE WHEN u.status = 0 AND (u.sexo = 'M' OR UPPER(COALESCE(u.sexo,'')) = 'M') THEN 1 ELSE 0 END) AS hombres_activos,
+                    SUM(CASE WHEN u.status = 0 AND (u.sexo = 'F' OR UPPER(COALESCE(u.sexo,'')) = 'F') THEN 1 ELSE 0 END) AS mujeres_activos,
+                    SUM(CASE WHEN u.status <> 0 AND (u.sexo = 'M' OR UPPER(COALESCE(u.sexo,'')) = 'M') THEN 1 ELSE 0 END) AS hombres_inactivos,
+                    SUM(CASE WHEN u.status <> 0 AND (u.sexo = 'F' OR UPPER(COALESCE(u.sexo,'')) = 'F') THEN 1 ELSE 0 END) AS mujeres_inactivos
+                FROM usuarios u
                 WHERE {$where}
             ";
             $stmt = $pdo->prepare($sql);
@@ -98,10 +189,19 @@ class OrganizacionesData
 
             $stats['total_organizaciones'] = 1;
 
-            $stats['total_users'] = (int)$pdo->query('SELECT COUNT(*) FROM usuarios')->fetchColumn();
-            $stats['total_admin_clubs'] = (int)$pdo->query("SELECT COUNT(*) FROM usuarios WHERE role = 'admin_club' AND status = 0")->fetchColumn();
-            $stats['total_admin_torneo'] = (int)$pdo->query("SELECT COUNT(*) FROM usuarios WHERE role = 'admin_torneo' AND status = 0")->fetchColumn();
-            $stats['total_operadores'] = (int)$pdo->query("SELECT COUNT(*) FROM usuarios WHERE role = 'operador' AND status = 0")->fetchColumn();
+            [$uScope, $uScopeParams] = self::sqlUsuarioAmbitoFvd($pdo);
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios u WHERE {$uScope}");
+            $stmt->execute($uScopeParams);
+            $stats['total_users'] = (int) $stmt->fetchColumn();
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios u WHERE u.role = 'admin_club' AND u.status = 0 AND {$uScope}");
+            $stmt->execute($uScopeParams);
+            $stats['total_admin_clubs'] = (int) $stmt->fetchColumn();
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios u WHERE u.role = 'admin_torneo' AND u.status = 0 AND {$uScope}");
+            $stmt->execute($uScopeParams);
+            $stats['total_admin_torneo'] = (int) $stmt->fetchColumn();
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios u WHERE u.role = 'operador' AND u.status = 0 AND {$uScope}");
+            $stmt->execute($uScopeParams);
+            $stats['total_operadores'] = (int) $stmt->fetchColumn();
 
             require_once __DIR__ . '/StatisticsHelper.php';
             $helperStats = StatisticsHelper::generateStatistics();

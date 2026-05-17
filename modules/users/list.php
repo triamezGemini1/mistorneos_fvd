@@ -39,6 +39,15 @@ $current_user = Auth::user();
         transform: translateY(-2px);
     }
 </style>
+<?php
+$users_bulk_batch_url = class_exists('AppHelpers')
+    ? AppHelpers::dashboard('users', ['action' => 'send_access_notification_batch'])
+    : 'index.php?page=users&action=send_access_notification_batch';
+$users_bulk_asset_base = class_exists('AppHelpers')
+    ? rtrim(AppHelpers::getPublicUrl(), '/')
+    : '/public';
+?>
+<link rel="stylesheet" href="<?= htmlspecialchars($users_bulk_asset_base) ?>/assets/users-bulk-notify.css">
 
 <?php
 // Cargar estadísticas para widgets
@@ -652,10 +661,14 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                     </p>
                 </div>
             <?php else: ?>
-            <div class="table-responsive">
-                <table class="table table-striped table-hover">
+            <div class="table-responsive" id="users-bulk-notify-root">
+                <table class="table table-striped table-hover" id="users-list-table">
                     <thead class="table-dark">
                         <tr>
+                            <th class="text-center" style="width:2.5rem;">
+                                <input type="checkbox" class="users-table-checkbox" id="users-bulk-select-all"
+                                       title="Seleccionar todos en esta página" aria-label="Seleccionar todos">
+                            </th>
                             <th>ID</th>
                             <th>Nombre</th>
                             <th>Usuario</th>
@@ -668,7 +681,16 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                     </thead>
                     <tbody>
                         <?php foreach ($users as $u): ?>
+                            <?php $has_celular_bulk = !empty(trim((string) ($u['celular'] ?? ''))); ?>
                             <tr>
+                                <td class="text-center">
+                                    <input type="checkbox" class="users-table-checkbox users-row-checkbox"
+                                           value="<?= (int) $u['id'] ?>"
+                                           data-user-id="<?= (int) $u['id'] ?>"
+                                           data-username="<?= htmlspecialchars($u['username'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                                           data-has-celular="<?= $has_celular_bulk ? '1' : '0' ?>"
+                                           aria-label="Seleccionar <?= htmlspecialchars($u['username'] ?? '') ?>">
+                                </td>
                                 <td><?= htmlspecialchars($u['id']) ?></td>
                                 <td><?= htmlspecialchars($u['nombre'] ?? '-') ?></td>
                                 <td>
@@ -817,6 +839,74 @@ $is_admin_club = $current_user['role'] === 'admin_club';
             <?php if (isset($pagination)): ?>
                 <?= $pagination->render() ?>
             <?php endif; ?>
+
+            <div id="users-bulk-bar" role="region" aria-live="polite" aria-label="Acciones masivas">
+                <div class="ubn-panel">
+                    <span class="ubn-count" id="users-bulk-count">0 usuarios seleccionados</span>
+                    <div class="ubn-actions">
+                        <button type="button" class="ubn-btn ubn-btn-wa" id="users-bulk-btn-whatsapp">
+                            <i class="fab fa-whatsapp"></i> Notificar por WhatsApp (Lote)
+                        </button>
+                        <button type="button" class="ubn-btn ubn-btn-tg" id="users-bulk-btn-telegram">
+                            <i class="fab fa-telegram-plane"></i> Notificar por Telegram (Directo)
+                        </button>
+                        <button type="button" class="ubn-btn ubn-btn-web" id="users-bulk-btn-web">
+                            <i class="fas fa-bell"></i> Encolar Notificación Web
+                        </button>
+                        <button type="button" class="ubn-btn ubn-btn-clear" id="users-bulk-btn-clear">
+                            <i class="fas fa-times"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="users-bulk-progress" aria-hidden="true">
+                <div class="ubn-progress-card">
+                    <div class="spinner-border text-primary mb-2" role="status">
+                        <span class="visually-hidden">Procesando…</span>
+                    </div>
+                    <p class="mb-0 small fw-semibold" id="users-bulk-progress-text">Procesando lote…</p>
+                    <div class="ubn-progress-bar-wrap">
+                        <div class="ubn-progress-bar-fill" id="users-bulk-progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="users-wa-queue-modal" tabindex="-1" aria-labelledby="usersWaQueueLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="usersWaQueueLabel">
+                                <i class="fab fa-whatsapp text-success me-2"></i>Cola WhatsApp
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="small text-muted mb-2">
+                                Abra cada chat con <strong>Abrir siguiente</strong> para no saturar el navegador.
+                                <span id="users-wa-queue-counter" class="badge bg-secondary ms-1">0 / 0</span>
+                            </p>
+                            <ul class="list-group list-group-flush" id="users-wa-queue-list"></ul>
+                        </div>
+                        <div class="modal-footer flex-wrap gap-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="users-wa-queue-open-manual">
+                                Abrir todas (con pausa)
+                            </button>
+                            <button type="button" class="btn btn-success btn-sm" id="users-wa-queue-next">
+                                Abrir siguiente WhatsApp
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+            window.USERS_BULK_NOTIFY_CONFIG = {
+                batchUrl: <?= json_encode($users_bulk_batch_url, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>
+            };
+            </script>
+            <script src="<?= htmlspecialchars($users_bulk_asset_base) ?>/assets/users-bulk-notify.js" defer></script>
         <?php endif; ?>
     </div>
 </div>

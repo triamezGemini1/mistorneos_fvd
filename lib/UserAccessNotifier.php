@@ -23,6 +23,123 @@ final class UserAccessNotifier
      * @param array<string, mixed> $actor Usuario en sesión (admin)
      * @return array{ok: bool, error?: string, redirect?: string}
      */
+    /**
+     * Envío en lote: reutiliza {@see dispatch()} por usuario; un fallo no detiene el resto.
+     *
+     * @param int[] $targetUserIds
+     * @return array{
+     *   ok: bool,
+     *   error?: string,
+     *   processed: int,
+     *   succeeded: int,
+     *   failed: int,
+     *   results: list<array{user_id: int, ok: bool, username?: string, error?: string, redirect?: string}>,
+     *   whatsapp_queue: list<array{user_id: int, username: string, nombre: string, redirect: string}>
+     * }
+     */
+    public static function dispatchBatch(PDO $pdo, array $targetUserIds, string $canal, array $actor): array
+    {
+        $canal = strtolower(trim($canal));
+        if (!in_array($canal, ['whatsapp', 'web', 'telegram'], true)) {
+            return [
+                'ok' => false,
+                'error' => 'Canal de notificación no válido',
+                'processed' => 0,
+                'succeeded' => 0,
+                'failed' => 0,
+                'results' => [],
+                'whatsapp_queue' => [],
+            ];
+        }
+
+        $role = (string) ($actor['role'] ?? '');
+        if (!in_array($role, ['admin_general', 'admin_club'], true)) {
+            return [
+                'ok' => false,
+                'error' => 'No tiene permiso para enviar notificaciones en lote',
+                'processed' => 0,
+                'succeeded' => 0,
+                'failed' => 0,
+                'results' => [],
+                'whatsapp_queue' => [],
+            ];
+        }
+
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $targetUserIds),
+            static fn (int $id): bool => $id > 0
+        )));
+        if ($ids === []) {
+            return [
+                'ok' => false,
+                'error' => 'No se proporcionaron usuarios válidos',
+                'processed' => 0,
+                'succeeded' => 0,
+                'failed' => 0,
+                'results' => [],
+                'whatsapp_queue' => [],
+            ];
+        }
+
+        $results = [];
+        $whatsappQueue = [];
+        $succeeded = 0;
+        $failed = 0;
+
+        foreach ($ids as $userId) {
+            $target = self::fetchUser($pdo, $userId);
+            $username = (string) ($target['username'] ?? ('#' . $userId));
+            $entry = ['user_id' => $userId, 'ok' => false, 'username' => $username];
+
+            if ($target === null) {
+                $entry['error'] = 'Usuario no encontrado';
+                $results[] = $entry;
+                ++$failed;
+                continue;
+            }
+
+            if (!self::actorCanNotify($pdo, $actor, $target)) {
+                $entry['error'] = 'No tiene permiso para notificar a este usuario';
+                $results[] = $entry;
+                ++$failed;
+                continue;
+            }
+
+            $one = self::dispatch($pdo, $userId, $canal, $actor);
+            if (!empty($one['ok'])) {
+                $entry['ok'] = true;
+                ++$succeeded;
+                if ($canal === 'whatsapp' && !empty($one['redirect'])) {
+                    $whatsappQueue[] = [
+                        'user_id' => $userId,
+                        'username' => $username,
+                        'nombre' => (string) ($target['nombre'] ?? $username),
+                        'redirect' => (string) $one['redirect'],
+                    ];
+                    $entry['redirect'] = (string) $one['redirect'];
+                }
+            } else {
+                $entry['error'] = (string) ($one['error'] ?? 'No se pudo enviar');
+                ++$failed;
+            }
+
+            $results[] = $entry;
+        }
+
+        return [
+            'ok' => $succeeded > 0 || ($canal === 'whatsapp' && $whatsappQueue !== []),
+            'processed' => count($ids),
+            'succeeded' => $succeeded,
+            'failed' => $failed,
+            'results' => $results,
+            'whatsapp_queue' => $whatsappQueue,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $actor Usuario en sesión (admin)
+     * @return array{ok: bool, error?: string, redirect?: string}
+     */
     public static function dispatch(PDO $pdo, int $targetUserId, string $canal, array $actor): array
     {
         $canal = strtolower(trim($canal));
@@ -97,9 +214,13 @@ final class UserAccessNotifier
         if ($targetClub <= 0) {
             return false;
         }
-        $supervised = ClubHelper::getClubesSupervised($actorClub);
+        $allowed = ClubHelper::getClubesSupervised($actorClub);
+        $byAdmin = ClubHelper::getClubesByAdminClubId((int) ($actor['id'] ?? 0));
+        if (!empty($byAdmin)) {
+            $allowed = array_values(array_unique(array_merge($allowed, $byAdmin)));
+        }
 
-        return in_array($targetClub, $supervised, true);
+        return in_array($targetClub, $allowed, true);
     }
 
     public static function createPasswordResetUrl(PDO $pdo, int $userId): string
