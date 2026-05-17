@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * ZIP parcial para despliegue (solo archivos del parche actual).
+ * ZIP parcial: últimos cambios acumulados del parche FVD.
  * Uso: php scripts/build_patch_zip.php
  */
 
@@ -14,27 +14,27 @@ $zipName = "mistorneos_fvd_patch_{$timestamp}.zip";
 $zipPath = $distDir . DIRECTORY_SEPARATOR . $zipName;
 
 $files = [
-    'lib/DashboardData.php',
-    'lib/OrganizacionesData.php',
-    'lib/UserAccessNotifier.php',
-    'modules/users.php',
-    'modules/users/list.php',
-    'modules/users/send_access_notification.php',
-    'modules/users/send_access_notification_batch.php',
+    // Finanzas
     'modules/finances.php',
     'modules/finances/actualizar_deudas.php',
-    'modules/registrants_report.php',
-    'modules/registrants_report_retirados.php',
-    'modules/admin_torneo_operadores/_form_registro_rol.php',
-    'modules/admin_org/organizacion/views/mi_organizacion_form_activar.php',
-    'modules/gestion_torneos/sustituir-jugador.php',
-    'modules/gestion_torneos/inscribir_equipo_sitio.php',
-    'public/includes/layout.php',
     'public/api/finances_actualizar_deudas.php',
-    'public/assets/app-search.js',
-    'public/assets/app-search.css',
-    'public/assets/users-bulk-notify.css',
-    'public/assets/users-bulk-notify.js',
+    // Usuarios orden por rol
+    'modules/users.php',
+    // Landing contador inscritos
+    'lib/LandingDataService.php',
+  // Inscripción en línea
+    'public/inscribir_evento_masivo.php',
+    // Reportes de pago admin
+    'lib/ReportePagoUsuarioService.php',
+    'modules/reportes_pago_usuarios.php',
+    'public/api/reporte_pago_admin.php',
+    'public/assets/reportes-pago-usuarios.js',
+    'config/deploy_build.php',
+    'public/verificar_despliegue_version.php',
+    'modules/gestion_torneos/panel-moderno.php',
+    'modules/registrants.php',
+    'public/api/inscripcion_admin.php',
+    'public/assets/registrants-inscripciones.js',
 ];
 
 if (!is_dir($distDir) && !@mkdir($distDir, 0755, true) && !is_dir($distDir)) {
@@ -62,29 +62,24 @@ foreach ($files as $rel) {
 }
 
 $readme = <<<'TXT'
-MISTORNEOS FVD — Parche de despliegue
-=====================================
+MISTORNEOS FVD — Parche (últimos cambios)
+========================================
 
-Extraer el contenido en la raíz del proyecto en el servidor
-(ej. public_html/mistorneos_fvd/) respetando las carpetas:
+Extraer en la raíz del proyecto (ej. public_html/mistorneos_fvd/).
 
-  lib/
-  modules/
-  public/assets/
+1. Finanzas — actualizar deudas (API JSON)
+2. Usuarios — orden por rol en listado
+3. Landing — contador inscritos (incluye pendiente)
+4. Inscripción en línea — cédula/nacionalidad en inscritos
+5. Reportes de pago — switch confirmado, recibo imprimible, notificaciones web/Telegram
+6. Reportes de pago — buscador (cédula, nombre, ID usuario, NUMFVD) y filtro Todos/Pendientes/Confirmados
+7. Gestionar inscripciones (registrants) — buscador, filtro, switch confirmado/pendiente, recibo y notificaciones
 
-Contenido:
-  • Dashboard FVD (DashboardData, OrganizacionesData)
-  • Notificación de credenciales individual y masiva
-  • Búsqueda activa al salir del campo (blur), sin botón Buscar
-  • Finanzas: actualizar deudas vía API JSON (public/api/finances_actualizar_deudas.php)
-  • Usuarios: listado ordenado por rol (admin general → admin org. → … → usuario)
+Reportes de pago: Panel torneo → Reportes de pago. Al activar el switch se confirma el pago,
+muestra recibo para imprimir y notifica al atleta (web push + Telegram).
+Use el buscador y los botones de estado en el encabezado del reporte.
 
-Pasos:
-  1. Subir y extraer este ZIP sobre la instalación existente.
-  2. En el navegador: Ctrl+F5 en Finanzas y Administración de Usuarios.
-  3. Probar actualizar deudas al elegir torneo y orden del listado de usuarios.
-
-No requiere migración SQL para este parche.
+No requiere migración SQL.
 TXT;
 
 $zip->addFromString('LEEME_PARCHE.txt', $readme);

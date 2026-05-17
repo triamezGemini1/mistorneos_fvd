@@ -247,6 +247,11 @@ if (in_array($action, ['new', 'edit'])) {
 $registrants_list = [];
 // Aceptar torneo_id desde la URL (para enlaces desde torneos) o filter_torneo (desde filtros)
 $filter_torneo = $_GET['torneo_id'] ?? $_GET['filter_torneo'] ?? '';
+$filtro_busqueda = trim((string) ($_GET['q'] ?? ''));
+$filtro_estatus_insc = $_GET['estatus_filtro'] ?? 'todos';
+if (!in_array($filtro_estatus_insc, ['todos', 'pendiente', 'confirmado', 'retirado'], true)) {
+    $filtro_estatus_insc = 'todos';
+}
 $filter_clubs = $_GET['filter_clubs'] ?? [];
 $total_registrants = 0;
 $pagination = null;
@@ -373,6 +378,43 @@ if ($action === 'list') {
             // Filtro base: torneo seleccionado
             $where[] = "r.torneo_id = ?";
             $params[] = (int)$filter_torneo;
+
+            if ($filtro_estatus_insc === 'pendiente') {
+                $where[] = "(r.estatus = 0 OR r.estatus = 'pendiente')";
+            } elseif ($filtro_estatus_insc === 'confirmado') {
+                $where[] = "(r.estatus IN (1, 2, 3) OR r.estatus IN ('confirmado', 'solvente'))";
+            } elseif ($filtro_estatus_insc === 'retirado') {
+                $where[] = "(r.estatus = 4 OR r.estatus = 'retirado')";
+            }
+
+            if ($filtro_busqueda !== '') {
+                $like = '%' . $filtro_busqueda . '%';
+                $cedulaDigits = '%' . preg_replace('/\D/', '', $filtro_busqueda) . '%';
+                $searchParts = [
+                    'u.nombre LIKE ?',
+                    'u.cedula LIKE ?',
+                    "REPLACE(REPLACE(REPLACE(TRIM(CAST(u.cedula AS CHAR)), '-', ''), '.', ''), ' ', '') LIKE ?",
+                    'CAST(r.id_usuario AS CHAR) LIKE ?',
+                    'CAST(r.id AS CHAR) LIKE ?',
+                ];
+                $searchParams = [$like, $like, $cedulaDigits, $like, $like];
+                try {
+                    if ((bool) DB::pdo()->query("SHOW COLUMNS FROM usuarios LIKE 'numfvd'")->fetchColumn()) {
+                        $searchParts[] = 'CAST(u.numfvd AS CHAR) LIKE ?';
+                        $searchParams[] = $like;
+                    }
+                } catch (Throwable $e) {
+                }
+                if (ctype_digit($filtro_busqueda)) {
+                    $idNum = (int) $filtro_busqueda;
+                    $searchParts[] = 'r.id_usuario = ?';
+                    $searchParams[] = $idNum;
+                    $searchParts[] = 'r.id = ?';
+                    $searchParams[] = $idNum;
+                }
+                $where[] = '(' . implode(' OR ', $searchParts) . ')';
+                $params = array_merge($params, $searchParams);
+            }
             
             // En "Gestionar inscripciones" (con torneo seleccionado): mostrar TODOS los inscritos del torneo
             // por cualquier vía (en línea, en sitio, evento masivo, invitación). No filtrar por club.
@@ -402,7 +444,9 @@ if ($action === 'list') {
         // Obtener registros de la p�gina actual
         $stmt = DB::pdo()->prepare("
             SELECT r.*, 
-                   u.nombre, u.sexo,
+                   u.nombre, u.sexo, u.cedula, u.celular,
+                   COALESCE(u.numfvd, 0) AS usuario_numfvd,
+                   r.id_usuario,
                    t.nombre as torneo_nombre,
                    t.fechator as torneo_fecha,
                    t.costo as torneo_costo,
@@ -1022,15 +1066,36 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                 }
             ?>
                 <?php if ($torneo_info): ?>
-                <div class="mb-3">
-                    <h3 class="mb-0">
-                        <?= htmlspecialchars($torneo_info['nombre']) ?>
-                        <?php if ($club_info): ?>
-                            <span class="text-muted">- <?= htmlspecialchars($club_info['nombre']) ?></span>
-                        <?php elseif (count($clubes_en_lista) > 1): ?>
-                            <span class="text-muted">- <?= count($clubes_en_lista) ?> Clubes</span>
-                        <?php endif; ?>
-                    </h3>
+                <div class="card border-primary shadow-sm mb-3">
+                    <div class="card-header bg-dark text-white py-2">
+                        <h3 class="mb-0 h5"><i class="fas fa-trophy me-2 text-warning"></i>TORNEO <?= htmlspecialchars($torneo_info['nombre']) ?>
+                            <?php if ($club_info): ?><span class="text-white-50">— <?= htmlspecialchars($club_info['nombre']) ?></span>
+                            <?php elseif (count($clubes_en_lista) > 1): ?><span class="text-white-50">— <?= count($clubes_en_lista) ?> Clubes</span><?php endif; ?>
+                        </h3>
+                    </div>
+                    <div class="card-body py-3">
+                        <form method="get" class="row g-3 align-items-end">
+                            <input type="hidden" name="page" value="registrants">
+                            <input type="hidden" name="filter_torneo" value="<?= (int)$filter_torneo ?>">
+                            <div class="col-lg-5"><label class="form-label mb-1"><i class="fas fa-search me-1"></i>Buscar</label>
+                                <input type="search" name="q" class="form-control" placeholder="Cédula, nombre, ID usuario o NUMFVD" value="<?= htmlspecialchars($filtro_busqueda) ?>"></div>
+                            <div class="col-lg-4"><label class="form-label mb-1 d-block">Estado</label>
+                                <div class="btn-group w-100">
+                                    <input type="radio" class="btn-check" name="estatus_filtro" id="ef_todos" value="todos" <?= $filtro_estatus_insc === 'todos' ? 'checked' : '' ?>>
+                                    <label class="btn btn-outline-secondary btn-sm" for="ef_todos">Todos</label>
+                                    <input type="radio" class="btn-check" name="estatus_filtro" id="ef_pend" value="pendiente" <?= $filtro_estatus_insc === 'pendiente' ? 'checked' : '' ?>>
+                                    <label class="btn btn-outline-warning btn-sm" for="ef_pend">Pendientes</label>
+                                    <input type="radio" class="btn-check" name="estatus_filtro" id="ef_conf" value="confirmado" <?= $filtro_estatus_insc === 'confirmado' ? 'checked' : '' ?>>
+                                    <label class="btn btn-outline-success btn-sm" for="ef_conf">Confirmados</label>
+                                </div></div>
+                            <div class="col-lg-3 d-flex gap-2">
+                                <button type="submit" class="btn btn-primary flex-grow-1"><i class="fas fa-filter me-1"></i>Aplicar</button>
+                                <?php if ($filtro_busqueda !== '' || $filtro_estatus_insc !== 'todos'): ?>
+                                <a href="index.php?page=registrants&amp;filter_torneo=<?= (int)$filter_torneo ?>" class="btn btn-outline-secondary"><i class="fas fa-times"></i></a>
+                                <?php endif; ?>
+                            </div>
+                        </form>
+                    </div>
                 </div>
                 <?php endif; ?>
                 <div class="table-responsive">
@@ -1038,6 +1103,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                         <thead>
                             <tr>
                                 <th>ID</th>
+                                <th>NUMFVD</th>
                                 <th>Nombre</th>
                                 <th>Sexo</th>
                                 <th>Celular</th>
@@ -1073,22 +1139,23 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                                 if ($club_index > 0):
                             ?>
                                 <tr class="table-group-divider">
-                                    <td colspan="6"></td>
+                                    <td colspan="8"></td>
                                 </tr>
                             <?php 
                                 endif;
                                 $club_index++;
                             ?>
                                 <tr class="table-secondary fw-bold">
-                                    <td colspan="6" class="bg-light">
+                                    <td colspan="8" class="bg-light">
                                         <i class="fas fa-building me-2"></i>
                                         <?= htmlspecialchars($datos_club['nombre']) ?>
                                         <span class="badge bg-primary ms-2"><?= count($datos_club['inscritos']) ?> inscrito(s)</span>
                                     </td>
                                 </tr>
                             <?php foreach ($datos_club['inscritos'] as $item): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars((string)$item['id']) ?></td>
+                                <tr data-inscripcion-row="<?= (int)$item['id'] ?>">
+                                    <td><code><?= (int)($item['id_usuario'] ?? 0) ?></code></td>
+                                    <td><code><?= (int)($item['usuario_numfvd'] ?? 0) ?></code></td>
                                     <td><strong><?= htmlspecialchars($item['nombre']) ?></strong></td>
                                     <td>
                                         <?php
@@ -1103,47 +1170,56 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                                         ?>
                                     </td>
                                     <td><?= htmlspecialchars($item['celular'] ?? 'N/A') ?></td>
-                                    <td>
+                                    <td class="text-center">
                                         <?php
                                         $est = $item['estatus'] ?? 0;
                                         $est_num = is_numeric($est) ? (int)$est : (InscritosHelper::ESTATUS_REVERSE_MAP[$est] ?? 0);
-                                        if ($est_num === 1 || $est === 'confirmado' || $est === 'solvente') {
-                                            echo '<span class="badge bg-success">Confirmado</span>';
-                                        } elseif ($est_num === 4 || $est === 'retirado') {
-                                            echo '<span class="badge bg-dark">Retirado</span>';
-                                        } else {
-                                            echo '<span class="badge bg-warning">Pendiente</span>';
-                                        }
-                                        ?>
+                                        $es_confirmado = InscritosHelper::esConfirmado($est);
+                                        $es_retirado = InscritosHelper::esRetirado($est);
+                                        $puede_switch = empty($torneo_cerrado_reg) && !$es_retirado;
+                                        $csrf_val = class_exists('CSRF') ? CSRF::token() : '';
+                                        if ($es_retirado): ?>
+                                            <span class="badge bg-dark">Retirado</span>
+                                        <?php elseif ($puede_switch): ?>
+                                        <div class="form-check form-switch d-inline-flex justify-content-center mb-0">
+                                            <input type="checkbox" class="form-check-input js-switch-pago-inscrito" role="switch"
+                                                   data-inscripcion-id="<?= (int)$item['id'] ?>"
+                                                   data-torneo-id="<?= (int)$filter_torneo ?>"
+                                                   <?= $es_confirmado ? 'checked' : '' ?>>
+                                            <label class="form-check-label small ms-1 js-switch-pago-label"><?= $es_confirmado ? 'Confirmado' : 'Pendiente' ?></label>
+                                        </div>
+                                        <?php elseif ($es_confirmado): ?>
+                                            <span class="badge bg-success">Confirmado</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-warning text-dark">Pendiente</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="text-center">
                                         <?php
-                                        // Confirmar: solo si el torneo no está cerrado. Retirar: siempre permitido durante el torneo.
-                                        $puede_confirmar = empty($torneo_cerrado_reg);
-                                        $puede_retirar = true; // Retirar jugadores habilitado durante todo el torneo (no eliminar, solo retirar)
-                                        $es_confirmado = ($est_num === 1 || $est === 'confirmado' || $est === 'solvente');
-                                        $es_retirado = ($est_num === 4 || $est === 'retirado');
-                                        $csrf_val = class_exists('CSRF') ? CSRF::token() : '';
-                                        if ($puede_confirmar && !$es_confirmado): ?>
-                                            <form method="post" action="" class="d-inline">
-                                                <input type="hidden" name="action" value="cambiar_estatus_inscrito">
-                                                <input type="hidden" name="torneo_id" value="<?= (int)$filter_torneo ?>">
-                                                <input type="hidden" name="inscripcion_id" value="<?= (int)$item['id'] ?>">
-                                                <input type="hidden" name="estatus" value="1">
-                                                <input type="hidden" name="return_to" value="<?= htmlspecialchars($return_to) ?>">
-                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_val) ?>">
-                                                <button type="submit" class="btn btn-sm btn-success" title="Confirmar">Confirmar</button>
-                                            </form>
+                                        $puede_retirar = true;
+                                        ?>
+                                        <div class="btn-group btn-group-sm flex-wrap justify-content-center">
+                                        <?php if (!$es_retirado && empty($torneo_cerrado_reg)): ?>
+                                            <button type="button" class="btn btn-outline-primary js-notif-inscrito" title="Recordatorio de pago"
+                                                    data-inscripcion-id="<?= (int)$item['id'] ?>" data-torneo-id="<?= (int)$filter_torneo ?>">
+                                                <i class="fas fa-bell"></i>
+                                            </button>
+                                            <?php if ($es_confirmado): ?>
+                                            <button type="button" class="btn btn-outline-success js-recibo-inscrito" title="Recibo / imprimir"
+                                                    data-inscripcion-id="<?= (int)$item['id'] ?>" data-torneo-id="<?= (int)$filter_torneo ?>">
+                                                <i class="fas fa-receipt"></i>
+                                            </button>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                         <?php if ($puede_retirar && !$es_retirado): ?>
-                                            <form method="post" action="" class="d-inline">
+                                            <form method="post" action="" class="d-inline" onsubmit="return confirm('¿Retirar a este jugador del torneo?');">
                                                 <input type="hidden" name="action" value="cambiar_estatus_inscrito">
                                                 <input type="hidden" name="torneo_id" value="<?= (int)$filter_torneo ?>">
                                                 <input type="hidden" name="inscripcion_id" value="<?= (int)$item['id'] ?>">
                                                 <input type="hidden" name="estatus" value="4">
                                                 <input type="hidden" name="return_to" value="<?= htmlspecialchars($return_to) ?>">
                                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_val) ?>">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Retirar">Retirar</button>
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Retirar"><i class="fas fa-user-minus"></i></button>
                                             </form>
                                         <?php endif; ?>
                                         <?php
@@ -1219,6 +1295,35 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
         </div>
     </div>
 </div>
+
+<?php if (!empty($filter_torneo) && $action === 'list'): ?>
+<div class="modal fade" id="modalReciboInscrito" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Recibo para el jugador</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalReciboInscritoBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-success" id="btnReciboInscritoImprimir"><i class="fas fa-print me-1"></i>Imprimir</button>
+            </div>
+        </div>
+    </div>
+</div>
+<?php
+$insc_api = class_exists('AppHelpers') ? rtrim(AppHelpers::getPublicUrl(), '/') . '/api/inscripcion_admin.php' : '/public/api/inscripcion_admin.php';
+$insc_js = class_exists('AppHelpers') ? rtrim(AppHelpers::getPublicUrl(), '/') . '/assets/registrants-inscripciones.js' : '/public/assets/registrants-inscripciones.js';
+?>
+<script>
+window.REGISTRANTS_INSC_CFG = {
+    apiUrl: <?= json_encode($insc_api, JSON_UNESCAPED_UNICODE) ?>,
+    csrf: <?= json_encode(class_exists('CSRF') ? CSRF::token() : '', JSON_UNESCAPED_UNICODE) ?>
+};
+</script>
+<script src="<?= htmlspecialchars($insc_js) ?>"></script>
+<?php endif; ?>
 
 <?php elseif ($action === 'new' || $action === 'edit'): ?>
     <?php if ($action === 'new' && $torneo_id_context <= 0): ?>

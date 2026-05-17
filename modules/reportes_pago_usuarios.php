@@ -9,90 +9,43 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/csrf.php';
 require_once __DIR__ . '/../lib/BankValidator.php';
+require_once __DIR__ . '/../lib/ReportePagoUsuarioService.php';
+require_once __DIR__ . '/../lib/app_helpers.php';
+require_once __DIR__ . '/../config/deploy_build.php';
 
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 
 $pdo = DB::pdo();
 $user = Auth::user();
-$user_club_id = Auth::getUserClubId();
-$action = $_GET['action'] ?? 'list';
-$reporte_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 $error = '';
 $success = '';
 
-// Procesar acciones
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// POST legacy (rechazar)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') !== '1') {
     CSRF::validate();
-    
     $accion = $_POST['accion'] ?? '';
-    $reporte_id_post = (int)($_POST['reporte_id'] ?? 0);
-    
-    if ($reporte_id_post > 0) {
-        try {
-            // Obtener datos del reporte y verificar que admin_club solo pueda actuar sobre sus torneos
-            $stmt = $pdo->prepare("
-                SELECT rpu.*, t.club_responsable
-                FROM reportes_pago_usuarios rpu
-                INNER JOIN tournaments t ON rpu.torneo_id = t.id
-                WHERE rpu.id = ?
-            ");
+    $reporte_id_post = (int) ($_POST['reporte_id'] ?? 0);
+    if ($reporte_id_post > 0 && $accion === 'rechazar') {
+        $reporte_data = ReportePagoUsuarioService::cargarReporte($pdo, $reporte_id_post);
+        if ($reporte_data && ReportePagoUsuarioService::puedeGestionar($reporte_data)) {
+            $stmt = $pdo->prepare("UPDATE reportes_pago_usuarios SET estatus = 'rechazado', updated_at = NOW() WHERE id = ?");
             $stmt->execute([$reporte_id_post]);
-            $reporte_data = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            // admin_club solo puede confirmar/rechazar reportes de torneos de su club
-            if ($reporte_data && $user['role'] === 'admin_club' && $user_club_id) {
-                if ((int)($reporte_data['club_responsable'] ?? 0) !== (int)$user_club_id) {
-                    $reporte_data = null;
-                    $error = 'No tienes permiso para gestionar este reporte de pago';
-                }
-            }
-            
-            if ($reporte_data) {
-                if ($accion === 'confirmar') {
-                    $id_usuario = (int) ($reporte_data['id_usuario'] ?? 0);
-                    $torneo_id = (int) ($reporte_data['torneo_id'] ?? 0);
-                    $inscrito_id = (int) ($reporte_data['inscrito_id'] ?? 0);
-                    require_once __DIR__ . '/../lib/InscripcionPagoService.php';
-                    if ($inscrito_id <= 0 && $id_usuario > 0 && $torneo_id > 0) {
-                        $stI = $pdo->prepare('SELECT id FROM inscritos WHERE id_usuario = ? AND torneo_id = ? LIMIT 1');
-                        $stI->execute([$id_usuario, $torneo_id]);
-                        $inscrito_id = (int) ($stI->fetchColumn() ?: 0);
-                    }
-                    if ($inscrito_id > 0 && $torneo_id > 0) {
-                        $resVal = InscripcionPagoService::validarPagoInscripcion($pdo, $inscrito_id, $torneo_id);
-                        $success = $resVal['ok'] ? $resVal['message'] : $resVal['message'];
-                        if (!$resVal['ok']) {
-                            $error = $resVal['message'];
-                        }
-                    } else {
-                        $stmt = $pdo->prepare("
-                            UPDATE reportes_pago_usuarios 
-                            SET estatus = 'confirmado', updated_at = NOW() 
-                            WHERE id = ?
-                        ");
-                        $stmt->execute([$reporte_id_post]);
-                        $success = 'Reporte de pago confirmado exitosamente';
-                    }
-                } elseif ($accion === 'rechazar') {
-                    $stmt = $pdo->prepare("
-                        UPDATE reportes_pago_usuarios 
-                        SET estatus = 'rechazado', updated_at = NOW() 
-                        WHERE id = ?
-                    ");
-                    $stmt->execute([$reporte_id_post]);
-                    $success = 'Reporte de pago rechazado';
-                }
-            }
-        } catch (Exception $e) {
-            $error = 'Error al procesar la acción: ' . $e->getMessage();
+            $success = 'Reporte de pago rechazado';
+        } else {
+            $error = 'No tiene permiso para gestionar este reporte';
         }
     }
 }
 
 // Obtener filtros. Acceso desde panel de control: torneo_id obligatorio (sin selector).
 $filtro_estatus = $_GET['estatus'] ?? 'todos';
+$filtro_busqueda = trim((string) ($_GET['q'] ?? $_GET['search'] ?? ''));
 $filtro_torneo = isset($_GET['torneo_id']) ? (int)$_GET['torneo_id'] : 0;
+
+if (!in_array($filtro_estatus, ['todos', 'pendiente', 'confirmado', 'rechazado'], true)) {
+    $filtro_estatus = 'todos';
+}
 
 if ($filtro_torneo <= 0) {
     $dashboard = class_exists('AppHelpers') ? (AppHelpers::dashboard('home') ?? 'index.php') : 'index.php';
@@ -119,17 +72,60 @@ if ($filtro_torneo > 0) {
     $params[] = $filtro_torneo;
 }
 
-// admin_club solo ve reportes de torneos de su club (si no tiene club_id, no ve nada)
-if ($user['role'] === 'admin_club') {
-    if ($user_club_id) {
-        $where[] = "t.club_responsable = ?";
-        $params[] = $user_club_id;
-    } else {
-        $where[] = "1 = 0"; // Sin club asignado: no mostrar reportes
-    }
-}
-
 $where_sql = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+
+$hasEntidadTbl = false;
+try {
+    $hasEntidadTbl = (bool) $pdo->query("SHOW TABLES LIKE 'entidad'")->fetchColumn();
+} catch (Throwable $e) {
+    $hasEntidadTbl = false;
+}
+$entidadJoin = $hasEntidadTbl ? 'LEFT JOIN entidad e ON e.id = u.entidad' : '';
+$entidadSelect = $hasEntidadTbl ? ', e.nombre AS entidad_nombre, u.entidad AS entidad_id' : ', u.entidad AS entidad_id, NULL AS entidad_nombre';
+
+$hasNumfvdUsuario = false;
+try {
+    $hasNumfvdUsuario = (bool) $pdo->query("SHOW COLUMNS FROM usuarios LIKE 'numfvd'")->fetchColumn();
+} catch (Throwable $e) {
+    $hasNumfvdUsuario = false;
+}
+$inscritoNumfvdSub = '(SELECT COALESCE(i0.numfvd, 0) FROM inscritos i0 WHERE i0.torneo_id = rpu.torneo_id AND i0.id_usuario = rpu.id_usuario ORDER BY i0.id DESC LIMIT 1)';
+$numfvdSelect = $hasNumfvdUsuario
+    ? ", COALESCE(NULLIF(u.numfvd, 0), {$inscritoNumfvdSub}, 0) AS usuario_numfvd"
+    : ", COALESCE({$inscritoNumfvdSub}, 0) AS usuario_numfvd";
+
+if ($filtro_busqueda !== '') {
+    $like = '%' . $filtro_busqueda . '%';
+    $cedulaDigits = '%' . preg_replace('/\D/', '', $filtro_busqueda) . '%';
+    $searchParts = [
+        'u.nombre LIKE ?',
+        'u.cedula LIKE ?',
+        "REPLACE(REPLACE(REPLACE(TRIM(CAST(u.cedula AS CHAR)), '-', ''), '.', ''), ' ', '') LIKE ?",
+        'CAST(u.id AS CHAR) LIKE ?',
+    ];
+    $searchParams = [$like, $like, $cedulaDigits, $like];
+    if ($hasNumfvdUsuario) {
+        $searchParts[] = 'CAST(u.numfvd AS CHAR) LIKE ?';
+        $searchParams[] = $like;
+    }
+    $searchParts[] = "EXISTS (SELECT 1 FROM inscritos i_s WHERE i_s.torneo_id = rpu.torneo_id AND i_s.id_usuario = rpu.id_usuario AND CAST(COALESCE(i_s.numfvd, 0) AS CHAR) LIKE ?)";
+    $searchParams[] = $like;
+    if (ctype_digit($filtro_busqueda)) {
+        $idNum = (int) $filtro_busqueda;
+        $searchParts[] = 'u.id = ?';
+        $searchParams[] = $idNum;
+        if ($hasNumfvdUsuario) {
+            $searchParts[] = 'u.numfvd = ?';
+            $searchParams[] = $idNum;
+        }
+        $searchParts[] = "EXISTS (SELECT 1 FROM inscritos i_s WHERE i_s.torneo_id = rpu.torneo_id AND i_s.id_usuario = rpu.id_usuario AND i_s.numfvd = ?)";
+        $searchParams[] = $idNum;
+        $searchParts[] = 'rpu.id_usuario = ?';
+        $searchParams[] = $idNum;
+    }
+    $where[] = '(' . implode(' OR ', $searchParts) . ')';
+    $params = array_merge($params, $searchParams);
+}
 
 // Obtener reportes de pago
 $reportes = [];
@@ -140,6 +136,9 @@ try {
             u.id as usuario_id,
             u.nombre as usuario_nombre,
             u.cedula as usuario_cedula,
+            u.telegram_chat_id
+            {$entidadSelect}
+            {$numfvdSelect},
             t.nombre as torneo_nombre,
             t.fechator as torneo_fecha,
             t.costo as torneo_costo,
@@ -152,6 +151,7 @@ try {
         FROM reportes_pago_usuarios rpu
         INNER JOIN usuarios u ON rpu.id_usuario = u.id
         INNER JOIN tournaments t ON rpu.torneo_id = t.id
+        {$entidadJoin}
         LEFT JOIN cuentas_bancarias cb ON t.cuenta_id = cb.id
         $where_sql
         ORDER BY rpu.created_at DESC
@@ -175,13 +175,11 @@ try {
         WHERE t.es_evento_masivo = 1
     ";
     $torneos_params = [];
-    if ($user['role'] === 'admin_club' && $user_club_id) {
-        $torneos_sql .= " AND t.club_responsable = ?";
-        $torneos_params[] = $user_club_id;
-    } elseif ($user['role'] === 'admin_club' && !$user_club_id) {
-        $torneos_sql .= " AND 1 = 0"; // Sin club: no hay torneos
+    if ($filtro_torneo > 0) {
+        $torneos_sql .= ' AND t.id = ?';
+        $torneos_params[] = $filtro_torneo;
     }
-    $torneos_sql .= " ORDER BY t.nombre ASC";
+    $torneos_sql .= ' ORDER BY t.nombre ASC';
     $stmt = $pdo->prepare($torneos_sql);
     $stmt->execute($torneos_params);
     $torneos = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -199,7 +197,21 @@ $stats = [
 ];
 
 $csrf_token = CSRF::token();
+$rpu_api_url = class_exists('AppHelpers')
+    ? rtrim(AppHelpers::getPublicUrl(), '/') . '/api/reporte_pago_admin.php'
+    : '/public/api/reporte_pago_admin.php';
+$rpu_asset_base = class_exists('AppHelpers')
+    ? rtrim(AppHelpers::getPublicUrl(), '/')
+    : '/public';
 ?>
+<style>
+@media print {
+  body * { visibility: hidden; }
+  #modalRecibo .modal-content, #modalRecibo .modal-content * { visibility: visible; }
+  #modalRecibo .modal-footer, #modalRecibo .btn-close { display: none !important; }
+  #modalRecibo .modal-dialog { max-width: 100%; margin: 0; }
+}
+</style>
 <div class="fade-in">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -207,6 +219,7 @@ $csrf_token = CSRF::token();
             <h1 class="h3 mb-1">
                 <i class="fas fa-money-bill-wave me-2"></i>
                 Reportes de Pago de Usuarios
+                <span class="badge bg-secondary fs-6 align-middle" title="Versión desplegada"><?= htmlspecialchars(FVD_DEPLOY_BUILD) ?></span>
             </h1>
             <p class="text-muted mb-0">
                 <?php if ($user['role'] === 'admin_club'): ?>
@@ -298,30 +311,52 @@ $csrf_token = CSRF::token();
         $torneo_nombre_actual = $reportes[0]['torneo_nombre'];
     }
     ?>
-    <div class="alert alert-secondary py-2 mb-3">
-        <i class="fas fa-trophy me-2"></i><strong>Torneo:</strong> <?= htmlspecialchars($torneo_nombre_actual ?: 'Torneo #' . $filtro_torneo) ?>
-    </div>
-    <!-- Filtros -->
-    <div class="card mb-4">
+    <!-- Encabezado: torneo + búsqueda + filtro pago -->
+    <div class="card mb-4 border-primary shadow-sm">
+        <div class="card-header bg-dark text-white py-2">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <span><i class="fas fa-trophy me-2 text-warning"></i><strong>Torneo:</strong> <?= htmlspecialchars($torneo_nombre_actual ?: 'Torneo #' . $filtro_torneo) ?></span>
+                <span class="badge bg-light text-dark"><?= count($reportes) ?> registro(s)</span>
+            </div>
+        </div>
         <div class="card-body">
-            <form method="GET" action="" class="row g-3">
+            <form method="GET" action="" class="row g-3 align-items-end" id="formFiltrosReportesPago">
                 <input type="hidden" name="page" value="reportes_pago_usuarios">
                 <input type="hidden" name="torneo_id" value="<?= (int)$filtro_torneo ?>">
-                
-                <div class="col-md-6">
-                    <label class="form-label">Estado</label>
-                    <select name="estatus" class="form-select">
-                        <option value="todos" <?= $filtro_estatus === 'todos' ? 'selected' : '' ?>>Todos</option>
-                        <option value="pendiente" <?= $filtro_estatus === 'pendiente' ? 'selected' : '' ?>>Pendientes</option>
-                        <option value="confirmado" <?= $filtro_estatus === 'confirmado' ? 'selected' : '' ?>>Confirmados</option>
-                        <option value="rechazado" <?= $filtro_estatus === 'rechazado' ? 'selected' : '' ?>>Rechazados</option>
-                    </select>
+
+                <div class="col-lg-5 col-md-12">
+                    <label class="form-label mb-1"><i class="fas fa-search me-1"></i>Buscar</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-id-card"></i></span>
+                        <input type="search" name="q" class="form-control"
+                               placeholder="Cédula, nombre, ID usuario o NUMFVD…"
+                               value="<?= htmlspecialchars($filtro_busqueda) ?>"
+                               autocomplete="off">
+                    </div>
+                    <small class="text-muted">Cédula, nombre, id de usuario o numfvd.</small>
                 </div>
-                
-                <div class="col-md-6 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-filter me-2"></i>Filtrar
+
+                <div class="col-lg-4 col-md-8">
+                    <label class="form-label mb-1 d-block"><i class="fas fa-filter me-1"></i>Estado del pago</label>
+                    <div class="btn-group w-100" role="group" aria-label="Filtro estatus pago">
+                        <input type="radio" class="btn-check" name="estatus" id="estatus_todos" value="todos" <?= $filtro_estatus === 'todos' ? 'checked' : '' ?> autocomplete="off">
+                        <label class="btn btn-outline-secondary" for="estatus_todos"><i class="fas fa-list me-1"></i>Todos</label>
+                        <input type="radio" class="btn-check" name="estatus" id="estatus_pendiente" value="pendiente" <?= $filtro_estatus === 'pendiente' ? 'checked' : '' ?> autocomplete="off">
+                        <label class="btn btn-outline-warning" for="estatus_pendiente"><i class="fas fa-clock me-1"></i>Pendientes</label>
+                        <input type="radio" class="btn-check" name="estatus" id="estatus_confirmado" value="confirmado" <?= $filtro_estatus === 'confirmado' ? 'checked' : '' ?> autocomplete="off">
+                        <label class="btn btn-outline-success" for="estatus_confirmado"><i class="fas fa-check me-1"></i>Confirmados</label>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1">
+                        <i class="fas fa-search me-1"></i>Aplicar
                     </button>
+                    <?php if ($filtro_busqueda !== '' || $filtro_estatus !== 'todos'): ?>
+                    <a href="?page=reportes_pago_usuarios&amp;torneo_id=<?= (int)$filtro_torneo ?>" class="btn btn-outline-secondary" title="Limpiar filtros">
+                        <i class="fas fa-times"></i>
+                    </a>
+                    <?php endif; ?>
                 </div>
             </form>
         </div>
@@ -343,7 +378,8 @@ $csrf_token = CSRF::token();
                             <tr>
                                 <th>ID</th>
                                 <th>Usuario</th>
-                                <th>ID Usuario</th>
+                                <th>NUMFVD</th>
+                                <th>Entidad</th>
                                 <th>Torneo</th>
                                 <th>Fecha/Hora Pago</th>
                                 <th>Tipo</th>
@@ -351,9 +387,10 @@ $csrf_token = CSRF::token();
                                 <th>Monto</th>
                                 <th>Referencia</th>
                                 <th>Cantidad</th>
+                                <th>Confirmado</th>
                                 <th>Estado</th>
                                 <th>Fecha Reporte</th>
-                                <th>Acciones</th>
+                                <th class="text-center">Opciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -363,8 +400,18 @@ $csrf_token = CSRF::token();
                                 <td>
                                     <i class="fas fa-user text-muted me-2"></i>
                                     <?= htmlspecialchars($reporte['usuario_nombre']) ?>
+                                    <small class="d-block text-muted ms-4">
+                                        ID <?= (int)($reporte['usuario_id'] ?? $reporte['id_usuario'] ?? 0) ?>
+                                        <?php if (!empty($reporte['usuario_cedula'])): ?>
+                                        · <?= htmlspecialchars((string)$reporte['usuario_cedula']) ?>
+                                        <?php endif; ?>
+                                    </small>
                                 </td>
-                                <td><code><?= $reporte['usuario_id'] ?></code></td>
+                                <td><code><?= (int)($reporte['usuario_numfvd'] ?? 0) ?></code></td>
+                                <td>
+                                    <i class="fas fa-map-marker-alt text-secondary me-1"></i>
+                                    <?= htmlspecialchars($reporte['entidad_nombre'] ?? ('Entidad #' . (int)($reporte['entidad_id'] ?? 0))) ?>
+                                </td>
                                 <td>
                                     <i class="fas fa-trophy text-warning me-2"></i>
                                     <?= htmlspecialchars($reporte['torneo_nombre']) ?>
@@ -390,6 +437,16 @@ $csrf_token = CSRF::token();
                                 <td>
                                     <span class="badge bg-secondary"><?= $reporte['cantidad_inscritos'] ?> persona(s)</span>
                                 </td>
+                                <td class="text-center">
+                                    <?php if ($reporte['estatus'] !== 'rechazado'): ?>
+                                    <div class="form-check form-switch d-inline-flex align-items-center justify-content-center mb-0">
+                                        <input type="checkbox" class="form-check-input rpu-switch-confirmado" role="switch"
+                                               data-reporte-id="<?= (int)$reporte['id'] ?>"
+                                               <?= $reporte['estatus'] === 'confirmado' ? 'checked' : '' ?>>
+                                        <label class="form-check-label small ms-1"><?= $reporte['estatus'] === 'confirmado' ? 'Sí' : 'No' ?></label>
+                                    </div>
+                                    <?php else: ?>—<?php endif; ?>
+                                </td>
                                 <td>
                                     <?php
                                     $estatus_classes = [
@@ -405,43 +462,34 @@ $csrf_token = CSRF::token();
                                     $class = $estatus_classes[$reporte['estatus']] ?? 'bg-secondary';
                                     $text = $estatus_texts[$reporte['estatus']] ?? 'Desconocido';
                                     ?>
-                                    <span class="badge <?= $class ?>"><?= $text ?></span>
+                                    <span class="badge <?= $class ?> rpu-estatus-badge"><?= $text ?></span>
                                 </td>
                                 <td>
                                     <small><?= date('d/m/Y H:i', strtotime($reporte['created_at'])) ?></small>
                                 </td>
                                 <td>
-                                    <?php if ($reporte['estatus'] === 'pendiente'): ?>
-                                    <div class="btn-group btn-group-sm">
-                                        <form method="POST" action="" class="d-inline" onsubmit="return confirm('¿Confirmar este pago?');">
-                                            <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
-                                            <input type="hidden" name="reporte_id" value="<?= $reporte['id'] ?>">
-                                            <input type="hidden" name="accion" value="confirmar">
-                                            <button type="submit" class="btn btn-success btn-sm" title="Confirmar">
-                                                <i class="fas fa-check"></i>
-                                            </button>
-                                        </form>
-                                        <form method="POST" action="" class="d-inline" onsubmit="return confirm('¿Rechazar este pago?');">
+                                    <div class="btn-group btn-group-sm flex-wrap justify-content-center">
+                                        <button type="button" class="btn btn-outline-info btn-sm" data-rpu-accion="ver" data-reporte-id="<?= (int)$reporte['id'] ?>" title="Ver"><i class="fas fa-eye"></i></button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-rpu-accion="imprimir" data-reporte-id="<?= (int)$reporte['id'] ?>" title="Imprimir"><i class="fas fa-print"></i></button>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Notificar"><i class="fas fa-bell"></i></button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li><a class="dropdown-item" href="#" data-rpu-accion="notificar" data-canal="ambos" data-reporte-id="<?= (int)$reporte['id'] ?>"><i class="fas fa-broadcast-tower me-2"></i>Web + Telegram</a></li>
+                                                <li><a class="dropdown-item" href="#" data-rpu-accion="notificar" data-canal="web" data-reporte-id="<?= (int)$reporte['id'] ?>"><i class="fas fa-globe me-2"></i>Web push</a></li>
+                                                <li><a class="dropdown-item" href="#" data-rpu-accion="notificar" data-canal="telegram" data-reporte-id="<?= (int)$reporte['id'] ?>"><i class="fab fa-telegram me-2"></i>Telegram</a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item" href="#" data-rpu-accion="notificar" data-canal="recordatorio" data-reporte-id="<?= (int)$reporte['id'] ?>"><i class="fab fa-whatsapp me-2 text-success"></i>Recordatorio</a></li>
+                                            </ul>
+                                        </div>
+                                        <?php if ($reporte['estatus'] === 'pendiente'): ?>
+                                        <form method="POST" class="d-inline" onsubmit="return confirm('¿Rechazar?');">
                                             <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                                             <input type="hidden" name="reporte_id" value="<?= $reporte['id'] ?>">
                                             <input type="hidden" name="accion" value="rechazar">
-                                            <button type="submit" class="btn btn-danger btn-sm" title="Rechazar">
-                                                <i class="fas fa-times"></i>
-                                            </button>
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Rechazar"><i class="fas fa-ban"></i></button>
                                         </form>
+                                        <?php endif; ?>
                                     </div>
-                                    <?php else: ?>
-                                    <span class="text-muted">
-                                        <i class="fas fa-<?= $reporte['estatus'] === 'confirmado' ? 'check-circle text-success' : 'times-circle text-danger' ?>"></i>
-                                    </span>
-                                    <?php endif; ?>
-                                    
-                                    <!-- Botón para ver detalles -->
-                                    <button type="button" class="btn btn-info btn-sm" 
-                                            onclick="verDetalles(<?= htmlspecialchars(json_encode($reporte)) ?>)"
-                                            title="Ver detalles">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -459,105 +507,29 @@ $csrf_token = CSRF::token();
     </div>
 </div>
 
-<!-- Modal para ver detalles -->
-<div class="modal fade" id="modalDetalles" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+
+<!-- Modal recibo / ver registro -->
+<div class="modal fade" id="modalRecibo" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-info-circle me-2"></i>Detalles del Reporte de Pago
-                </h5>
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Recibo / detalle del reporte</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="modalDetallesBody">
-                <!-- Contenido dinámico -->
-            </div>
+            <div class="modal-body" id="modalReciboBody"></div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="fas fa-times me-1"></i>Cerrar</button>
+                <button type="button" class="btn btn-success" id="btnReciboImprimir"><i class="fas fa-print me-1"></i>Imprimir</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-function verDetalles(reporte) {
-    const modal = new bootstrap.Modal(document.getElementById('modalDetalles'));
-    const body = document.getElementById('modalDetallesBody');
-    
-    const estatusBadge = {
-        'pendiente': '<span class="badge bg-warning">Pendiente</span>',
-        'confirmado': '<span class="badge bg-success">Confirmado</span>',
-        'rechazado': '<span class="badge bg-danger">Rechazado</span>'
-    };
-    
-    body.innerHTML = `
-        <div class="row g-3">
-            <div class="col-md-6">
-                <strong>ID Reporte:</strong><br>
-                <code>#${reporte.id}</code>
-            </div>
-            <div class="col-md-6">
-                <strong>Estado:</strong><br>
-                ${estatusBadge[reporte.estatus] || ''}
-            </div>
-            <div class="col-md-6">
-                <strong>Usuario:</strong><br>
-                ${reporte.usuario_nombre}<br>
-                <small class="text-muted">ID: ${reporte.usuario_id} | Cédula: ${reporte.usuario_cedula}</small>
-            </div>
-            <div class="col-md-6">
-                <strong>Torneo:</strong><br>
-                ${reporte.torneo_nombre}<br>
-                <small class="text-muted">Fecha: ${new Date(reporte.torneo_fecha).toLocaleDateString('es-ES')}</small>
-            </div>
-            <div class="col-md-6">
-                <strong>Cantidad de Inscritos:</strong><br>
-                <span class="badge bg-secondary">${reporte.cantidad_inscritos} persona(s)</span>
-            </div>
-            <div class="col-md-6">
-                <strong>Monto:</strong><br>
-                <span class="h5 text-success">$${parseFloat(reporte.monto).toFixed(2)}</span>
-            </div>
-            <div class="col-md-6">
-                <strong>Fecha del Pago:</strong><br>
-                ${new Date(reporte.fecha).toLocaleDateString('es-ES')}
-            </div>
-            <div class="col-md-6">
-                <strong>Hora del Pago:</strong><br>
-                ${reporte.hora}
-            </div>
-            <div class="col-md-6">
-                <strong>Tipo de Pago:</strong><br>
-                <span class="badge bg-info">${reporte.tipo_pago.charAt(0).toUpperCase() + reporte.tipo_pago.slice(1)}</span>
-            </div>
-            <div class="col-md-6">
-                <strong>Banco:</strong><br>
-                ${reporte.banco || 'N/A'}
-            </div>
-            <div class="col-12">
-                <strong>Referencia:</strong><br>
-                ${reporte.referencia ? '<code>' + reporte.referencia + '</code>' : '<span class="text-muted">No proporcionada</span>'}
-            </div>
-            ${reporte.comentarios ? `
-            <div class="col-12">
-                <strong>Comentarios:</strong><br>
-                <div class="bg-light p-3 rounded">${reporte.comentarios.replace(/\n/g, '<br>')}</div>
-            </div>
-            ` : ''}
-            <div class="col-md-6">
-                <strong>Fecha de Reporte:</strong><br>
-                <small>${new Date(reporte.created_at).toLocaleString('es-ES')}</small>
-            </div>
-            ${reporte.updated_at && reporte.updated_at !== reporte.created_at ? `
-            <div class="col-md-6">
-                <strong>Última Actualización:</strong><br>
-                <small>${new Date(reporte.updated_at).toLocaleString('es-ES')}</small>
-            </div>
-            ` : ''}
-        </div>
-    `;
-    
-    modal.show();
-}
+window.REPORTES_PAGO_CFG = {
+    apiUrl: <?= json_encode($rpu_api_url, JSON_UNESCAPED_UNICODE) ?>,
+    csrf: <?= json_encode($csrf_token, JSON_UNESCAPED_UNICODE) ?>
+};
 </script>
+<script src="<?= htmlspecialchars($rpu_asset_base) ?>/assets/reportes-pago-usuarios.js"></script>
 

@@ -18,6 +18,17 @@ class LandingDataService
         $this->hasCodOrgColumn = $this->detectCodOrgColumn();
     }
 
+    /**
+     * Subconsulta: total de inscritos activos (incluye pendiente 0 de inscripción en línea).
+     */
+    private function sqlSubqueryTotalInscritos(string $torneoIdExpr = 't.id'): string
+    {
+        require_once __DIR__ . '/InscritosHelper.php';
+        $whereActivo = InscritosHelper::sqlWhereActivoConAlias('');
+
+        return "(SELECT COUNT(*) FROM inscritos WHERE torneo_id = {$torneoIdExpr} AND {$whereActivo}) AS total_inscritos";
+    }
+
     private function detectCodOrgColumn(): bool
     {
         try {
@@ -98,7 +109,7 @@ class LandingDataService
                 u.username as admin_username,
                 u.celular as admin_celular,
                 COALESCE(o.entidad, t.entidad, 0) as entidad_torneo,
-                (SELECT COUNT(*) FROM inscritos WHERE torneo_id = t.id AND (estatus IS NULL OR estatus != 'retirado')) as total_inscritos
+                " . $this->sqlSubqueryTotalInscritos() . "
             FROM tournaments t
             " . $this->orgJoinExpr('t', 'o') . "
             LEFT JOIN usuarios u ON o.admin_user_id = u.id AND u.role = 'admin_club'
@@ -148,7 +159,7 @@ class LandingDataService
                 u.nombre as admin_nombre,
                 u.username as admin_username,
                 u.celular as admin_celular,
-                (SELECT COUNT(*) FROM inscritos WHERE torneo_id = t.id AND (estatus IS NULL OR estatus = 'confirmado')) as total_inscritos
+                " . $this->sqlSubqueryTotalInscritos() . "
                 {$subquery_fotos}
             FROM tournaments t
             " . $this->orgJoinExpr('t', 'o') . "
@@ -203,7 +214,7 @@ class LandingDataService
                 u.username as admin_username,
                 u.celular as admin_celular,
                 COALESCE(o.entidad, t.entidad, 0) as entidad_torneo,
-                (SELECT COUNT(*) FROM inscritos WHERE torneo_id = t.id AND (estatus IS NULL OR estatus != 'retirado')) as total_inscritos,
+                " . $this->sqlSubqueryTotalInscritos() . ",
                 e.nombre as entidad_nombre
             FROM tournaments t
             " . $this->orgJoinExpr('t', 'o') . "
@@ -259,7 +270,7 @@ class LandingDataService
                 u.username as admin_username,
                 u.celular as admin_celular,
                 COALESCE(o.entidad, t.entidad, 0) as entidad_torneo,
-                (SELECT COUNT(*) FROM inscritos WHERE torneo_id = t.id AND (estatus IS NULL OR estatus != 'retirado')) as total_inscritos
+                " . $this->sqlSubqueryTotalInscritos() . "
             FROM tournaments t
             " . $this->orgJoinExpr('t', 'o') . "
             LEFT JOIN usuarios u ON o.admin_user_id = u.id AND u.role = 'admin_club'
@@ -336,7 +347,7 @@ class LandingDataService
                 o.email as organizacion_email,
                 u.nombre as admin_nombre,
                 u.celular as admin_celular,
-                (SELECT COUNT(*) FROM inscritos WHERE torneo_id = t.id AND (estatus IS NULL OR estatus != 'retirado')) as total_inscritos
+                " . $this->sqlSubqueryTotalInscritos() . "
             FROM tournaments t
             LEFT JOIN organizaciones o ON t.club_responsable = o.id AND o.estatus = 1
             LEFT JOIN usuarios u ON o.admin_user_id = u.id AND u.role = 'admin_club'

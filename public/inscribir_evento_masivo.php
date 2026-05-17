@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Inscripción Pública para Eventos Masivos
  * Permite a cualquier usuario inscribirse en eventos masivos desde su dispositivo móvil
@@ -316,9 +316,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $torneo) {
                 'torneo_id' => $torneo_id,
                 'id_club' => $id_club_inscripcion,
                 'entidad_id' => $entidad,
+                'nacionalidad' => $nac,
+                'cedula' => $cedula,
                 'estatus' => 0,
                 'inscrito_por' => FvdConfig::INSCRITO_POR_LANDING_PUBLICO,
-                'numero' => 0
+                'numero' => 0,
             ]);
             if (file_exists(__DIR__ . '/../lib/UserActivationHelper.php')) {
                 require_once __DIR__ . '/../lib/UserActivationHelper.php';

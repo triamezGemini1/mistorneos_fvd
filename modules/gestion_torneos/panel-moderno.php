@@ -122,9 +122,13 @@ if ($ultima_ronda > 0 && isset($torneo['id'])) {
 }
 
 $tid_panel = (int)($torneo['id'] ?? 0);
+$es_evento_masivo_panel = (int)($torneo['es_evento_masivo'] ?? 0) > 0;
 $url_reportes_inscritos = ($tid_panel > 0 && class_exists('AppHelpers', false))
     ? AppHelpers::torneoGestionUrl('reportes_inscritos', $tid_panel)
     : ($tid_panel > 0 ? 'index.php?page=torneo_gestion&action=reportes_inscritos&torneo_id=' . $tid_panel : '#');
+$url_reportes_pago_usuarios = ($tid_panel > 0 && class_exists('AppHelpers', false))
+    ? AppHelpers::dashboard('reportes_pago_usuarios', ['torneo_id' => $tid_panel])
+    : ($tid_panel > 0 ? 'index.php?page=reportes_pago_usuarios&torneo_id=' . $tid_panel : '#');
 $invitar_clubes_inhabil = ($ultima_ronda > 0);
 ?>
 
@@ -711,6 +715,12 @@ tailwind.config = {
                            class="tw-btn bg-sky-600 hover:bg-sky-700 text-white w-full text-center">
                             <i class="fas fa-file-invoice"></i> Reportes de inscritos
                         </a>
+                        <?php if ($es_evento_masivo_panel): ?>
+                        <a href="<?= htmlspecialchars($url_reportes_pago_usuarios, ENT_QUOTES, 'UTF-8'); ?>"
+                           class="tw-btn bg-emerald-600 hover:bg-emerald-700 text-white w-full text-center">
+                            <i class="fas fa-money-bill-wave"></i> Reportes de pago (usuarios)
+                        </a>
+                        <?php endif; ?>
                         <?php endif; ?>
                     </div>
                 </div>
