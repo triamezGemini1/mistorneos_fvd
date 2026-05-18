@@ -518,11 +518,8 @@ $torneo_nombre_limpio = $torneo ? limpiarNombreTorneo((string)($torneo['nombre']
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Inscripción - <?= htmlspecialchars($torneo_nombre_limpio) ?></title>
     
-    <!-- Tailwind CSS (compilado localmente para mejor rendimiento) -->
-    <link rel="stylesheet" href="assets/dist/output.css">
-    
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="<?= htmlspecialchars(class_exists('AppHelpers') ? AppHelpers::assetVersion('assets/dist/output.css') : 'assets/dist/output.css') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(class_exists('AppHelpers') ? AppHelpers::assetVersion('assets/vendor/fontawesome/css/all.min.css') : 'assets/vendor/fontawesome/css/all.min.css') ?>">
     
     <style>
         body {

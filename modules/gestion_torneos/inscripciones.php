@@ -17,8 +17,17 @@ $hombres = isset($hombres) ? (int)$hombres : 0;
 $mujeres = isset($mujeres) ? (int)$mujeres : 0;
 $resumen_clubes = $resumen_clubes ?? [];
 $puede_confirmar_retirar = isset($puede_confirmar_retirar) ? $puede_confirmar_retirar : true;
+$modalidad_inscripcion = (int) ($torneo['modalidad'] ?? 1);
+$accion_inscribir_nuevo = $modalidad_inscripcion === 3 ? 'inscribir_equipo_sitio' : 'inscribir_sitio';
+$url_inscribir_nuevo = $tid_panel > 0
+    ? (class_exists('AppHelpers')
+        ? AppHelpers::dashboard('torneo_gestion', ['action' => $accion_inscribir_nuevo, 'torneo_id' => $tid_panel])
+        : ('index.php?page=torneo_gestion&action=' . rawurlencode($accion_inscribir_nuevo) . '&torneo_id=' . $tid_panel))
+    : '#';
+$label_inscribir_nuevo = $modalidad_inscripcion === 3 ? 'Inscribir equipo en sitio' : 'Inscribir jugador en sitio';
 ?>
 
+<!-- Vista compacta: sin KPIs, sin resumen clubes, sin estado/pago en tabla -->
 <!-- Breadcrumb -->
 <nav aria-label="breadcrumb" class="breadcrumb-modern mb-4">
     <ol class="breadcrumb">
@@ -29,7 +38,7 @@ $puede_confirmar_retirar = isset($puede_confirmar_retirar) ? $puede_confirmar_re
 </nav>
 
 <!-- Header del Torneo -->
-<div class="card-modern mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+<div class="card-modern fvd-hero mb-4 fvd-gradient-header">
     <div class="d-flex justify-content-between align-items-center p-4">
         <div>
             <h2 class="mb-2" style="color: white; font-weight: 700;">
@@ -40,7 +49,6 @@ $puede_confirmar_retirar = isset($puede_confirmar_retirar) ? $puede_confirmar_re
                 <span><i class="fas fa-calendar-alt me-1"></i> <?php echo date('d/m/Y', strtotime($torneo['fechator'] ?? 'now')); ?></span>
                 <span><i class="fas fa-building me-1"></i> <?php echo htmlspecialchars($torneo['club_nombre'] ?? 'N/A'); ?></span>
             </div>
-            <?php require __DIR__ . '/../../resources/views/partials/torneo_inscripcion_badges_bs5.php'; ?>
         </div>
         <div class="text-end">
             <a href="<?php echo htmlspecialchars($url_panel); ?>" class="btn btn-light btn-sm">
@@ -57,41 +65,13 @@ $puede_confirmar_retirar = isset($puede_confirmar_retirar) ? $puede_confirmar_re
     </a>
 </div>
 
-<!-- Estadísticas Rápidas -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-            <div class="stat-label" style="opacity: 0.9;">Total Inscritos</div>
-            <div class="stat-value" style="font-size: 2.5rem;"><?php echo $total_inscritos ?? 0; ?></div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
-            <div class="stat-label" style="opacity: 0.9;">Pagados</div>
-            <div class="stat-value" style="font-size: 2.5rem;"><?php echo $confirmados ?? 0; ?></div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="stat-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
-            <div class="stat-label" style="opacity: 0.9;">Hombres</div>
-            <div class="stat-value" style="font-size: 2.5rem;"><?php echo $hombres ?? 0; ?></div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
-            <div class="stat-label" style="opacity: 0.9;">Mujeres</div>
-            <div class="stat-value" style="font-size: 2.5rem;"><?php echo $mujeres ?? 0; ?></div>
-        </div>
-    </div>
-</div>
-
 <!-- Botón Agregar Jugador (solo si el torneo no ha iniciado) -->
 <?php if (!$torneo_iniciado): ?>
 <div class="row mb-4">
     <div class="col-12">
-        <a href="index.php?page=registrants&action=crear&torneo_id=<?php echo $torneo['id']; ?>" 
-           class="btn btn-success btn-lg">
-            <i class="fas fa-user-plus me-2"></i> Inscribir Nuevo Jugador
+        <a href="<?php echo htmlspecialchars($url_inscribir_nuevo); ?>"
+           class="btn btn-success btn-lg<?= $url_inscribir_nuevo === '#' ? ' disabled' : '' ?>">
+            <i class="fas fa-user-plus me-2"></i> <?php echo htmlspecialchars($label_inscribir_nuevo); ?>
         </a>
     </div>
 </div>
@@ -114,53 +94,9 @@ $puede_confirmar_retirar = isset($puede_confirmar_retirar) ? $puede_confirmar_re
 </div>
 <?php endif; ?>
 
-<!-- Resumen por Clubes -->
-<?php if (!empty($resumen_clubes)): ?>
-<div class="card-modern mb-4" style="box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 10px;">
-    <div class="card-header-modern p-3" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%); border-bottom: 2px solid #e5e7eb;">
-        <h5 class="mb-0 fw-bold" style="color: #1f2937;">
-            <i class="fas fa-building me-2" style="color: #6366f1;"></i>
-            Resumen por Clubes
-        </h5>
-    </div>
-    <div class="card-body-modern p-4">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead style="background: #f9fafb;">
-                    <tr>
-                        <th style="border: none; padding: 12px; font-weight: 600;">Club</th>
-                        <th style="border: none; padding: 12px; font-weight: 600; text-align: center;">Total</th>
-                        <th style="border: none; padding: 12px; font-weight: 600; text-align: center;">Hombres</th>
-                        <th style="border: none; padding: 12px; font-weight: 600; text-align: center;">Mujeres</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($resumen_clubes as $club): ?>
-                        <tr style="transition: background 0.2s;">
-                            <td style="border: none; padding: 12px;">
-                                <strong><?php echo htmlspecialchars($club['nombre']); ?></strong>
-                            </td>
-                            <td style="border: none; padding: 12px; text-align: center;">
-                                <span class="badge bg-primary"><?php echo $club['total']; ?></span>
-                            </td>
-                            <td style="border: none; padding: 12px; text-align: center;">
-                                <span class="badge bg-info"><?php echo $club['hombres']; ?></span>
-                            </td>
-                            <td style="border: none; padding: 12px; text-align: center;">
-                                <span class="badge bg-warning"><?php echo $club['mujeres']; ?></span>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-<?php endif; ?>
-
 <!-- Listado de Inscritos -->
-<div class="card-modern" style="box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 10px;">
-    <div class="card-header-modern p-3" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%); border-bottom: 2px solid #e5e7eb;">
+<div class="card-modern inscripciones-compacta" style="box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 10px;">
+    <div class="card-header-modern p-3 fvd-card-head">
         <h5 class="mb-0 fw-bold" style="color: #1f2937;">
             <i class="fas fa-list me-2" style="color: #10b981;"></i>
             Listado de Inscritos (<?php echo $total_inscritos; ?>)
@@ -184,16 +120,12 @@ $puede_confirmar_retirar = isset($puede_confirmar_retirar) ? $puede_confirmar_re
                 <table class="table table-hover mb-0" style="border-radius: 8px; overflow: hidden;">
                     <thead style="background: #f9fafb;">
                         <tr>
-                            <th style="border: none; padding: 12px; font-weight: 600;">#</th>
-                            <th style="border: none; padding: 12px; font-weight: 600;">Jugador</th>
-                            <th style="border: none; padding: 12px; font-weight: 600;">Username</th>
-                            <th style="border: none; padding: 12px; font-weight: 600;">Club</th>
-                            <th style="border: none; padding: 12px; font-weight: 600; text-align: center;">Género</th>
-                            <th style="border: none; padding: 12px; font-weight: 600; text-align: center;">Estado</th>
-                            <?php if ($torneo_costo > 0): ?>
-                            <th style="border: none; padding: 12px; font-weight: 600; text-align: center;">Pago</th>
-                            <?php endif; ?>
-                            <th style="border: none; padding: 12px; font-weight: 600; text-align: center;">Acciones</th>
+                            <th style="border: none; padding: 8px; font-weight: 600;">#</th>
+                            <th style="border: none; padding: 8px; font-weight: 600;">Jugador</th>
+                            <th style="border: none; padding: 8px; font-weight: 600;">Username</th>
+                            <th style="border: none; padding: 8px; font-weight: 600;">Club</th>
+                            <th style="border: none; padding: 8px; font-weight: 600; text-align: center;">Género</th>
+                            <th style="border: none; padding: 8px; font-weight: 600; text-align: center;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -207,7 +139,7 @@ $puede_confirmar_retirar = isset($puede_confirmar_retirar) ? $puede_confirmar_re
                                 $club_actual = $nuevo_club;
                         ?>
                         <tr style="background: rgba(99, 102, 241, 0.05);">
-                            <td colspan="<?= $torneo_costo > 0 ? 8 : 7 ?>" style="border: none; padding: 8px 12px; font-weight: 600; color: #6366f1;">
+                            <td colspan="6" style="border: none; padding: 8px 12px; font-weight: 600; color: #6366f1;">
                                 <i class="fas fa-building me-2"></i><?php echo htmlspecialchars($club_actual); ?>
                             </td>
                         </tr>
@@ -219,17 +151,17 @@ $puede_confirmar_retirar = isset($puede_confirmar_retirar) ? $puede_confirmar_re
                             $es_pendiente = !$es_retirado && !$es_pagado;
                         ?>
                         <tr style="transition: background 0.2s;">
-                            <td style="border: none; padding: 12px;"><?php echo $contador++; ?></td>
-                            <td style="border: none; padding: 12px;">
+                            <td style="border: none; padding: 8px;"><?php echo $contador++; ?></td>
+                            <td style="border: none; padding: 8px;">
                                 <strong><?php echo htmlspecialchars($inscrito['nombre_completo'] ?? 'N/A'); ?></strong>
                             </td>
-                            <td style="border: none; padding: 12px;">
+                            <td style="border: none; padding: 8px;">
                                 <?php echo htmlspecialchars($inscrito['username'] ?? '-'); ?>
                             </td>
-                            <td style="border: none; padding: 12px;">
+                            <td style="border: none; padding: 8px;">
                                 <?php echo htmlspecialchars($inscrito['nombre_club'] ?? 'Sin Club'); ?>
                             </td>
-                            <td style="border: none; padding: 12px; text-align: center;">
+                            <td style="border: none; padding: 8px; text-align: center;">
                                 <?php 
                                 $sexo = $inscrito['sexo'] ?? '';
                                 if ($sexo == 1 || strtoupper($sexo) === 'M') {
@@ -241,40 +173,7 @@ $puede_confirmar_retirar = isset($puede_confirmar_retirar) ? $puede_confirmar_re
                                 }
                                 ?>
                             </td>
-                            <td style="border: none; padding: 12px; text-align: center;">
-                                <?php 
-                                if ($es_retirado) {
-                                    echo '<span class="badge bg-dark">Retirado</span>';
-                                } elseif ($es_pagado) {
-                                    echo '<span class="badge bg-success">Pagado</span>';
-                                } elseif ($es_pendiente) {
-                                    echo '<span class="badge bg-warning text-dark">Pendiente de pago</span>';
-                                } else {
-                                    echo '<span class="badge bg-secondary">' . htmlspecialchars((string) $estatus) . '</span>';
-                                }
-                                ?>
-                            </td>
-                            <?php if ($torneo_costo > 0): ?>
-                            <td style="border: none; padding: 12px; text-align: center;">
-                                <?php if (!empty($puede_confirmar_retirar) && !$es_retirado): ?>
-                                <form method="post" action="" class="d-inline">
-                                    <input type="hidden" name="action" value="toggle_pago_inscrito">
-                                    <input type="hidden" name="torneo_id" value="<?php echo (int)($torneo['id'] ?? 0); ?>">
-                                    <input type="hidden" name="inscripcion_id" value="<?php echo (int)($inscrito['id'] ?? 0); ?>">
-                                    <input type="hidden" name="pagado" value="<?php echo $es_pagado ? '0' : '1'; ?>" class="input-pagado-val">
-                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf ?? ''); ?>">
-                                    <div class="form-check form-switch d-inline-flex align-items-center justify-content-center mb-0">
-                                        <input type="checkbox" class="form-check-input" role="switch" <?php echo $es_pagado ? 'checked' : ''; ?>
-                                               onchange="var f=this.form;f.querySelector('.input-pagado-val').value=this.checked?'1':'0';f.submit();">
-                                        <label class="form-check-label small ms-1"><?php echo $es_pagado ? 'Pagado' : 'Pendiente'; ?></label>
-                                    </div>
-                                </form>
-                                <?php else: ?>
-                                <span class="text-muted">—</span>
-                                <?php endif; ?>
-                            </td>
-                            <?php endif; ?>
-                            <td style="border: none; padding: 12px; text-align: center;">
+                            <td style="border: none; padding: 8px; text-align: center;">
                                 <?php if (!empty($puede_confirmar_retirar)): ?>
                                 <div class="btn-group btn-group-sm flex-wrap justify-content-center">
                                     <?php if ($torneo_costo > 0 && $es_pendiente && !$es_retirado): ?>
@@ -320,29 +219,10 @@ $puede_confirmar_retirar = isset($puede_confirmar_retirar) ? $puede_confirmar_re
 </div>
 
 <style>
-.stat-card {
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.stat-label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-
-.stat-value {
-    font-size: 2.5rem;
-    font-weight: 700;
-    line-height: 1;
-}
+.inscripciones-compacta .card-body-modern { padding: 0.75rem 1rem; }
+.inscripciones-compacta .table { font-size: 0.875rem; margin-bottom: 0; }
+.inscripciones-compacta .card-header-modern { padding: 0.5rem 0.75rem !important; }
+.inscripciones-compacta .card-header-modern h5 { font-size: 1rem; }
 
 .card-modern {
     background: white;

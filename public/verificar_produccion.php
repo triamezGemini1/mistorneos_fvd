@@ -8,6 +8,7 @@
 
 require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/db_config.php';
+require_once __DIR__ . '/../lib/app_helpers.php';
 
 header('Content-Type: text/html; charset=utf-8');
 
@@ -72,7 +73,35 @@ $checks['Composer vendor'] = [
     'msg' => $vendorOk ? 'autoload.php presente' : 'Ejecutar composer install --no-dev en el servidor',
 ];
 
-// 6. URLs críticas
+// 6. Assets CSS/JS (causa habitual de “CSS roto” en producción)
+$publicRoot = AppHelpers::getPublicRootDir();
+$webPath = AppHelpers::getPublicWebPath();
+$cssFiles = [
+    'assets/dist/output.css',
+    'assets/vendor/bootstrap/css/bootstrap.min.css',
+    'assets/vendor/fontawesome/css/all.min.css',
+    'assets/dashboard.css',
+    'assets/css/fvd-identidad.css',
+];
+foreach ($cssFiles as $rel) {
+    $disk = $publicRoot . str_replace('/', DIRECTORY_SEPARATOR, $rel);
+    $exists = is_file($disk);
+    $size = $exists ? (string) filesize($disk) : '0';
+    $checks['CSS ' . $rel] = [
+        'ok' => $exists && (int) $size > 100,
+        'msg' => $exists ? ('OK (' . number_format((int) $size) . ' bytes)') : 'Archivo no encontrado en disco',
+    ];
+}
+$checks['Ruta web public (BASE)'] = [
+    'ok' => $webPath !== '' && str_contains($webPath, 'public'),
+    'msg' => $webPath !== '' ? $webPath : 'vacía — definir BASE_PATH=/mistorneos_fvd/public/ en .env',
+];
+$checks['URL_BASE definido'] = [
+    'ok' => defined('URL_BASE') && URL_BASE !== '' && URL_BASE !== '/',
+    'msg' => defined('URL_BASE') ? URL_BASE : 'no definido',
+];
+
+// 7. URLs críticas
 $urls = [
     'Landing SPA' => $base . '/public/landing-spa.php',
     'Login' => $base . '/public/login.php',
@@ -107,6 +136,19 @@ $urls = [
         <strong><?= htmlspecialchars($name) ?>:</strong> <?= htmlspecialchars($r['msg']) ?>
     </div>
     <?php endforeach; ?>
+
+    <h2>URLs CSS (deben responder 200, no 404)</h2>
+    <div class="url-list">
+        <?php
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $cssBase = $scheme . '://' . $host . rtrim($webPath, '/');
+        foreach ($cssFiles as $rel) {
+            $href = $cssBase . '/' . $rel;
+            echo '<a href="' . htmlspecialchars($href) . '" target="_blank">' . htmlspecialchars($rel) . '</a>';
+        }
+        ?>
+    </div>
     
     <h2>URLs a verificar (sin 404)</h2>
     <div class="url-list">

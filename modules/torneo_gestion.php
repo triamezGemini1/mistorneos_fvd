@@ -1062,6 +1062,9 @@ if ($action === 'inscripciones_gestor_excel' && ($_SERVER['REQUEST_METHOD'] ?? '
     }
     $esc = static fn ($v): string => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
     $filename = 'reporte_' . $tipoReporte . '_torneo_' . $torneo_id . '_' . date('Y-m-d_His') . '.xls';
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
     header('Content-Type: application/vnd.ms-excel; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Pragma: no-cache');

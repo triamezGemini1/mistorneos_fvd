@@ -3,10 +3,21 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build:css": "tailwindcss -i ./src/input.css -o ./public/assets/dist/output.css",
-    "watch:css": "tailwindcss -i ./src/input.css -o ./public/assets/dist/output.css --watch"
+    "build:vendor": "node scripts/sync-vendor-assets.mjs",
+    "build:css": "tailwindcss -i ./src/input.css -o ./public/assets/dist/output.css --minify",
+    "build:css:dev": "tailwindcss -i ./src/input.css -o ./public/assets/dist/output.css",
+    "watch:css": "tailwindcss -i ./src/input.css -o ./public/assets/dist/output.css --watch",
+    "build:assets": "npm run build:vendor && npm run build:css"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.5.0",
+    "bootstrap": "^5.3.2",
+    "sweetalert2": "^11.14.0",
+    "vue": "^3.5.13"
   },
   "devDependencies": {
+    "@fontsource/inter": "^5.2.5",
+    "@fontsource/montserrat": "^5.2.5",
     "tailwindcss": "^3.4.0"
   }
 }

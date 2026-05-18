@@ -1,0 +1,213 @@
+/**
+ * Layout crítico del landing FVD — funciona aunque output.css (Tailwind) no cargue.
+ */
+html.fvd-landing-page,
+body.fvd-theme {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+body.fvd-theme #app {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+.fvd-landing-container {
+  width: 100%;
+  max-width: 80rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  box-sizing: border-box;
+}
+@media (min-width: 640px) {
+  .fvd-landing-container { padding-left: 1.5rem; padding-right: 1.5rem; }
+}
+/* Fallback si Tailwind no carga: misma caja que .fvd-landing-container */
+body.fvd-theme .container.max-w-7xl,
+body.fvd-theme .container.mx-auto {
+  width: 100% !important;
+  max-width: 80rem !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  box-sizing: border-box;
+}
+#static-landing-shell,
+.static-landing-shell {
+  display: block;
+  width: 100%;
+}
+/* Shell estático y contenido Vue comparten las mismas clases */
+body.fvd-theme .fvd-landing-nav,
+#static-landing-shell .fvd-landing-nav {
+  width: 100%;
+  background: rgba(30, 58, 138, 0.95);
+  border-bottom: 1px solid rgba(251, 191, 36, 0.25);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-sizing: border-box;
+}
+body.fvd-theme .fvd-landing-nav__inner,
+#static-landing-shell .fvd-landing-nav__inner {
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 4rem;
+  gap: 0.75rem;
+  box-sizing: border-box;
+}
+@media (min-width: 768px) {
+  body.fvd-theme .fvd-landing-nav__inner,
+  #static-landing-shell .fvd-landing-nav__inner { min-height: 5rem; padding: 0 1.5rem; }
+}
+body.fvd-theme .fvd-landing-nav__brand,
+#static-landing-shell .fvd-landing-nav__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  min-width: 0;
+}
+body.fvd-theme .fvd-landing-nav__brand span,
+#static-landing-shell .fvd-landing-nav__brand span {
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+@media (min-width: 640px) {
+  body.fvd-theme .fvd-landing-nav__brand span,
+  #static-landing-shell .fvd-landing-nav__brand span { font-size: 0.875rem; }
+}
+body.fvd-theme .fvd-landing-nav__links,
+#static-landing-shell .fvd-landing-nav__links {
+  display: none;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+}
+@media (min-width: 768px) {
+  body.fvd-theme .fvd-landing-nav__links,
+  #static-landing-shell .fvd-landing-nav__links { display: flex; }
+}
+body.fvd-theme .fvd-landing-nav__menu-btn,
+#static-landing-shell .fvd-landing-nav__menu-btn {
+  display: block;
+  color: #fff;
+  padding: 0.5rem;
+}
+@media (min-width: 768px) {
+  body.fvd-theme .fvd-landing-nav__menu-btn,
+  #static-landing-shell .fvd-landing-nav__menu-btn { display: none; }
+}
+body.fvd-theme .fvd-landing-nav__mobile {
+  display: block;
+  border-top: 1px solid rgba(251, 191, 36, 0.2);
+  background: rgba(23, 37, 84, 0.98);
+  padding: 0.5rem 1rem 1rem;
+}
+body.fvd-theme .fvd-landing-nav__mobile-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 80rem;
+  margin: 0 auto;
+}
+body.fvd-theme #hero,
+#static-landing-shell #hero {
+  position: relative;
+  background: #1e3a8a;
+  overflow: hidden;
+}
+body.fvd-theme .fvd-landing-hero__inner,
+#static-landing-shell .fvd-landing-hero__inner {
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 2.5rem 1rem 3rem;
+  position: relative;
+  z-index: 2;
+}
+@media (min-width: 768px) {
+  body.fvd-theme .fvd-landing-hero__inner,
+  #static-landing-shell .fvd-landing-hero__inner { padding: 3.5rem 1.5rem 4rem; }
+}
+body.fvd-theme .fvd-landing-hero__grid,
+#static-landing-shell .fvd-landing-hero__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  align-items: center;
+}
+@media (min-width: 1024px) {
+  body.fvd-theme .fvd-landing-hero__grid,
+  #static-landing-shell .fvd-landing-hero__grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+  }
+  body.fvd-theme .fvd-landing-hero__text,
+  #static-landing-shell .fvd-landing-hero__text { order: 1; text-align: left; }
+  body.fvd-theme .fvd-landing-hero__logo-col,
+  #static-landing-shell .fvd-landing-hero__logo-col { order: 2; }
+}
+body.fvd-theme .fvd-landing-hero__text,
+#static-landing-shell .fvd-landing-hero__text {
+  text-align: center;
+}
+body.fvd-theme .fvd-landing-hero__text h1,
+#static-landing-shell .fvd-landing-hero__text h1 {
+  color: #fff;
+  font-size: clamp(1.75rem, 4vw, 3rem);
+  line-height: 1.15;
+  margin: 0 0 1rem;
+}
+body.fvd-theme .fvd-landing-hero__text p,
+#static-landing-shell .fvd-landing-hero__text p {
+  color: rgba(219, 234, 254, 0.9);
+  font-size: 1rem;
+  line-height: 1.55;
+  margin: 0 0 1.5rem;
+  max-width: 36rem;
+}
+body.fvd-theme .fvd-landing-hero__actions,
+#static-landing-shell .fvd-landing-hero__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+@media (min-width: 640px) {
+  body.fvd-theme .fvd-landing-hero__actions,
+  #static-landing-shell .fvd-landing-hero__actions {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+  }
+}
+@media (min-width: 1024px) {
+  body.fvd-theme .fvd-landing-hero__actions,
+  #static-landing-shell .fvd-landing-hero__actions { justify-content: flex-start; }
+}
+body.fvd-theme .fvd-landing-hero__logo-col,
+#static-landing-shell .fvd-landing-hero__logo-col {
+  display: flex;
+  justify-content: center;
+}
+body.fvd-theme .fvd-landing-nav__menu-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}

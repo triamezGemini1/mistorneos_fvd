@@ -1,0 +1,163 @@
+/**
+ * Panel operativo — Administración de asociación (3 tarjetas, estilo dashboard FVD)
+ */
+.asoc-panel-operativo {
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.asoc-panel-operativo .asoc-po-card {
+  border-radius: 0.75rem;
+  padding: 0.85rem 0.75rem 1rem;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.asoc-panel-operativo .asoc-po-card--solicitudes {
+  background: linear-gradient(180deg, #fff1f2 0%, #ffe4e6 100%);
+  border: 1px solid #fecdd3;
+}
+
+.asoc-panel-operativo .asoc-po-card--operaciones {
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+}
+
+.asoc-panel-operativo .asoc-po-card--finanzas {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+}
+
+.asoc-panel-operativo .asoc-po-card__title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 0.65rem 0.15rem;
+  line-height: 1.2;
+}
+
+.asoc-panel-operativo .asoc-po-card--solicitudes .asoc-po-card__title { color: #9f1239; }
+.asoc-panel-operativo .asoc-po-card--operaciones .asoc-po-card__title { color: #1e40af; }
+.asoc-panel-operativo .asoc-po-card--finanzas .asoc-po-card__title { color: #334155; }
+
+.asoc-panel-operativo .asoc-po-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex: 1;
+}
+
+.asoc-panel-operativo .asoc-po-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background: #fff;
+  border-radius: 0.5rem;
+  border: 2px solid transparent;
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.25;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.asoc-panel-operativo .asoc-po-btn:hover:not(.asoc-po-btn--disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.1);
+}
+
+.asoc-panel-operativo .asoc-po-btn--disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.asoc-panel-operativo .asoc-po-btn i {
+  font-size: 1rem;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
+.asoc-panel-operativo .asoc-po-btn--violet { color: #6d28d9; border-color: #c4b5fd; }
+.asoc-panel-operativo .asoc-po-btn--violet:hover:not(.asoc-po-btn--disabled) { border-color: #8b5cf6; }
+
+.asoc-panel-operativo .asoc-po-btn--orange { color: #c2410c; border-color: #fdba74; }
+.asoc-panel-operativo .asoc-po-btn--orange:hover:not(.asoc-po-btn--disabled) { border-color: #fb923c; }
+
+.asoc-panel-operativo .asoc-po-btn--slate { color: #0f172a; border-color: #cbd5e1; }
+.asoc-panel-operativo .asoc-po-btn--slate:hover:not(.asoc-po-btn--disabled) { border-color: #64748b; }
+
+.asoc-panel-operativo .asoc-po-btn--emerald { color: #047857; border-color: #6ee7b7; }
+.asoc-panel-operativo .asoc-po-btn--emerald:hover:not(.asoc-po-btn--disabled) { border-color: #34d399; }
+
+.asoc-panel-operativo .asoc-po-btn--blue { color: #1d4ed8; border-color: #93c5fd; }
+.asoc-panel-operativo .asoc-po-btn--blue:hover:not(.asoc-po-btn--disabled) { border-color: #3b82f6; }
+
+.asoc-panel-operativo .asoc-po-btn--pink { color: #be185d; border-color: #f9a8d4; }
+.asoc-panel-operativo .asoc-po-btn--pink:hover:not(.asoc-po-btn--disabled) { border-color: #ec4899; }
+
+.asoc-panel-operativo .asoc-po-btn--teal { color: #0f766e; border-color: #5eead4; }
+.asoc-panel-operativo .asoc-po-btn--teal:hover:not(.asoc-po-btn--disabled) { border-color: #2dd4bf; }
+
+.asoc-panel-operativo .asoc-po-btn--primary-fin {
+  color: #fff;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  border-color: #1e3a8a;
+}
+.asoc-panel-operativo .asoc-po-btn--primary-fin:hover:not(.asoc-po-btn--disabled) {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+}
+
+.asoc-panel-operativo .asoc-po-btn--sub {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.4rem 0.65rem;
+}
+
+.asoc-panel-operativo .asoc-po-empty {
+  font-size: 0.75rem;
+  color: #64748b;
+  padding: 0.5rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 0.5rem;
+  border: 1px dashed #cbd5e1;
+}
+
+.asoc-panel-operativo .asoc-po-torneo-bar {
+  background: #0f172a;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.asoc-panel-operativo .asoc-po-torneo-bar select {
+  width: 100%;
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #334155;
+  border-radius: 0.35rem;
+  background: #fff;
+  color: #0f172a;
+}
+
+.asoc-panel-operativo .asoc-po-torneo-bar label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  margin-bottom: 0.25rem;
+}
+
+@media (min-width: 1024px) {
+  .asoc-panel-operativo .asoc-po-btn {
+    font-size: 0.875rem;
+    padding: 0.6rem 0.85rem;
+  }
+}

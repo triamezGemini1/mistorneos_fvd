@@ -258,6 +258,96 @@ class AppHelpers {
         $path = $parsed['path'] ?? self::getProjectPath();
         return rtrim($path, '/') . '/public/';
     }
+
+    /** Ruta absoluta en disco a la carpeta public/ */
+    public static function getPublicRootDir(): string
+    {
+        return dirname(__DIR__) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR;
+    }
+
+    /**
+     * Ruta relativa bajo public/ con cache-busting (?v=filemtime).
+     * Ej.: assetVersion('assets/dist/output.css')
+     */
+    public static function assetVersion(string $relativeFromPublic): string
+    {
+        $rel = ltrim(str_replace('\\', '/', $relativeFromPublic), '/');
+        $full = self::getPublicRootDir() . str_replace('/', DIRECTORY_SEPARATOR, $rel);
+        $v = is_file($full) ? (string) filemtime($full) : (string) time();
+        return $rel . '?v=' . $v;
+    }
+
+    /**
+     * Ruta web absoluta (solo path) a public/, ej. /mistorneos_fvd/public
+     * Prioriza DOCUMENT_ROOT para que en producción los CSS no apunten a la raíz del dominio.
+     */
+    public static function getPublicWebPath(): string
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $doc_root = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
+        $public_dir = rtrim(str_replace('\\', '/', self::getPublicRootDir()), '/');
+        if ($doc_root !== '' && str_starts_with(strtolower($public_dir), strtolower($doc_root))) {
+            $path = substr($public_dir, strlen($doc_root));
+            $cached = ($path === '' || $path === '/') ? '' : '/' . trim($path, '/');
+            return $cached;
+        }
+
+        if (defined('URL_BASE') && URL_BASE !== '' && URL_BASE !== '/') {
+            $path = rtrim((string) URL_BASE, '/');
+            if (preg_match('#^(.*/public)(/api)?$#', $path, $m)) {
+                $path = $m[1];
+            }
+            $cached = ($path !== '' && $path[0] === '/') ? $path : '/' . ltrim($path, '/');
+            return $cached;
+        }
+
+        if (!empty($_SERVER['SCRIPT_NAME'])) {
+            $dir = rtrim(str_replace('\\', '/', dirname((string) $_SERVER['SCRIPT_NAME'])), '/');
+            if (preg_match('#^(.*/public)(/api)?$#', $dir, $m)) {
+                $dir = $m[1];
+            }
+            if ($dir !== '' && $dir !== '/') {
+                $cached = ($dir[0] === '/') ? $dir : '/' . $dir;
+                return $cached;
+            }
+        }
+
+        $fallback = class_exists('FvdConfig', false) ? rtrim(FvdConfig::BASE_PATH, '/') : '/mistorneos_fvd/public';
+        $cached = ($fallback !== '' && $fallback !== '/') ? $fallback : '/mistorneos_fvd/public';
+        return $cached;
+    }
+
+    /** Base href para &lt;base&gt; (path absoluto con barra final). */
+    public static function getPublicBaseHref(): string
+    {
+        $path = self::getPublicWebPath();
+        if ($path === '') {
+            return '/';
+        }
+        return rtrim($path, '/') . '/';
+    }
+
+    /** URL absoluta a un asset en public/ */
+    public static function publicAssetUrl(string $relativeFromPublic): string
+    {
+        return rtrim(self::getPublicUrl(), '/') . '/' . self::assetVersion($relativeFromPublic);
+    }
+
+    /**
+     * Href para layouts con &lt;base href=".../public/"&gt; (prefijo opcional).
+     */
+    public static function assetHref(string $relativeFromPublic, ?string $basePrefix = null): string
+    {
+        $href = self::assetVersion($relativeFromPublic);
+        if ($basePrefix !== null && $basePrefix !== '') {
+            return rtrim($basePrefix, '/') . '/' . $href;
+        }
+        return $href;
+    }
     
     /**
      * Redirige a una URL
@@ -433,6 +523,15 @@ class AppHelpers {
      * Prioridad: public/assets/logo.png (estático) si existe; si no, view_image.php con lib/Assets/mislogos/logo4.png.
      */
     public static function getAppLogo(): string {
+        if (class_exists('FvdConfig', false)) {
+            $row = FvdConfig::getOrganizacionMaestra();
+            if (!empty($row['logo'])) {
+                $url = self::imageUrl((string) $row['logo']);
+                if ($url !== '') {
+                    return $url;
+                }
+            }
+        }
         $logo4 = __DIR__ . '/Assets/mislogos/logo4.png';
         if (is_file($logo4)) {
             return rtrim(self::getPublicUrl(), '/') . '/view_image.php?path=' . rawurlencode('lib/Assets/mislogos/logo4.png');
@@ -451,7 +550,12 @@ class AppHelpers {
      * @param int $height Altura en píxeles (por defecto 40)
      * @param bool $priority Si true, añade fetchpriority="high" para LCP (logo principal del dashboard)
      */
-    public static function appLogo(string $class = '', string $alt = 'La Estación del Dominó', int $height = 40, bool $priority = false): string {
+    public static function appLogo(string $class = '', string $alt = '', int $height = 40, bool $priority = false): string {
+        if ($alt === '' && class_exists('FvdBranding', false)) {
+            $alt = FvdBranding::nombre();
+        } elseif ($alt === '') {
+            $alt = 'Federación Venezolana de Dominó';
+        }
         $logo_url = self::getAppLogo();
         $class_attr = $class ? ' class="' . htmlspecialchars($class) . '"' : '';
         $priority_attr = $priority ? ' fetchpriority="high"' : '';

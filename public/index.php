@@ -318,6 +318,28 @@ if ($page === 'torneo_gestion' && in_array($action, ['export_resultados_pdf', 'e
     exit;
 }
 
+// Descargas / exportaciones torneo_gestion: ejecutar antes del layout (cabeceras HTTP)
+$torneo_gestion_sin_layout = [
+    'inscripciones_export_xls',
+    'inscripciones_gestor_excel',
+    'inscripciones_export_pdf',
+    'inscripciones_reporte_detallado_pdf',
+    'inscripciones_reporte_detallado_xls',
+    'retirados_export_pdf',
+    'retirados_export_xls',
+    'carga_masiva_equipos_plantilla',
+    'carga_masiva_parejas_plantilla',
+    'carga_masiva_equipos_reporte_pdf',
+    'carga_masiva_parejas_reporte_pdf',
+];
+if ($page === 'torneo_gestion' && in_array($action, $torneo_gestion_sin_layout, true)) {
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    require_once __DIR__ . '/../modules/torneo_gestion.php';
+    exit;
+}
+
 if ($page === 'admin_clubs' && $action === 'send_notification') {
     require_once __DIR__ . '/../modules/admin_clubs/send_notification.php';
     exit;
@@ -512,6 +534,7 @@ if ($page === 'torneo_gestion' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET
         || ($tg_get === 'carga_masiva_parejas_plantilla' && $tg_tid > 0)
         || ($tg_get === 'carga_masiva_parejas_reporte_pdf' && $tg_tid > 0)
         || ($tg_get === 'inscripciones_export_xls' && $tg_tid > 0)
+        || ($tg_get === 'inscripciones_gestor_excel' && $tg_tid > 0)
         || ($tg_get === 'inscripciones_export_pdf' && $tg_tid > 0)
         || ($tg_get === 'inscripciones_reporte_detallado_pdf' && $tg_tid > 0)
         || ($tg_get === 'inscripciones_reporte_detallado_xls' && $tg_tid > 0)

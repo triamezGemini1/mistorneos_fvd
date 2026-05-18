@@ -134,28 +134,11 @@ $invitar_clubes_inhabil = ($ultima_ronda > 0);
 
 <link rel="stylesheet" href="assets/css/design-system.css">
 <link rel="stylesheet" href="assets/css/modern-panel.css">
+<link rel="stylesheet" href="<?= htmlspecialchars(class_exists('AppHelpers') ? AppHelpers::assetVersion('assets/css/panel-control-14in.css') : 'assets/css/panel-control-14in.css') ?>">
 <link rel="stylesheet" href="assets/css/torneo-context-switch.css">
 <?php if ($use_standalone): ?>
-<!-- Tailwind CSS solo en modo standalone para no romper el layout del dashboard -->
-<link rel="stylesheet" href="assets/dist/output.css">
-<script>
-tailwind.config = {
-    theme: {
-        extend: {
-            colors: {
-                'panel-blue': '#3b82f6',
-                'panel-purple': '#8b5cf6',
-                'panel-green': '#10b981',
-                'panel-amber': '#f59e0b',
-                'panel-cyan': '#06b6d4',
-                'panel-red': '#ef4444',
-                'panel-indigo': '#6366f1',
-                'panel-dark': '#111827',
-            }
-        }
-    }
-}
-</script>
+<!-- Tailwind compilado localmente (colores panel-* en tailwind.config.js) -->
+<link rel="stylesheet" href="<?= htmlspecialchars(class_exists('AppHelpers') ? AppHelpers::assetVersion('assets/dist/output.css') : 'assets/dist/output.css') ?>">
 <?php endif; ?>
 <?php /* Estilos del panel movidos a assets/css/modern-panel.css (Design System + Panel) */ ?>
 
@@ -168,7 +151,7 @@ tailwind.config = {
     </nav>
 
     <!-- Header del Torneo (compacto): nombre a la izquierda, selector de torneos asociados a la derecha -->
-    <div class="panel-header panel-header--compact bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl shadow-lg p-4 mb-3 text-white">
+    <div class="panel-header panel-header--compact fvd-panel-header rounded-xl shadow-lg p-4 mb-3 text-white">
         <div class="panel-header-inner flex items-center flex-wrap gap-4 <?php echo $has_panel_context_switch ? 'panel-header-inner--spread' : 'justify-center'; ?>">
             <div class="panel-header-grow">
                 <h2 class="titulo-torneo">

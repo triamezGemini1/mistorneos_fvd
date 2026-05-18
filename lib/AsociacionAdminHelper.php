@@ -305,7 +305,14 @@ final class AsociacionAdminHelper
             || in_array($action, self::TORNEO_GESTION_POST_ACCIONES, true)) {
             return true;
         }
-        if (str_starts_with($action, 'inscripciones_') && str_contains($action, 'export')) {
+        if (str_starts_with($action, 'inscripciones_')
+            && (str_contains($action, 'export') || str_contains($action, 'excel') || str_contains($action, 'reporte'))) {
+            return true;
+        }
+        if (str_starts_with($action, 'retirados_') && str_contains($action, 'export')) {
+            return true;
+        }
+        if (str_contains($action, 'reporte_pdf') || str_contains($action, '_plantilla')) {
             return true;
         }
 

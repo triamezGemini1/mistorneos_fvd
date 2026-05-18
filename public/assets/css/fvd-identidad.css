@@ -1,0 +1,317 @@
+/**
+ * Identidad FVD — gradientes y acentos institucionales en todo el dashboard.
+ * Usa variables de dashboard.css (--primary) y FvdBranding (inline :root).
+ */
+
+.fvd-gradient-header,
+.card-modern.fvd-hero {
+  background: var(--fvd-gradient, linear-gradient(135deg, #1a365d 0%, #2d4a6b 100%)) !important;
+  color: #fff !important;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(26, 54, 93, 0.2);
+}
+
+.fvd-gradient-header h1,
+.fvd-gradient-header h2,
+.fvd-gradient-header h3,
+.fvd-gradient-header h4,
+.fvd-gradient-header h5,
+.fvd-gradient-header .text-white,
+.card-modern.fvd-hero h1,
+.card-modern.fvd-hero h2 {
+  color: #fff !important;
+}
+
+.fvd-panel-header {
+  background: var(--fvd-gradient-header, linear-gradient(135deg, #1e40af 0%, #1a365d 100%)) !important;
+  color: #fff !important;
+}
+
+body.fvd-dashboard-compact .panel-header.bg-gradient-to-r.from-indigo-600.to-purple-600,
+body.fvd-dashboard-compact .panel-header.bg-gradient-to-r.from-indigo-600.to-purple-700,
+body.fvd-dashboard-compact .bg-gradient-to-r.from-indigo-600.to-purple-600,
+body.fvd-dashboard-compact .bg-gradient-to-r.from-indigo-600.to-purple-700 {
+  background: var(--fvd-gradient-header) !important;
+}
+
+body.fvd-dashboard-compact .modal-header.bg-indigo-600 {
+  background-color: var(--fvd-primary, #1a365d) !important;
+}
+
+body.fvd-dashboard-compact .btn-primary,
+body.fvd-dashboard-compact .bg-primary {
+  background-color: var(--fvd-primary, #1a365d) !important;
+  border-color: var(--fvd-primary, #1a365d) !important;
+}
+
+body.fvd-dashboard-compact .btn-outline-primary {
+  color: var(--fvd-primary, #1a365d) !important;
+  border-color: var(--fvd-primary, #1a365d) !important;
+}
+
+body.fvd-dashboard-compact .btn-outline-primary:hover {
+  background-color: var(--fvd-primary, #1a365d) !important;
+  color: #fff !important;
+}
+
+.inscripciones-compacta .card-header-modern.fvd-card-head {
+  background: linear-gradient(135deg, rgba(26, 54, 93, 0.08) 0%, rgba(45, 74, 107, 0.04) 100%) !important;
+  border-bottom: 2px solid var(--gray-200, #e5e7eb) !important;
+}
+
+.asoc-panel-operativo .asoc-po-brand {
+  color: var(--fvd-primary, #1a365d);
+}
+
+/* KPI dashboard — layout propio (funciona sin Tailwind/output.css) */
+.fvd-kpi-operativo {
+  display: block;
+  clear: both;
+  margin-bottom: 1rem;
+  overflow: visible;
+}
+.fvd-kpi-operativo__columns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+@media (min-width: 992px) {
+  .fvd-kpi-operativo__columns:not(.fvd-kpi-operativo__columns--single) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.fvd-kpi-operativo .fvd-kpi-panel {
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  background: rgba(248, 250, 252, 0.95);
+  padding: 0.5rem 0.55rem 0.55rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  overflow: visible;
+  min-width: 0;
+}
+.fvd-kpi-operativo .fvd-kpi-panel__title {
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin: 0 0 0.35rem 0.1rem;
+  line-height: 1.1;
+}
+.fvd-kpi-grid {
+  display: grid;
+  gap: 0.35rem;
+  width: 100%;
+}
+.fvd-kpi-grid--general {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+}
+.fvd-kpi-grid--atletas {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto auto;
+}
+@media (max-width: 575px) {
+  .fvd-kpi-grid--atletas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto auto auto;
+  }
+}
+.fvd-kpi-operativo .fvd-kpi-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 2.1rem;
+  padding: 0.3rem 0.4rem 0.35rem;
+  border-radius: 0.35rem;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-left-width: 3px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.fvd-kpi-operativo .fvd-kpi-cell__head {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.fvd-kpi-operativo .fvd-kpi-cell__icon-wrap {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.2rem;
+  font-size: 0.55rem;
+}
+.fvd-kpi-operativo .fvd-kpi-cell__label {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fvd-kpi-operativo .fvd-kpi-cell__value {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  line-height: 1;
+  margin: 0.15rem 0 0;
+  padding-left: 1.2rem;
+  font-variant-numeric: tabular-nums;
+}
+/* Indicadores generales — tonos diferenciados */
+.fvd-kpi-operativo .fvd-kpi-cell--atletas { border-left-color: #1e40af; }
+.fvd-kpi-operativo .fvd-kpi-cell--atletas .fvd-kpi-cell__icon-wrap { background: #dbeafe; color: #1e40af; }
+.fvd-kpi-operativo .fvd-kpi-cell--atletas .fvd-kpi-cell__value { color: #1e3a8a; }
+.fvd-kpi-operativo .fvd-kpi-cell--torneos { border-left-color: #b45309; }
+.fvd-kpi-operativo .fvd-kpi-cell--torneos .fvd-kpi-cell__icon-wrap { background: #ffedd5; color: #c2410c; }
+.fvd-kpi-operativo .fvd-kpi-cell--torneos .fvd-kpi-cell__value { color: #9a3412; }
+.fvd-kpi-operativo .fvd-kpi-cell--asociaciones { border-left-color: #047857; }
+.fvd-kpi-operativo .fvd-kpi-cell--asociaciones .fvd-kpi-cell__icon-wrap { background: #d1fae5; color: #047857; }
+.fvd-kpi-operativo .fvd-kpi-cell--asociaciones .fvd-kpi-cell__value { color: #065f46; }
+.fvd-kpi-operativo .fvd-kpi-cell--eventos { border-left-color: #6d28d9; }
+.fvd-kpi-operativo .fvd-kpi-cell--eventos .fvd-kpi-cell__icon-wrap { background: #ede9fe; color: #6d28d9; }
+.fvd-kpi-operativo .fvd-kpi-cell--eventos .fvd-kpi-cell__value { color: #5b21b6; }
+/* Desglose atletas */
+.fvd-kpi-operativo .fvd-kpi-cell--activos { border-left-color: #059669; background: #ecfdf5; }
+.fvd-kpi-operativo .fvd-kpi-cell--activos .fvd-kpi-cell__icon-wrap { background: #a7f3d0; color: #047857; }
+.fvd-kpi-operativo .fvd-kpi-cell--activos .fvd-kpi-cell__value { color: #065f46; }
+.fvd-kpi-operativo .fvd-kpi-cell--inactivos { border-left-color: #64748b; background: #f8fafc; }
+.fvd-kpi-operativo .fvd-kpi-cell--inactivos .fvd-kpi-cell__icon-wrap { background: #e2e8f0; color: #475569; }
+.fvd-kpi-operativo .fvd-kpi-cell--inactivos .fvd-kpi-cell__value { color: #334155; }
+.fvd-kpi-operativo .fvd-kpi-cell--h-activos { border-left-color: #2563eb; background: #eff6ff; }
+.fvd-kpi-operativo .fvd-kpi-cell--h-activos .fvd-kpi-cell__icon-wrap { background: #bfdbfe; color: #1d4ed8; }
+.fvd-kpi-operativo .fvd-kpi-cell--h-activos .fvd-kpi-cell__value { color: #1e3a8a; }
+.fvd-kpi-operativo .fvd-kpi-cell--m-activas { border-left-color: #0284c7; background: #f0f9ff; }
+.fvd-kpi-operativo .fvd-kpi-cell--m-activas .fvd-kpi-cell__icon-wrap { background: #bae6fd; color: #0369a1; }
+.fvd-kpi-operativo .fvd-kpi-cell--m-activas .fvd-kpi-cell__value { color: #0c4a6e; }
+.fvd-kpi-operativo .fvd-kpi-cell--h-inactivos { border-left-color: #78716c; background: #fafaf9; }
+.fvd-kpi-operativo .fvd-kpi-cell--h-inactivos .fvd-kpi-cell__icon-wrap { background: #e7e5e4; color: #57534e; }
+.fvd-kpi-operativo .fvd-kpi-cell--h-inactivos .fvd-kpi-cell__value { color: #44403c; }
+.fvd-kpi-operativo .fvd-kpi-cell--m-inactivas { border-left-color: #a8a29e; background: #fafaf9; }
+.fvd-kpi-operativo .fvd-kpi-cell--m-inactivas .fvd-kpi-cell__icon-wrap { background: #f5f5f4; color: #78716c; }
+.fvd-kpi-operativo .fvd-kpi-cell--m-inactivas .fvd-kpi-cell__value { color: #57534e; }
+.fvd-kpi-operativo .fvd-kpi-panel--atletas .fvd-kpi-cell__label {
+  white-space: normal;
+  line-height: 1.05;
+  font-size: 0.5rem;
+}
+@media (min-width: 1024px) {
+  .fvd-kpi-operativo .fvd-kpi-cell {
+    min-height: 2.2rem;
+  }
+  .fvd-kpi-operativo .fvd-kpi-cell__value {
+    font-size: 0.875rem;
+  }
+}
+
+/* Panel operativo admin general — fallback sin Tailwind */
+.admin-general-panel-operativo {
+  display: block;
+  clear: both;
+  margin-bottom: 1rem;
+}
+.admin-general-panel-operativo > header {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+.admin-general-panel-operativo > header h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e3a8a;
+  margin: 0;
+}
+.admin-general-panel-operativo > header p {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0.25rem 0 0;
+}
+.admin-general-panel-operativo__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+@media (min-width: 576px) {
+  .admin-general-panel-operativo__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (min-width: 1200px) {
+  .admin-general-panel-operativo__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.admin-general-panel-operativo__card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  min-height: 100%;
+}
+.admin-general-panel-operativo__card-head {
+  background: #1e3a8a;
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.admin-general-panel-operativo__card-body {
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+.admin-general-panel-operativo__link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  background: #fff;
+  color: #334155;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.admin-general-panel-operativo__link:hover {
+  border-color: #1e3a8a;
+  background: #f8fafc;
+  color: #1e3a8a;
+  text-decoration: none;
+}
+.admin-general-panel-operativo__link--highlight {
+  border-color: #bfdbfe;
+  background: #f8fafc;
+  color: #1e3a8a;
+  font-weight: 600;
+}
+.admin-general-panel-operativo__badge {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+.admin-general-panel-operativo__badge--active {
+  background: #fef3c7;
+  color: #1e3a8a;
+}

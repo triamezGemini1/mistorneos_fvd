@@ -89,6 +89,17 @@ function shouldExclude(string $rel, array $excludeDirNames, array $excludeFilePa
     return false;
 }
 
+// CSS Tailwind + vendor locales (requerido en producción; el ZIP no incluye node_modules)
+$packageJson = $root . '/package.json';
+if (is_file($packageJson)) {
+    echo "Compilando assets (npm run build:assets)...\n";
+    $npmCmd = 'npm run build:assets 2>&1';
+    passthru($npmCmd, $npmCode);
+    if ($npmCode !== 0 || !is_file($root . '/public/assets/dist/output.css')) {
+        fwrite(STDERR, "Advertencia: build:assets falló o no generó output.css. Ejecuta: npm ci && npm run build:assets\n");
+    }
+}
+
 // Composer prod si falta vendor
 if (!is_file($root . '/vendor/autoload.php')) {
     echo "Instalando dependencias (composer install --no-dev)...\n";

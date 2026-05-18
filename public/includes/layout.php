@@ -23,23 +23,22 @@ $layout_nav_action = trim((string) ($_GET['action'] ?? ''));
 require_once __DIR__ . '/../../lib/ReportReturnNavigation.php';
 ReportReturnNavigation::updateSessionFromRequest($current_page, $layout_nav_action);
 
-// Base URL para CSS/JS (carpeta public/) — evita doble public/public
-// Priorizar SCRIPT_NAME para que la base coincida con la petición real y no se carguen assets desde otra app (ej. phpMyAdmin)
-$layout_asset_base = null;
-if (!empty($_SERVER['SCRIPT_NAME'])) {
-    $scriptDir = dirname($_SERVER['SCRIPT_NAME']);
-    if ($scriptDir !== '.' && $scriptDir !== '' && $scriptDir !== '/') {
-        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $layout_asset_base = $scheme . '://' . $host . $scriptDir;
-    }
+require_once __DIR__ . '/../../lib/app_helpers.php';
+if (!class_exists('FvdBranding', false) && is_file(__DIR__ . '/../../lib/FvdBranding.php')) {
+    require_once __DIR__ . '/../../lib/FvdBranding.php';
 }
-if ($layout_asset_base === null || $layout_asset_base === '') {
-    $layout_asset_base = class_exists('AppHelpers') ? AppHelpers::getPublicUrl() : '';
-}
+
+// Base web de public/: path para <base> y assets; URL completa para fetch/AJAX
+$layout_public_href = class_exists('AppHelpers') ? AppHelpers::getPublicBaseHref() : '/';
+$layout_asset_base = class_exists('AppHelpers') ? AppHelpers::getPublicUrl() : '';
 if ($layout_asset_base === '') {
-    $layout_asset_base = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $layout_asset_base = $scheme . '://' . $host . rtrim($layout_public_href, '/');
 }
+$layout_asset_href = static function (string $rel) use ($layout_public_href): string {
+    return htmlspecialchars(AppHelpers::assetHref($rel, rtrim($layout_public_href, '/')));
+};
 
 // Base del menú: usar URL_BASE (path) para que enlaces no apunten a la raíz del dominio y la sesión persista en subcarpeta
 if (defined('URL_BASE') && URL_BASE !== '' && URL_BASE !== '/') {
@@ -104,7 +103,8 @@ try {
     $show_link_panel_asociacion = false;
 }
 
-$header_title = $dashboard_org ? 'Dashboard - ' . htmlspecialchars($dashboard_org['nombre']) : 'Dashboard - FVD';
+$fvd_nombre_layout = FvdBranding::nombre();
+$header_title = 'Dashboard - ' . htmlspecialchars($fvd_nombre_layout);
 $modo_prueba_activo = ($role_original_layout === 'admin_general' && $role_activo_layout !== 'admin_general');
 $role_human = [
   'admin_general' => 'Admin General',
@@ -125,25 +125,24 @@ $modo_prueba_badge_class = $role_badge_class[$role_activo_layout] ?? 'bg-warning
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<?php include_once __DIR__ . '/../../includes/header.php'; ?>
-  <base href="<?= htmlspecialchars($layout_asset_base) ?>/">
-  <!-- SEO Meta Tags -->
-  <meta name="description" content="Panel de administración de La Estación del Dominó - Gestión de torneos, inscripciones y resultados">
+<?php $header_embedded = true; include_once __DIR__ . '/../../includes/header.php'; ?>
+  <base href="<?= htmlspecialchars($layout_public_href) ?>">
+  <meta name="description" content="Panel de administración de <?= htmlspecialchars(class_exists('FvdBranding') ? FvdBranding::nombre() : 'FVD') ?> — Gestión de torneos, inscripciones y resultados">
+  <?php if (class_exists('FvdBranding', false)): ?>
+  <style><?= FvdBranding::inlineCssBlock() ?></style>
+  <?php endif; ?>
   <meta name="robots" content="noindex, nofollow">
   <meta name="language" content="es">
-  <!-- Preconnect: conexiones tempranas a CDNs -->
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="<?= htmlspecialchars($layout_asset_base) ?>/assets/dashboard.css">
-  <link rel="stylesheet" href="<?= htmlspecialchars($layout_asset_base) ?>/assets/app-search.css">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"></noscript>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"></noscript>
-  <link rel="stylesheet" href="<?= htmlspecialchars($layout_asset_base) ?>/assets/css/custom-13inch.css">
+  <?php require_once __DIR__ . '/vendor_assets.php'; ?>
+  <link href="<?= $layout_asset_href('assets/vendor/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet">
+  <link href="<?= $layout_asset_href('assets/vendor/fontawesome/css/all.min.css') ?>" rel="stylesheet">
+  <link href="<?= $layout_asset_href('assets/vendor/sweetalert2/sweetalert2.min.css') ?>" rel="stylesheet">
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/dist/output.css') ?>">
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/dashboard.css') ?>">
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/app-search.css') ?>">
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/custom-13inch.css') ?>">
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-dashboard-compact.css') ?>">
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-identidad.css') ?>">
 </head>
 <?php
 $is_panel_control_torneos = ($current_page === 'torneo_gestion' && ($_GET['action'] ?? '') === 'panel');
@@ -184,7 +183,7 @@ if ($current_page === 'estadisticas_torneos') {
     $body_page_extra .= ' page-estadisticas-torneos';
 }
 ?>
-<body class="bg-light<?= $is_panel_control_torneos ? ' page-panel-control-torneos' : '' ?><?= !empty($layout_hide_sidebar) ? ' layout-no-sidebar' : '' ?><?= htmlspecialchars($body_page_extra, ENT_QUOTES, 'UTF-8') ?>"<?= $nav_origin !== '' ? ' data-nav-origin="' . $nav_origin . '"' : '' ?>>
+<body class="bg-light fvd-dashboard-compact<?= $is_panel_control_torneos ? ' page-panel-control-torneos' : '' ?><?= !empty($layout_hide_sidebar) ? ' layout-no-sidebar' : '' ?><?= htmlspecialchars($body_page_extra, ENT_QUOTES, 'UTF-8') ?>"<?= $nav_origin !== '' ? ' data-nav-origin="' . $nav_origin . '"' : '' ?>>
   <!-- Contenedor para notificaciones toast (Push + tarjeta visual) -->
   <div id="notification-container" aria-live="polite"></div>
 
@@ -221,19 +220,19 @@ if ($current_page === 'estadisticas_torneos') {
     <?php } ?>
   </div>
 
-  <div class="d-flex" id="wrapper">
+  <div class="d-flex fvd-app-shell" id="wrapper">
     
     <?php if (empty($layout_hide_sidebar)): ?>
     <!-- Sidebar -->
-    <nav id="sidebar" class="bg-dark text-white border-end shadow d-flex flex-column" style="height: 100vh;">
-      <div class="sidebar-header p-4 border-bottom">
+    <nav id="sidebar" class="bg-dark text-white border-end shadow d-flex flex-column">
+      <div class="sidebar-header p-3 border-bottom">
         <h4 class="mb-0 text-center d-flex align-items-center justify-content-center flex-nowrap">
-          <?= AppHelpers::appLogo('me-2', 'La Estación del Dominó', 35, true) ?>
-          <span class="sidebar-brand text-truncate" title="La Estación del Dominó">La Estación del Dominó</span>
+          <?= AppHelpers::appLogo('me-2', $fvd_nombre_layout, 35, true) ?>
+          <span class="sidebar-brand text-truncate" title="<?= htmlspecialchars($fvd_nombre_layout) ?>"><?= htmlspecialchars(FvdBranding::siglas()) ?></span>
         </h4>
       </div>
       
-      <ul class="list-unstyled px-3 py-3 flex-grow-1" style="overflow-y: auto;">
+      <ul class="list-unstyled px-2 py-2 flex-grow-1 overflow-y-auto min-h-0">
         <?php if ($user['role'] !== 'admin_general'): ?>
         <!-- Inicio y Calendario: links directos para admin_club y admin_torneo -->
         <li class="mb-2">
@@ -615,16 +614,10 @@ if ($current_page === 'estadisticas_torneos') {
           
           <div class="navbar-nav me-auto d-flex align-items-center">
             <?php
-            $topbar_org = $dashboard_org;
-            if (!$topbar_org) {
-              $topbar_org = ['nombre' => 'La Estación del Dominó', 'logo' => null];
-            }
-            $topbar_logo_src = !empty($topbar_org['logo'])
-              ? AppHelpers::imageUrl($topbar_org['logo'])
-              : AppHelpers::getAppLogo();
-            $topbar_nombre = htmlspecialchars($topbar_org['nombre']);
+            $topbar_logo_src = FvdBranding::logoUrl();
+            $topbar_nombre = htmlspecialchars($fvd_nombre_layout);
             ?>
-            <img src="<?= htmlspecialchars($topbar_logo_src) ?>" alt="<?= $topbar_nombre ?>" height="32" class="me-2 d-none d-md-inline-block" style="object-fit: contain;">
+            <img src="<?= htmlspecialchars($topbar_logo_src) ?>" alt="<?= $topbar_nombre ?>" height="39" class="me-2 d-none d-md-inline-block fvd-topbar-logo" style="object-fit: contain; width: auto; max-height: 39px;">
             <h5 class="mb-0 text-muted d-none d-md-block"><?= $topbar_nombre ?></h5>
             <h6 class="mb-0 text-muted d-md-none"><?= strlen($topbar_nombre) > 20 ? 'Dashboard' : $topbar_nombre ?></h6>
             <?php if (!empty($layout_operativo_asoc) && ($current_page ?? '') !== 'asociacion_panel'): ?>
@@ -712,7 +705,7 @@ if ($current_page === 'estadisticas_torneos') {
       <?php endif; ?>
 
       <!-- Contenido dinámico (CSS/head ya cargados arriba; el módulo se incluye dentro del body con formato) -->
-      <main class="container-fluid py-4">
+      <main class="container-fluid fvd-main-scroll max-w-full px-0">
         <?php
         $layout_skip_global_volver = ($current_page === 'torneo_gestion' && in_array(($_GET['action'] ?? ''), [
             'registrar_resultados',
@@ -767,9 +760,8 @@ if ($current_page === 'estadisticas_torneos') {
   </div>
 
   <!-- Bootstrap JS (una sola carga; footer.php no lo repite si $layout_already_loaded_bootstrap está definido) -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
-  <!-- SweetAlert2: mensajes modales; ?v= para cache-busting -->
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11?v=4.0" defer></script>
+  <script src="<?= $layout_asset_href('assets/vendor/bootstrap/js/bootstrap.bundle.min.js') ?>" defer></script>
+  <script src="<?= $layout_asset_href('assets/vendor/sweetalert2/sweetalert2.min.js') ?>" defer></script>
   <?php
 $app_base_for_js = $layout_asset_base;
 if (str_ends_with($app_base_for_js, '/public')) {
@@ -786,13 +778,13 @@ if (str_ends_with($app_base_for_js, '/public')) {
   $needs_image_preview = in_array($current_page, $pages_needing_image_preview)
     || ($current_page === 'torneo_gestion' && in_array($action, ['galeria_fotos', 'index']));
   if ($needs_image_preview): ?>
-  <script src="<?= htmlspecialchars($layout_asset_base) ?>/assets/image-preview.js" defer></script>
+  <script src="<?= $layout_asset_href('assets/image-preview.js') ?>" defer></script>
   <?php endif; ?>
-  <script src="<?= htmlspecialchars($layout_asset_base) ?>/assets/notifications-toast.js" defer></script>
-  <script src="<?= htmlspecialchars($layout_asset_base) ?>/assets/breadcrumb-back.js" defer></script>
-  <script src="<?= htmlspecialchars($layout_asset_base) ?>/assets/single-tab-enforcer.js" defer></script>
-  <script src="<?= htmlspecialchars($layout_asset_base) ?>/assets/app-search.js" defer></script>
-  <script src="<?= htmlspecialchars($layout_asset_base) ?>/assets/dashboard-init.js" defer></script>
+  <script src="<?= $layout_asset_href('assets/notifications-toast.js') ?>" defer></script>
+  <script src="<?= $layout_asset_href('assets/breadcrumb-back.js') ?>" defer></script>
+  <script src="<?= $layout_asset_href('assets/single-tab-enforcer.js') ?>" defer></script>
+  <script src="<?= $layout_asset_href('assets/app-search.js') ?>" defer></script>
+  <script src="<?= $layout_asset_href('assets/dashboard-init.js') ?>" defer></script>
 <?php
 $layout_asset_base = $layout_asset_base ?? '';
 $layout_already_loaded_bootstrap = true; // Evitar doble carga de Bootstrap (rompe dropdown del usuario)

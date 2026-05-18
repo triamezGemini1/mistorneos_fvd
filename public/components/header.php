@@ -9,8 +9,9 @@ $logo_url = class_exists('AppHelpers') ? AppHelpers::getAppLogo() : (rtrim(app_b
     <nav class="bg-gradient-to-b from-primary-700 to-primary-600 shadow-lg sticky top-0 z-50 backdrop-blur-sm">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16 md:h-20">
-                <a href="<?= htmlspecialchars(($SITE_URL ?? rtrim(app_base_url(), '/') . '/public/landing.php')) ?>" class="flex items-center text-white font-bold hover:opacity-90 transition-opacity" title="<?= htmlspecialchars($SITE_NAME ?? 'La Estación del Dominó') ?>">
-                    <img src="<?= htmlspecialchars($logo_url) ?>" alt="<?= htmlspecialchars($SITE_NAME ?? 'La Estación del Dominó') ?>" class="h-8 md:h-10 w-auto">
+                <?php $siteNameHeader = $SITE_NAME ?? (class_exists('FvdBranding') ? FvdBranding::nombre() : 'FVD'); ?>
+                <a href="<?= htmlspecialchars(($SITE_URL ?? rtrim(app_base_url(), '/') . '/public/landing.php')) ?>" class="flex items-center text-white font-bold hover:opacity-90 transition-opacity" title="<?= htmlspecialchars($siteNameHeader) ?>">
+                    <img src="<?= htmlspecialchars($logo_url) ?>" alt="<?= htmlspecialchars($siteNameHeader) ?>" class="h-8 md:h-10 w-auto">
                 </a>
                 
                 <div class="hidden md:flex items-center space-x-1">

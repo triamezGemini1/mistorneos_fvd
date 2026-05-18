@@ -50,11 +50,17 @@ $truncLabel = static function (string $s, int $max = 42): string {
 $upperLabel = static function (string $s): string {
     return function_exists('mb_strtoupper') ? mb_strtoupper($s, 'UTF-8') : strtoupper($s);
 };
+$normalizeLabel = static function (string $s): string {
+    $t = trim(preg_replace('/\s+/u', ' ', $s) ?? $s);
+    return $t;
+};
+$clubNombreDisplay = $upperLabel($normalizeLabel($clubNombre));
+$entidadDisplay = $normalizeLabel($entidadNombre);
 
 $torneoHighlight = (int) ($_GET['torneo_nuevo'] ?? 0);
-$tabActiva = (int) ($_GET['tab'] ?? 1);
+$tabActiva = (int) ($_GET['tab'] ?? 3);
 if ($tabActiva < 1 || $tabActiva > 3) {
-    $tabActiva = 1;
+    $tabActiva = 3;
 }
 
 $urlPanel = AppHelpers::dashboard('asociacion_panel');
@@ -140,13 +146,20 @@ $panelQs = static function (array $extra = []) use ($torneoPanelId, $torneoHighl
 $tab1Href = AppHelpers::dashboard('asociacion_panel', $panelQs(['tab' => 1]));
 $tab2Href = AppHelpers::dashboard('asociacion_panel', $panelQs(['tab' => 2]));
 $tab3Href = AppHelpers::dashboard('asociacion_panel', $panelQs(['tab' => 3]));
+
+$listaContexto = $tabActiva === 1 ? $torneosSede : ($tabActiva === 2 ? $torneosMasivos : $torneosLista);
+$urlInscripcionPrincipal = $modalidadTorneo === 3
+    ? $urlInscribirEquipo
+    : $urlInscribirSitio;
+$btnTorneoOff = $sinTorneo ? ' asoc-po-btn--disabled' : '';
 ?>
-<div class="asoc-fvd-wrap text-dark">
+<link rel="stylesheet" href="<?= htmlspecialchars(AppHelpers::assetVersion('assets/css/asociacion-panel-operativo.css')) ?>">
+<div class="asoc-fvd-wrap asoc-panel-operativo text-dark">
     <header class="asoc-fvd-topbar">
         <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between py-2 px-3 gap-2">
             <div class="d-flex align-items-center gap-3">
-                <img src="<?= htmlspecialchars($fvdLogo) ?>" alt="FVD" class="asoc-fvd-logo-fvd" height="40">
-                <span class="asoc-fvd-topbar-title d-none d-sm-inline">Federación Venezolana de Dominó</span>
+                <img src="<?= htmlspecialchars($fvdLogo) ?>" alt="<?= htmlspecialchars(FvdBranding::siglas()) ?>" class="asoc-fvd-logo-fvd" height="40">
+                <span class="asoc-fvd-topbar-title d-none d-sm-inline"><?= htmlspecialchars(FvdBranding::nombre()) ?></span>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <a href="<?= htmlspecialchars($urlPanel) ?>" class="btn btn-sm btn-outline-light"><i class="fas fa-home me-1"></i>Panel</a>
@@ -174,172 +187,134 @@ $tab3Href = AppHelpers::dashboard('asociacion_panel', $panelQs(['tab' => 3]));
                 </ol>
             </nav>
             <h1 class="asoc-fvd-h1 mb-1">Administración de asociación</h1>
-            <p class="text-muted mb-0">
-                <?php if ($esEventoMasivo && $torneoCtx): ?>
-                    Evento masivo FVD: inscripciones y estado de cuenta de su asociación (sin solicitudes administrativas a la federación).
-                <?php else: ?>
-                    Ámbito provincial: solicitudes, inscripciones al torneo y consultas. No puede crear torneos ni modificar su configuración.
-                <?php endif; ?>
-            </p>
             <?php if ($panelError !== ''): ?>
                 <div class="alert alert-warning mt-2 mb-0 py-2"><?= htmlspecialchars($panelError) ?></div>
             <?php endif; ?>
         </div>
 
-        <ul class="nav nav-tabs nav-tabs-asoc flex-nowrap overflow-auto mb-3" role="tablist">
-            <li class="nav-item" role="presentation">
-                <a class="nav-link <?= $tabActiva === 1 ? 'active' : '' ?>" href="<?= htmlspecialchars($tab1Href) ?>">Torneo (movimientos / inscripciones)</a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link <?= $tabActiva === 2 ? 'active' : '' ?>" href="<?= htmlspecialchars($tab2Href) ?>">Eventos nacionales / masivos</a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link <?= $tabActiva === 3 ? 'active' : '' ?>" href="<?= htmlspecialchars($tab3Href) ?>">Todos los torneos</a>
-            </li>
-        </ul>
-
-        <div class="card asoc-fvd-identity shadow-sm border-0 mb-4">
-            <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3 py-3">
-                <div class="d-flex align-items-center gap-3">
-                    <?php if ($clubLogo !== ''): ?>
-                        <img src="<?= htmlspecialchars($clubLogo) ?>" alt="" class="rounded border bg-white asoc-club-logo">
-                    <?php else: ?>
-                        <div class="asoc-club-logo-placeholder rounded d-flex align-items-center justify-content-center bg-primary text-white fw-bold fs-4">
-                            <?= htmlspecialchars($upperLabel(function_exists('mb_substr') ? mb_substr($clubNombre, 0, 1, 'UTF-8') : substr($clubNombre, 0, 1))) ?>
-                        </div>
-                    <?php endif; ?>
-                    <div>
-                        <div class="asoc-entity-name text-uppercase fw-bold text-primary"><?= htmlspecialchars($upperLabel($clubNombre)) ?></div>
-                        <div class="small text-muted">
-                            Delegado: <strong><?= htmlspecialchars($delegadoNombre) ?></strong>
-                            <?php if ($entidadNombre !== ''): ?>
-                                · <?= htmlspecialchars($entidadNombre) ?>
-                            <?php endif; ?>
-                        </div>
+        <div class="card asoc-fvd-identity shadow-sm border-0 mb-3">
+            <div class="card-body asoc-fvd-identity__body d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div class="min-w-0 flex-grow-1">
+                    <div class="asoc-entity-name text-uppercase fw-bold text-primary text-truncate"><?= htmlspecialchars($clubNombreDisplay) ?></div>
+                    <div class="small text-muted text-truncate">
+                        Delegado: <strong><?= htmlspecialchars($delegadoNombre) ?></strong>
+                        <?php if ($entidadDisplay !== '' && strcasecmp($entidadDisplay, $normalizeLabel($clubNombre)) !== 0): ?>
+                            · <?= htmlspecialchars($entidadDisplay) ?>
+                        <?php endif; ?>
                     </div>
                 </div>
-                <div class="d-none d-md-block text-end">
-                    <img src="<?= htmlspecialchars($fvdLogo) ?>" alt="FVD" height="36" class="opacity-90">
+                <div class="asoc-fvd-identity__logo-wrap flex-shrink-0">
+                    <?php if ($clubLogo !== ''): ?>
+                        <img src="<?= htmlspecialchars($clubLogo) ?>" alt="<?= htmlspecialchars($clubNombreDisplay) ?>" class="rounded border bg-white asoc-club-logo asoc-club-logo--active">
+                    <?php else: ?>
+                        <div class="asoc-club-logo-placeholder rounded d-flex align-items-center justify-content-center bg-primary text-white fw-bold asoc-club-logo--active" title="<?= htmlspecialchars($clubNombreDisplay) ?>">
+                            <?= htmlspecialchars($upperLabel(function_exists('mb_substr') ? mb_substr($normalizeLabel($clubNombre), 0, 1, 'UTF-8') : substr($normalizeLabel($clubNombre), 0, 1))) ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
 
-        <div class="mb-4">
+        <div class="mb-3">
             <label for="asocQuickSearch" class="visually-hidden">Acción rápida</label>
-            <div class="input-group input-group-lg asoc-quick-search shadow-sm">
+            <div class="input-group asoc-quick-search shadow-sm">
                 <span class="input-group-text bg-dark text-white border-0"><i class="fas fa-search"></i></span>
                 <input type="search" id="asocQuickSearch" class="form-control border-0" placeholder="Acción rápida (Ctrl+Q)" autocomplete="off" aria-describedby="asocQuickHint">
             </div>
-            <div id="asocQuickHint" class="form-text">Filtra las tarjetas de las tres columnas. Atajo de teclado: Ctrl+Q.</div>
+            <div id="asocQuickHint" class="form-text small text-muted">Filtra los botones del panel. Atajo: Ctrl+Q.</div>
         </div>
 
-        <?php
-        $listaContexto = $tabActiva === 1 ? $torneosSede : ($tabActiva === 2 ? $torneosMasivos : $torneosLista);
-        ?>
         <?php if ($listaContexto !== []): ?>
-        <div class="small text-muted mb-3">
-            <strong>Torneo activo:</strong>
-            <?php foreach (array_slice($listaContexto, 0, 8) as $tx): ?>
-                <?php $tid = (int) $tx['id']; ?>
-                <a class="me-2 asoc-torneo-chip<?= $tid === $torneoPanelId ? ' fw-bold text-primary' : '' ?>" href="<?= htmlspecialchars(AppHelpers::dashboard('asociacion_panel', $panelQs(['torneo_id' => $tid, 'tab' => $tabActiva]))) ?>">
-                    <?= htmlspecialchars($truncLabel((string) $tx['nombre'])) ?>
-                </a>
-            <?php endforeach; ?>
+        <div class="asoc-po-torneo-bar">
+            <label for="asocTorneoSelect">Torneo activo</label>
+            <select id="asocTorneoSelect" aria-label="Seleccionar torneo">
+                <?php foreach ($listaContexto as $tx): ?>
+                    <?php $tid = (int) $tx['id']; ?>
+                    <option value="<?= htmlspecialchars(AppHelpers::dashboard('asociacion_panel', $panelQs(['torneo_id' => $tid, 'tab' => $tabActiva])), ENT_QUOTES, 'UTF-8') ?>"<?= $tid === $torneoPanelId ? ' selected' : '' ?>>
+                        <?= htmlspecialchars($truncLabel((string) $tx['nombre'], 64)) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </div>
         <?php elseif ($sinTorneo): ?>
-        <div class="alert alert-secondary">No hay torneos FVD visibles para su entidad en este momento.</div>
+        <div class="alert alert-secondary py-2 small mb-3">No hay torneos FVD visibles para su entidad en este momento.</div>
         <?php endif; ?>
 
-        <?php $colAncho = $esEventoMasivo ? 'col-lg-6' : 'col-lg-4'; ?>
-        <div class="row g-4 asoc-columns">
-            <?php if (!$esEventoMasivo): ?>
-            <div class="col-lg-4">
-                <div class="asoc-col h-100">
-                    <div class="asoc-col-header">Solicitudes a la FVD</div>
-                    <div class="list-group list-group-flush asoc-proc-list">
-                        <a href="<?= htmlspecialchars($urlSolicitud('afiliacion')) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3">
-                            <span class="asoc-ico text-success"><i class="fas fa-user-plus"></i></span>
-                            <span><span class="fw-semibold d-block">Nueva afiliación</span><span class="small text-muted">Solicitud de afiliado</span></span>
-                        </a>
-                        <a href="<?= htmlspecialchars($urlSolicitud('anualidad')) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3">
-                            <span class="asoc-ico text-primary"><i class="fas fa-calendar-check"></i></span>
-                            <span><span class="fw-semibold d-block">Anualidad</span><span class="small text-muted">Renovación anual</span></span>
-                        </a>
-                        <a href="<?= htmlspecialchars($urlSolicitud('traspaso')) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3">
-                            <span class="asoc-ico text-info"><i class="fas fa-exchange-alt"></i></span>
-                            <span><span class="fw-semibold d-block">Traspaso</span><span class="small text-muted">Cambio de asociación</span></span>
-                        </a>
-                        <a href="<?= htmlspecialchars($urlSolicitud('carnet')) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3">
-                            <span class="asoc-ico text-warning"><i class="fas fa-id-card"></i></span>
-                            <span><span class="fw-semibold d-block">Carnet</span><span class="small text-muted">Credencial FVD</span></span>
-                        </a>
-                    </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3 asoc-columns">
+            <div class="asoc-po-card asoc-po-card--solicitudes">
+                <h3 class="asoc-po-card__title">Solicitudes</h3>
+                <div class="asoc-po-actions">
+                    <?php if ($esEventoMasivo): ?>
+                    <p class="asoc-po-empty">No aplica en eventos masivos FVD.</p>
+                    <?php else: ?>
+                    <a href="<?= htmlspecialchars($urlSolicitud('afiliacion')) ?>" class="asoc-po-btn asoc-po-btn--violet asoc-proc-link">
+                        <span>Afiliación</span><i class="fas fa-user-plus"></i>
+                    </a>
+                    <a href="<?= htmlspecialchars($urlSolicitud('traspaso')) ?>" class="asoc-po-btn asoc-po-btn--orange asoc-proc-link">
+                        <span>Traspaso</span><i class="fas fa-exchange-alt"></i>
+                    </a>
+                    <a href="<?= htmlspecialchars($urlSolicitud('carnet')) ?>" class="asoc-po-btn asoc-po-btn--slate asoc-proc-link">
+                        <span>Carnets</span><i class="fas fa-id-card"></i>
+                    </a>
+                    <a href="<?= htmlspecialchars($urlSolicitud('anualidad')) ?>" class="asoc-po-btn asoc-po-btn--blue asoc-proc-link asoc-po-btn--sub">
+                        <span>Anualidad</span><i class="fas fa-calendar-check"></i>
+                    </a>
+                    <?php endif; ?>
                 </div>
             </div>
-            <?php endif; ?>
-            <div class="<?= $colAncho ?>">
-                <div class="asoc-col h-100">
-                    <div class="asoc-col-header">Inscripciones al torneo</div>
-                    <div class="list-group list-group-flush asoc-proc-list">
-                        <a href="<?= htmlspecialchars($urlVerTorneo) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3<?= $sinTorneo ? ' disabled opacity-50' : '' ?>">
-                            <span class="asoc-ico text-secondary"><i class="fas fa-eye"></i></span>
-                            <span><span class="fw-semibold d-block">Ver configuración</span><span class="small text-muted">Solo lectura</span></span>
-                        </a>
-                        <a href="<?= htmlspecialchars($urlInscripciones) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3<?= $sinTorneo ? ' disabled opacity-50' : '' ?>">
-                            <span class="asoc-ico text-primary"><i class="fas fa-clipboard-list"></i></span>
-                            <span><span class="fw-semibold d-block">Listado de inscritos</span><span class="small text-muted">Pago, recordatorio y retirar</span></span>
-                        </a>
-                        <?php if ($modalidadTorneo === 3): ?>
-                        <a href="<?= htmlspecialchars($urlInscribirEquipo) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3<?= $sinTorneo ? ' disabled opacity-50' : '' ?>">
-                            <span class="asoc-ico text-success"><i class="fas fa-users"></i></span>
-                            <span><span class="fw-semibold d-block">Inscribir equipo</span><span class="small text-muted">En sitio</span></span>
-                        </a>
-                        <a href="<?= htmlspecialchars($urlCargaEquipos) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3<?= $sinTorneo ? ' disabled opacity-50' : '' ?>">
-                            <span class="asoc-ico text-dark"><i class="fas fa-file-upload"></i></span>
-                            <span><span class="fw-semibold d-block">Carga masiva equipos</span><span class="small text-muted">Lote / plantilla</span></span>
-                        </a>
-                        <?php elseif ($modalidadTorneo === 2): ?>
-                        <a href="<?= htmlspecialchars($urlInscribirSitio) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3<?= $sinTorneo ? ' disabled opacity-50' : '' ?>">
-                            <span class="asoc-ico text-success"><i class="fas fa-user-friends"></i></span>
-                            <span><span class="fw-semibold d-block">Inscribir en sitio</span><span class="small text-muted">Parejas</span></span>
-                        </a>
-                        <a href="<?= htmlspecialchars($urlCargaParejas) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3<?= $sinTorneo ? ' disabled opacity-50' : '' ?>">
-                            <span class="asoc-ico text-dark"><i class="fas fa-file-upload"></i></span>
-                            <span><span class="fw-semibold d-block">Carga masiva parejas</span><span class="small text-muted">Lote / plantilla</span></span>
-                        </a>
-                        <?php else: ?>
-                        <a href="<?= htmlspecialchars($urlInscribirSitio) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3<?= $sinTorneo ? ' disabled opacity-50' : '' ?>">
-                            <span class="asoc-ico text-success"><i class="fas fa-user-check"></i></span>
-                            <span><span class="fw-semibold d-block">Inscribir en sitio</span><span class="small text-muted">Individual</span></span>
-                        </a>
-                        <?php endif; ?>
-                        <a href="<?= htmlspecialchars($urlCarnetQr) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3<?= $sinTorneo ? ' disabled opacity-50' : '' ?>">
-                            <span class="asoc-ico text-warning"><i class="fas fa-qrcode"></i></span>
-                            <span><span class="fw-semibold d-block">Carnets del torneo</span><span class="small text-muted">QR e impresión</span></span>
-                        </a>
-                    </div>
+
+            <div class="asoc-po-card asoc-po-card--operaciones">
+                <h3 class="asoc-po-card__title">Operaciones</h3>
+                <div class="asoc-po-actions">
+                    <a href="<?= htmlspecialchars($urlInscripcionPrincipal) ?>" class="asoc-po-btn asoc-po-btn--emerald asoc-proc-link<?= $btnTorneoOff ?>">
+                        <span>Inscripciones</span><i class="fas fa-user-check"></i>
+                    </a>
+                    <a href="<?= htmlspecialchars($urlInscripciones) ?>" class="asoc-po-btn asoc-po-btn--blue asoc-proc-link<?= $btnTorneoOff ?>">
+                        <span>Administración de inscripciones</span><i class="fas fa-clipboard-list"></i>
+                    </a>
+                    <a href="<?= htmlspecialchars($urlVerTorneo) ?>" class="asoc-po-btn asoc-po-btn--slate asoc-proc-link asoc-po-btn--sub<?= $btnTorneoOff ?>">
+                        <span>Ver torneo (solo lectura)</span><i class="fas fa-eye"></i>
+                    </a>
+                    <?php if ($modalidadTorneo === 3): ?>
+                    <a href="<?= htmlspecialchars($urlCargaEquipos) ?>" class="asoc-po-btn asoc-po-btn--teal asoc-proc-link asoc-po-btn--sub<?= $btnTorneoOff ?>">
+                        <span>Carga masiva equipos</span><i class="fas fa-file-upload"></i>
+                    </a>
+                    <?php elseif ($modalidadTorneo === 2): ?>
+                    <a href="<?= htmlspecialchars($urlCargaParejas) ?>" class="asoc-po-btn asoc-po-btn--teal asoc-proc-link asoc-po-btn--sub<?= $btnTorneoOff ?>">
+                        <span>Carga masiva parejas</span><i class="fas fa-file-upload"></i>
+                    </a>
+                    <?php endif; ?>
+                    <a href="<?= htmlspecialchars($urlCarnetQr) ?>" class="asoc-po-btn asoc-po-btn--pink asoc-proc-link asoc-po-btn--sub<?= $btnTorneoOff ?>">
+                        <span>Carnets QR del torneo</span><i class="fas fa-qrcode"></i>
+                    </a>
                 </div>
             </div>
-            <div class="<?= $colAncho ?>">
-                <div class="asoc-col h-100">
-                    <div class="asoc-col-header">Consulta y finanzas</div>
-                    <div class="list-group list-group-flush asoc-proc-list">
-                        <a href="<?= htmlspecialchars($urlFinanzas) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3">
-                            <span class="asoc-ico text-success"><i class="fas fa-file-invoice-dollar"></i></span>
-                            <span><span class="fw-semibold d-block">Estado de cuentas</span><span class="small text-muted"><?= $esEventoMasivo ? 'Detalle completo del evento' : 'Movimientos de su asociación' ?></span></span>
-                        </a>
-                        <a href="<?= htmlspecialchars($urlNotif) ?>" class="list-group-item list-group-item-action asoc-proc-link d-flex align-items-center gap-3 py-3">
-                            <span class="asoc-ico text-primary"><i class="fas fa-bell"></i></span>
-                            <span><span class="fw-semibold d-block">Notificaciones</span><span class="small text-muted">Avisos de la FVD</span></span>
-                        </a>
-                    </div>
+
+            <div class="asoc-po-card asoc-po-card--finanzas">
+                <h3 class="asoc-po-card__title">Finanzas</h3>
+                <div class="asoc-po-actions">
+                    <a href="<?= htmlspecialchars($urlFinanzas) ?>" class="asoc-po-btn asoc-po-btn--primary-fin asoc-proc-link">
+                        <span>Estado de cuenta</span><i class="fas fa-file-invoice-dollar"></i>
+                    </a>
+                    <a href="<?= htmlspecialchars($tab2Href) ?>" class="asoc-po-btn asoc-po-btn--violet asoc-proc-link">
+                        <span>Eventos nacionales / masivos</span><i class="fas fa-flag"></i>
+                    </a>
+                    <a href="<?= htmlspecialchars($tab3Href) ?>" class="asoc-po-btn asoc-po-btn--blue asoc-proc-link">
+                        <span>Consultar otros torneos</span><i class="fas fa-trophy"></i>
+                    </a>
+                    <a href="<?= htmlspecialchars($tab1Href) ?>" class="asoc-po-btn asoc-po-btn--teal asoc-proc-link asoc-po-btn--sub">
+                        <span>Torneos de mi sede</span><i class="fas fa-map-marker-alt"></i>
+                    </a>
+                    <a href="<?= htmlspecialchars($urlNotif) ?>" class="asoc-po-btn asoc-po-btn--slate asoc-proc-link asoc-po-btn--sub">
+                        <span>Notificaciones FVD</span><i class="fas fa-bell"></i>
+                    </a>
                 </div>
             </div>
         </div>
 
-        <footer class="text-center text-muted small py-4 border-top mt-4">
-            © <?= (int) date('Y') ?> Federación Venezolana de Dominó
-        </footer>
+        <p class="text-end mt-3 mb-0 pt-2 border-top border-slate-200">
+            <span class="text-[10px] font-mono text-slate-400"><?= htmlspecialchars(FvdBranding::soporteTecnico()) ?> · <?= htmlspecialchars(FvdBranding::nombre()) ?></span>
+        </p>
     </div>
     <button type="button" class="btn btn-warning rounded-circle shadow-lg asoc-fab" title="Acción rápida" aria-label="Acción rápida" onclick="var e=document.getElementById('asocQuickSearch'); if(e){e.focus();e.select();}">
         <i class="fas fa-plus"></i>
@@ -378,9 +353,21 @@ $tab3Href = AppHelpers::dashboard('asociacion_panel', $panelQs(['tab' => 3]));
     border-color: #c9a227 #c9a227 #f4f6f9;
 }
 .asoc-fvd-identity { background: #fff; border-left: 4px solid #c9a227 !important; }
+.asoc-fvd-identity__body {
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+}
 .asoc-club-logo { width: 64px; height: 64px; object-fit: contain; }
-.asoc-club-logo-placeholder { width: 64px; height: 64px; }
-.asoc-entity-name { font-size: 1.25rem; letter-spacing: .04em; }
+.asoc-club-logo--active,
+.asoc-club-logo-placeholder.asoc-club-logo--active {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    font-size: 0.875rem;
+}
+.asoc-club-logo-placeholder:not(.asoc-club-logo--active) { width: 64px; height: 64px; }
+.asoc-entity-name { font-size: 0.95rem; letter-spacing: .04em; line-height: 1.2; }
+.asoc-fvd-identity__body .small { font-size: 0.75rem; }
 .asoc-quick-search { border-radius: .5rem; overflow: hidden; }
 .asoc-col-header {
     background: #0a1628;
@@ -440,6 +427,14 @@ $tab3Href = AppHelpers::dashboard('asociacion_panel', $panelQs(['tab' => 3]));
             inp.select();
         }
     });
+    var sel = document.getElementById('asocTorneoSelect');
+    if (sel) {
+        sel.addEventListener('change', function () {
+            if (sel.value) {
+                window.location.href = sel.value;
+            }
+        });
+    }
 })();
 </script>
 

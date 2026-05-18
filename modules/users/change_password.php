@@ -24,7 +24,8 @@ if (!$embedded_in_layout): ?>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cambiar contraseña</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="<?= htmlspecialchars(AppHelpers::publicAssetUrl('assets/vendor/bootstrap/css/bootstrap.min.css')) ?>" rel="stylesheet">
+  <link href="<?= htmlspecialchars(AppHelpers::publicAssetUrl('assets/vendor/fontawesome/css/all.min.css')) ?>" rel="stylesheet">
   <style>
     body {
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -121,7 +122,7 @@ if (!$embedded_in_layout): ?>
 </div>
 <?php else: ?>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+<script src="<?= htmlspecialchars(AppHelpers::publicAssetUrl('assets/vendor/bootstrap/js/bootstrap.bundle.min.js')) ?>" defer></script>
 </body>
 </html>
 <?php endif; ?>

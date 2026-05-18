@@ -228,7 +228,8 @@ ob_end_clean();
 <!DOCTYPE html>
 <html lang="es">
 <?php
-$header_title = 'Iniciar Sesión - La Estación del Dominó';
+require_once __DIR__ . '/../lib/FvdBranding.php';
+$header_title = 'Iniciar Sesión - ' . FvdBranding::nombre();
 include_once __DIR__ . '/../includes/header.php';
 ?>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -285,8 +286,9 @@ include_once __DIR__ . '/../includes/header.php';
             require_once __DIR__ . '/../lib/app_helpers.php';
             $logo_url = AppHelpers::getAppLogo();
             ?>
-            <img src="<?= htmlspecialchars($logo_url) ?>" alt="La Estación del Dominó" style="height: 60px; margin-bottom: 1rem;">
-            <h4 class="mb-1">La Estación del Dominó</h4>
+            <img src="<?= htmlspecialchars($logo_url) ?>" alt="<?= htmlspecialchars(FvdBranding::nombre()) ?>" style="height: 60px; margin-bottom: 1rem;">
+            <h4 class="mb-1"><?= htmlspecialchars(FvdBranding::siglas()) ?></h4>
+            <p class="small mb-0 opacity-75"><?= htmlspecialchars(FvdBranding::nombre()) ?></p>
             <p class="mb-0 opacity-75">Iniciar Sesión</p>
           </div>
           <div class="card-body">

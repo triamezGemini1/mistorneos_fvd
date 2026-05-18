@@ -4,7 +4,7 @@
  * Variables globales: $SITE_NAME, $SITE_TAGLINE, $SITE_EMAIL (desde config.php), app_base_url()
  */
 $logo_url = class_exists('AppHelpers') ? AppHelpers::getAppLogo() : (rtrim(app_base_url(), '/') . '/public/view_image.php?path=' . rawurlencode('lib/Assets/mislogos/logo4.png'));
-$site_name = $SITE_NAME ?? 'La Estación del Dominó';
+$site_name = $SITE_NAME ?? (class_exists('FvdBranding') ? FvdBranding::nombre() : 'FVD');
 $site_tagline = $SITE_TAGLINE ?? 'Sistema integral para la gestión de torneos de dominó';
 $site_email = $SITE_EMAIL ?? 'info@laestaciondeldomino.com';
 ?>

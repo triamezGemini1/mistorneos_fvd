@@ -1,89 +1,75 @@
 <?php
 /**
- * Vista: Mesas de una Ronda
+ * Vista: Mesas de una Ronda — dashboard compacto / inmersivo (14" + móvil)
  */
 $script_actual = basename($_SERVER['PHP_SELF'] ?? '');
-$use_standalone = in_array($script_actual, ['admin_torneo.php', 'panel_torneo.php']);
+$use_standalone = in_array($script_actual, ['admin_torneo.php', 'panel_torneo.php'], true);
 $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
 $action_param = $use_standalone ? '?' : '&';
+
+$mesas_render_jugador = static function (array $jugador, bool $es_modalidad_equipos): string {
+    $ag = !empty($jugador['alerta_genero']);
+    $nombre = htmlspecialchars($jugador['nombre'] ?? $jugador['nombre_completo'] ?? 'Sin nombre');
+    $club = !empty($jugador['club_nombre']) ? '<span class="text-slate-400">(' . htmlspecialchars($jugador['club_nombre']) . ')</span>' : '';
+    $equipo = ($es_modalidad_equipos && !empty($jugador['codigo_equipo_inscrito']))
+        ? '<span class="text-primary-600 font-semibold">[' . htmlspecialchars($jugador['codigo_equipo_inscrito']) . ']</span> '
+        : '';
+    $alerta = $ag
+        ? '<span class="inline-flex items-center rounded px-1 py-0 text-[10px] bg-amber-100 text-amber-800 mr-1" title="Revisar género en registro"><i class="fas fa-venus-mars"></i></span>'
+        : '';
+    $wrap = $ag ? 'rounded bg-amber-50/90 border-l-2 border-amber-400 pl-1.5 pr-1 py-0.5' : '';
+    return '<li class="leading-snug truncate ' . $wrap . '" title="' . $nombre . '">' . $alerta . $equipo . $nombre . ' ' . $club . '</li>';
+};
 ?>
 
-<div class="container-fluid mesas-reporte-v32 px-2 px-md-3">
-    <style>
-        .mesas-reporte-v32 .card { margin-bottom: 0.65rem; }
-        .mesas-reporte-v32 .card-header { padding: 0.4rem 0.65rem; }
-        .mesas-reporte-v32 .card-header h5 { font-size: 0.95rem; margin: 0; }
-        .mesas-reporte-v32 .card-body { padding: 0.5rem 0.65rem 0.6rem; }
-        .mesas-reporte-v32 .mb-3 { margin-bottom: 0.5rem !important; }
-        .mesas-reporte-v32 ul.list-unstyled { margin-bottom: 0.35rem; font-size: 0.88rem; line-height: 1.35; }
-        .mesa-jugador-alerta-genero {
-            background: linear-gradient(90deg, #fff3cd 0%, transparent 100%);
-            border-left: 3px solid #f0ad4e;
-            padding: 3px 5px 3px 6px;
-            margin: 1px 0;
-            border-radius: 4px;
-        }
-        .mesa-jugador-alerta-genero .badge-alerta-genero {
-            font-size: 0.65rem;
-            vertical-align: middle;
-            padding: 0.15em 0.35em;
-        }
-        @media (min-width: 1200px) and (max-width: 1440px) {
-            .mesas-reporte-v32 h1.h3 { font-size: 1.15rem; }
-            .mesas-reporte-v32 .mesa-jugador-alerta-genero { font-size: 0.85rem; }
-            .mesas-reporte-v32 ul.list-unstyled { font-size: 0.82rem; }
-        }
-    </style>
-    <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="h3 mb-2">
-                <i class="fas fa-chess text-primary"></i> Asignaciones - Mesas Ronda <?php echo $ronda; ?>
-                <small class="text-muted">- <?php echo htmlspecialchars($torneo['nombre']); ?></small>
-            </h1>
-            <p class="text-muted mb-0">Todas las mesas asignadas para esta ronda. Use el selector para ir a una mesa en particular.</p>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="<?php echo $base_url; ?>">Gestión de Torneos</a></li>
-                    <li class="breadcrumb-item"><a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=panel&torneo_id=<?php echo $torneo['id']; ?>"><?php echo htmlspecialchars($torneo['nombre']); ?></a></li>
-                    <li class="breadcrumb-item active">Ronda <?php echo $ronda; ?></li>
-                </ol>
-            </nav>
-        </div>
-    </div>
+<div class="w-full max-w-full text-sm fvd-mesas-dashboard px-0">
+    <header class="mb-3 md:mb-4">
+        <h1 class="font-display text-lg md:text-xl font-semibold text-slate-800 flex flex-wrap items-center gap-2 mb-1">
+            <i class="fas fa-chess-board text-primary-500"></i>
+            <span>Mesas · Ronda <?php echo (int) $ronda; ?></span>
+            <span class="text-slate-500 font-normal text-sm truncate max-w-full"><?php echo htmlspecialchars($torneo['nombre']); ?></span>
+        </h1>
+        <p class="text-xs text-slate-500 mb-2">Asignaciones de la ronda. El scroll es interno al panel; menú y barra superior permanecen visibles.</p>
+        <nav aria-label="breadcrumb" class="text-xs">
+            <ol class="flex flex-wrap items-center gap-1 text-slate-500 list-none p-0 m-0">
+                <li><a href="<?php echo $base_url; ?>" class="text-primary-600 hover:underline">Torneos</a></li>
+                <li class="text-slate-300">/</li>
+                <li><a href="<?php echo $base_url . $action_param; ?>action=panel&torneo_id=<?php echo (int) $torneo['id']; ?>" class="text-primary-600 hover:underline truncate max-w-[12rem] inline-block align-bottom"><?php echo htmlspecialchars($torneo['nombre']); ?></a></li>
+                <li class="text-slate-300">/</li>
+                <li class="text-slate-700 font-medium">Ronda <?php echo (int) $ronda; ?></li>
+            </ol>
+        </nav>
+    </header>
 
-    <div class="row mb-3">
-        <div class="col-12">
-            <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=panel&torneo_id=<?php echo $torneo['id']; ?>" 
-               class="btn btn-secondary btn-lg" 
-               style="margin-right: 10px;">
-                <i class="fas fa-arrow-left mr-2"></i> Volver al Panel de Control
-            </a>
-            <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=rondas&torneo_id=<?php echo $torneo['id']; ?>" 
-               class="btn btn-info btn-lg">
-                <i class="fas fa-layer-group mr-2"></i> Ver Todas las Rondas
-            </a>
-        </div>
+    <div class="flex flex-wrap items-center gap-2 mb-3">
+        <a href="<?php echo $base_url . $action_param; ?>action=panel&torneo_id=<?php echo (int) $torneo['id']; ?>"
+           class="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+            <i class="fas fa-arrow-left"></i> Panel
+        </a>
+        <a href="<?php echo $base_url . $action_param; ?>action=rondas&torneo_id=<?php echo (int) $torneo['id']; ?>"
+           class="inline-flex items-center gap-1.5 rounded-md bg-primary-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-600">
+            <i class="fas fa-layer-group"></i> Rondas
+        </a>
     </div>
 
     <?php if (!empty($es_operador_ambito) && !empty($mesas)): ?>
-    <div class="alert alert-info py-2 mb-3">
-        <i class="fas fa-user-cog me-2"></i>
-        <strong>Su ámbito:</strong> solo se muestran las mesas asignadas a usted para esta ronda (<?php echo count($mesas); ?> mesas).
+    <div class="rounded-md border border-sky-200 bg-sky-50 text-sky-900 px-3 py-2 mb-3 text-xs flex items-start gap-2">
+        <i class="fas fa-user-cog mt-0.5 shrink-0"></i>
+        <span><strong>Su ámbito:</strong> <?php echo count($mesas); ?> mesa(s) asignada(s) en esta ronda.</span>
     </div>
     <?php endif; ?>
 
     <?php if (empty($mesas)): ?>
-        <div class="alert alert-<?php echo !empty($es_operador_ambito) ? 'warning' : 'info'; ?>">
-            <i class="fas fa-info-circle mr-2"></i>
+        <div class="rounded-md border px-3 py-3 text-xs <?php echo !empty($es_operador_ambito) ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-slate-200 bg-slate-50 text-slate-700'; ?>">
+            <i class="fas fa-info-circle mr-1"></i>
             <?php if (!empty($es_operador_ambito)): ?>
-                No tiene mesas asignadas para esta ronda. Contacte al administrador del torneo para que le asigne su ámbito de mesas.
+                No tiene mesas asignadas para esta ronda. Contacte al administrador del torneo.
             <?php else: ?>
                 No hay mesas asignadas para esta ronda aún.
             <?php endif; ?>
         </div>
     <?php else: ?>
         <?php
-        // Separar mesas normales de BYE
         $mesas_normales = [];
         $mesas_bye = [];
         foreach ($mesas as $mesa_data) {
@@ -93,184 +79,154 @@ $action_param = $use_standalone ? '?' : '&';
                 $mesas_bye = $mesa_data['BYE'];
             }
         }
-        usort($mesas_normales, function($a, $b) {
+        usort($mesas_normales, static function ($a, $b) {
             return ($a['numero'] ?? 0) <=> ($b['numero'] ?? 0);
         });
+        $es_modalidad_equipos_mesas = (int) ($torneo['modalidad'] ?? 0) === 3;
         ?>
 
         <?php if (!empty($mesas_normales)): ?>
-        <div class="card mb-3">
-            <div class="card-body py-3">
-                <label for="ir-a-mesa-select" class="form-label fw-bold me-2">Ir a mesa:</label>
-                <select id="ir-a-mesa-select" class="form-select form-select-lg d-inline-block w-auto" onchange="irAMesa(this.value)">
-                    <option value="">— Todas las mesas (<?php echo count($mesas_normales); ?>) —</option>
-                    <?php foreach ($mesas_normales as $md): $n = (int)($md['numero'] ?? 0); if ($n <= 0) continue; ?>
-                    <option value="mesa-<?php echo $n; ?>">Mesa <?php echo $n; ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
+        <div class="rounded-lg border border-slate-200 bg-white px-3 py-2 mb-3 flex flex-wrap items-center gap-2">
+            <label for="ir-a-mesa-select" class="text-xs font-semibold text-slate-600 shrink-0">Ir a mesa</label>
+            <select id="ir-a-mesa-select" class="form-select form-select-sm w-auto max-w-full py-1.5 text-sm" onchange="irAMesa(this.value)">
+                <option value="">— Todas (<?php echo count($mesas_normales); ?>) —</option>
+                <?php foreach ($mesas_normales as $md): $n = (int) ($md['numero'] ?? 0); if ($n <= 0) continue; ?>
+                <option value="mesa-<?php echo $n; ?>">Mesa <?php echo $n; ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 w-full">
+            <?php foreach ($mesas_normales as $mesa_data): ?>
+                <?php
+                $num_mesa = (int) ($mesa_data['numero'] ?? 0);
+                $jugadores = $mesa_data['jugadores'] ?? [];
+                $pareja_a = array_filter($jugadores, static function ($j) {
+                    return is_array($j) && isset($j['secuencia']) && in_array((int) $j['secuencia'], [1, 2], true);
+                });
+                $pareja_b = array_filter($jugadores, static function ($j) {
+                    return is_array($j) && isset($j['secuencia']) && in_array((int) $j['secuencia'], [3, 4], true);
+                });
+                $tiene_resultados = false;
+                $resultado1 = 0;
+                $resultado2 = 0;
+                foreach ($jugadores as $j) {
+                    if (is_array($j) && (!empty($j['resultado1']) || !empty($j['resultado2']))) {
+                        $tiene_resultados = true;
+                        $primer = reset($jugadores);
+                        if (is_array($primer)) {
+                            $resultado1 = (int) ($primer['resultado1'] ?? 0);
+                            $resultado2 = (int) ($primer['resultado2'] ?? 0);
+                        }
+                        break;
+                    }
+                }
+                $mesa_chancleta = false;
+                $mesa_zapato = false;
+                foreach ($jugadores as $j) {
+                    if (!is_array($j)) {
+                        continue;
+                    }
+                    if (!empty($j['chancleta']) && (int) $j['chancleta'] > 0) {
+                        $mesa_chancleta = true;
+                    }
+                    if (!empty($j['zapato']) && (int) $j['zapato'] > 0) {
+                        $mesa_zapato = true;
+                    }
+                }
+                ?>
+                <article id="mesa-<?php echo $num_mesa; ?>" class="relative flex flex-col rounded-lg border border-slate-200 bg-white shadow-sm hover:shadow-md hover:border-primary-200 transition-shadow min-h-[11rem]">
+                    <?php if ($mesa_chancleta || $mesa_zapato): ?>
+                    <div class="absolute top-1.5 right-1.5 flex flex-col gap-0.5 z-10">
+                        <?php if ($mesa_chancleta): ?>
+                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-rose-100 text-rose-800 border border-rose-200" title="Chancleta">🥿</span>
+                        <?php endif; ?>
+                        <?php if ($mesa_zapato): ?>
+                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-violet-100 text-violet-800 border border-violet-200" title="Zapato">👞</span>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+
+                    <header class="flex items-center justify-between px-2.5 py-1.5 border-b border-slate-100 bg-primary-50/80 rounded-t-lg">
+                        <span class="font-display text-sm font-semibold text-primary-700">
+                            <i class="fas fa-chess-board text-primary-500 mr-1"></i>Mesa <?php echo $num_mesa; ?>
+                        </span>
+                        <?php if (count($jugadores) !== 4): ?>
+                        <span class="text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded"><?php echo count($jugadores); ?>/4</span>
+                        <?php endif; ?>
+                    </header>
+
+                    <?php if (count($jugadores) === 4): ?>
+                    <div class="flex-1 grid grid-rows-[1fr_auto_1fr] gap-0 px-2 py-1.5 text-xs min-h-0">
+                        <div class="min-h-0 overflow-hidden">
+                            <p class="text-[10px] uppercase tracking-wide text-primary-600 font-semibold mb-0.5">Pareja A</p>
+                            <ul class="list-none p-0 m-0 space-y-0.5 text-slate-800">
+                                <?php foreach ($pareja_a as $jugador): ?>
+                                    <?php if (is_array($jugador)) echo $mesas_render_jugador($jugador, $es_modalidad_equipos_mesas); ?>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                        <div class="text-center py-1.5 my-0.5 border-y border-dashed border-slate-200 bg-slate-50/80 rounded">
+                            <?php if ($tiene_resultados): ?>
+                            <span class="font-mono text-lg md:text-xl font-bold tabular-nums text-slate-900 tracking-tight">
+                                <?php echo $resultado1; ?><span class="text-slate-400 mx-1">:</span><?php echo $resultado2; ?>
+                            </span>
+                            <?php else: ?>
+                            <span class="text-[10px] uppercase text-slate-400 font-medium">Sin resultado</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="min-h-0 overflow-hidden">
+                            <p class="text-[10px] uppercase tracking-wide text-emerald-700 font-semibold mb-0.5">Pareja B</p>
+                            <ul class="list-none p-0 m-0 space-y-0.5 text-slate-800">
+                                <?php foreach ($pareja_b as $jugador): ?>
+                                    <?php if (is_array($jugador)) echo $mesas_render_jugador($jugador, $es_modalidad_equipos_mesas); ?>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                    <div class="flex-1 px-2 py-2 text-xs text-slate-600">
+                        <p class="mb-1 text-amber-700 font-medium">Mesa incompleta</p>
+                        <ul class="list-none p-0 m-0 space-y-0.5">
+                            <?php foreach ($jugadores as $jugador): ?>
+                                <?php if (is_array($jugador)) echo $mesas_render_jugador($jugador, $es_modalidad_equipos_mesas); ?>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                    <?php endif; ?>
+
+                    <footer class="mt-auto flex flex-wrap gap-1 p-2 border-t border-slate-100 bg-slate-50/90 rounded-b-lg">
+                        <a href="<?php echo $base_url . $action_param; ?>action=registrar_resultados&torneo_id=<?php echo (int) $torneo['id']; ?>&ronda=<?php echo (int) $ronda; ?>&mesa=<?php echo $num_mesa; ?>"
+                           class="inline-flex flex-1 min-w-[5.5rem] items-center justify-center gap-1 rounded-md bg-primary-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-primary-600">
+                            <i class="fas fa-keyboard"></i> Resultados
+                        </a>
+                        <a href="<?php echo $base_url . $action_param; ?>action=reasignar_mesa&torneo_id=<?php echo (int) $torneo['id']; ?>&ronda=<?php echo (int) $ronda; ?>&mesa=<?php echo $num_mesa; ?>"
+                           class="inline-flex flex-1 min-w-[5.5rem] items-center justify-center gap-1 rounded-md bg-teal-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-teal-700">
+                            <i class="fas fa-exchange-alt"></i> Reasignar
+                        </a>
+                    </footer>
+                </article>
+            <?php endforeach; ?>
         </div>
         <?php endif; ?>
-        
-        <?php if (!empty($mesas_normales)): ?>
-            <?php $es_modalidad_equipos_mesas = (int)($torneo['modalidad'] ?? 0) === 3; ?>
-            <div class="row">
-                <?php foreach ($mesas_normales as $mesa_data): ?>
-                    <?php 
-                    $num_mesa = $mesa_data['numero'] ?? 0;
-                    $jugadores = $mesa_data['jugadores'] ?? [];
-                    ?>
-                    <div class="col-md-6 col-lg-4 col-xl-3 mb-3" id="mesa-<?php echo (int)$num_mesa; ?>">
-                        <div class="card h-100">
-                            <div class="card-header" style="background-color: #e3f2fd; color: #1565c0;">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-chess-board mr-2"></i> Mesa <?php echo $num_mesa; ?>
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <?php if (count($jugadores) === 4): ?>
-                                    <?php
-                                    // Agrupar por pareja (secuencias 1-2 son Pareja A, 3-4 son Pareja B)
-                                    $pareja_a = array_filter($jugadores, function($j) { 
-                                        return is_array($j) && isset($j['secuencia']) && in_array((int)$j['secuencia'], [1, 2]); 
-                                    });
-                                    $pareja_b = array_filter($jugadores, function($j) { 
-                                        return is_array($j) && isset($j['secuencia']) && in_array((int)$j['secuencia'], [3, 4]); 
-                                    });
-                                    ?>
-                                    <div class="mb-3">
-                                        <strong class="text-primary">Pareja A:</strong>
-                                        <ul class="list-unstyled ml-3">
-                                            <?php foreach ($pareja_a as $jugador): ?>
-                                                <?php if (is_array($jugador)): ?>
-                                                    <?php $ag = !empty($jugador['alerta_genero']); ?>
-                                                    <li class="<?php echo $ag ? 'mesa-jugador-alerta-genero' : ''; ?>">
-                                                        <i class="fas fa-user mr-1"></i>
-                                                        <?php if ($ag): ?>
-                                                            <span class="badge badge-warning badge-alerta-genero mr-1" title="Género del jugador no coincide con el inferido del nombre del torneo (revisar registro)."><i class="fas fa-venus-mars"></i></span>
-                                                        <?php endif; ?>
-                                                        <?php echo htmlspecialchars($jugador['nombre'] ?? $jugador['nombre_completo'] ?? 'Sin nombre'); ?>
-                                                        <?php if ($es_modalidad_equipos_mesas && !empty($jugador['codigo_equipo_inscrito'])): ?>
-                                                            <small class="text-primary font-weight-bold ml-1">[<?php echo htmlspecialchars($jugador['codigo_equipo_inscrito']); ?>]</small>
-                                                        <?php endif; ?>
-                                                        <?php if (!empty($jugador['club_nombre'])): ?>
-                                                            <small class="text-muted">(<?php echo htmlspecialchars($jugador['club_nombre']); ?>)</small>
-                                                        <?php endif; ?>
-                                                    </li>
-                                                <?php endif; ?>
-                                            <?php endforeach; ?>
-                                        </ul>
-                                    </div>
-                                    <div>
-                                        <strong class="text-success">Pareja B:</strong>
-                                        <ul class="list-unstyled ml-3">
-                                            <?php foreach ($pareja_b as $jugador): ?>
-                                                <?php if (is_array($jugador)): ?>
-                                                    <?php $ag = !empty($jugador['alerta_genero']); ?>
-                                                    <li class="<?php echo $ag ? 'mesa-jugador-alerta-genero' : ''; ?>">
-                                                        <i class="fas fa-user mr-1"></i>
-                                                        <?php if ($ag): ?>
-                                                            <span class="badge badge-warning badge-alerta-genero mr-1" title="Género del jugador no coincide con el inferido del nombre del torneo (revisar registro)."><i class="fas fa-venus-mars"></i></span>
-                                                        <?php endif; ?>
-                                                        <?php echo htmlspecialchars($jugador['nombre'] ?? $jugador['nombre_completo'] ?? 'Sin nombre'); ?>
-                                                        <?php if ($es_modalidad_equipos_mesas && !empty($jugador['codigo_equipo_inscrito'])): ?>
-                                                            <small class="text-primary font-weight-bold ml-1">[<?php echo htmlspecialchars($jugador['codigo_equipo_inscrito']); ?>]</small>
-                                                        <?php endif; ?>
-                                                        <?php if (!empty($jugador['club_nombre'])): ?>
-                                                            <small class="text-muted">(<?php echo htmlspecialchars($jugador['club_nombre']); ?>)</small>
-                                                        <?php endif; ?>
-                                                    </li>
-                                                <?php endif; ?>
-                                            <?php endforeach; ?>
-                                        </ul>
-                                    </div>
-                                    
-                                    <?php
-                                    // Mostrar resultados si existen
-                                    $tiene_resultados = false;
-                                    foreach ($jugadores as $j) {
-                                        if (is_array($j) && (!empty($j['resultado1']) || !empty($j['resultado2']))) {
-                                            $tiene_resultados = true;
-                                            break;
-                                        }
-                                    }
-                                    ?>
-                                    
-                                    <?php if ($tiene_resultados && !empty($jugadores) && is_array($jugadores[0])): ?>
-                                        <hr>
-                                        <div class="small">
-                                            <strong>Resultados:</strong><br>
-                                            <?php
-                                            $primer_jugador = reset($jugadores);
-                                            $resultado1 = (int)($primer_jugador['resultado1'] ?? 0);
-                                            $resultado2 = (int)($primer_jugador['resultado2'] ?? 0);
-                                            ?>
-                                            Pareja A: <?php echo $resultado1; ?> | Pareja B: <?php echo $resultado2; ?>
-                                        </div>
-                                    <?php endif; ?>
-                                    <hr class="my-2">
-                                    <div class="d-flex gap-1 flex-wrap">
-                                        <a href="<?php echo $base_url . $action_param; ?>action=registrar_resultados&torneo_id=<?php echo $torneo['id']; ?>&ronda=<?php echo $ronda; ?>&mesa=<?php echo (int)$num_mesa; ?>"
-                                           class="btn btn-sm btn-primary" title="Registrar resultados">
-                                            <i class="fas fa-keyboard me-1"></i>Resultados
-                                        </a>
-                                        <a href="<?php echo $base_url . $action_param; ?>action=reasignar_mesa&torneo_id=<?php echo $torneo['id']; ?>&ronda=<?php echo $ronda; ?>&mesa=<?php echo (int)$num_mesa; ?>"
-                                           class="btn btn-sm" style="background-color: #20c997; color: white;" title="Intercambiar posiciones de jugadores">
-                                            <i class="fas fa-exchange-alt me-1"></i>Reasignar
-                                        </a>
-                                    </div>
-                                <?php else: ?>
-                                    <p class="text-muted">Mesas incompletas (<?php echo count($jugadores); ?> jugadores)</p>
-                                    <ul class="list-unstyled">
-                                        <?php foreach ($jugadores as $jugador): ?>
-                                            <?php if (is_array($jugador)): ?>
-                                                <?php $ag = !empty($jugador['alerta_genero']); ?>
-                                                <li class="<?php echo $ag ? 'mesa-jugador-alerta-genero' : ''; ?>">
-                                                    <i class="fas fa-user mr-1"></i>
-                                                    <?php if ($ag): ?>
-                                                        <span class="badge badge-warning badge-alerta-genero mr-1" title="Género del jugador no coincide con el inferido del nombre del torneo."><i class="fas fa-venus-mars"></i></span>
-                                                    <?php endif; ?>
-                                                    <?php echo htmlspecialchars($jugador['nombre'] ?? $jugador['nombre_completo'] ?? 'Sin nombre'); ?>
-                                                    <?php if ($es_modalidad_equipos_mesas && !empty($jugador['codigo_equipo_inscrito'])): ?>
-                                                        <small class="text-primary font-weight-bold ml-1">[<?php echo htmlspecialchars($jugador['codigo_equipo_inscrito']); ?>]</small>
-                                                    <?php endif; ?>
-                                                </li>
-                                            <?php endif; ?>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
+
+        <?php if (!empty($mesas_bye)): ?>
+        <section class="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 overflow-hidden">
+            <h2 class="text-sm font-display font-semibold text-amber-900 px-3 py-2 border-b border-amber-200 bg-amber-100/80">
+                <i class="fas fa-ban mr-1"></i> Jugadores BYE (descanso)
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-3 text-xs">
+                <?php foreach ($mesas_bye as $jugador): ?>
+                <div class="rounded-md bg-white border border-amber-100 px-2 py-1.5 truncate">
+                    <i class="fas fa-user text-amber-600 mr-1"></i>
+                    <?php echo htmlspecialchars($jugador['nombre']); ?>
+                    <?php if (!empty($jugador['club_nombre'])): ?>
+                    <span class="text-slate-400">(<?php echo htmlspecialchars($jugador['club_nombre']); ?>)</span>
+                    <?php endif; ?>
+                </div>
                 <?php endforeach; ?>
             </div>
-        <?php endif; ?>
-        
-        <?php if (!empty($mesas_bye)): ?>
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="card border-warning">
-                        <div class="card-header bg-warning text-dark">
-                            <h5 class="mb-0">
-                                <i class="fas fa-ban mr-2"></i> Jugadores BYE (Descanso)
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <?php foreach ($mesas_bye as $jugador): ?>
-                                    <div class="col-md-3 mb-2">
-                                        <i class="fas fa-user mr-1"></i>
-                                        <?php echo htmlspecialchars($jugador['nombre']); ?>
-                                        <?php if (!empty($jugador['club_nombre'])): ?>
-                                            <small class="text-muted">(<?php echo htmlspecialchars($jugador['club_nombre']); ?>)</small>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        </section>
         <?php endif; ?>
     <?php endif; ?>
 </div>
@@ -280,6 +236,12 @@ $action_param = $use_standalone ? '?' : '&';
     function irAMesa(id) {
         if (!id) return;
         var el = document.getElementById(id);
+        var scroller = document.querySelector('main.fvd-main-scroll');
+        if (el && scroller) {
+            var top = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 8;
+            scroller.scrollTo({ top: top, behavior: 'smooth' });
+            return;
+        }
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     window.irAMesa = irAMesa;
