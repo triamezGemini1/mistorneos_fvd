@@ -70,7 +70,7 @@ jobs:
             **/.git/**
             **/.git*
             **/.github/**
-            **/dist/**
+            dist/**
             **/*.zip
             **/.env
             **/.env.*

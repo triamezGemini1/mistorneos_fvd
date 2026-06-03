@@ -325,6 +325,11 @@ class ImportacionMasivaService
                         if ($n['entidad'] !== null && $n['entidad'] > 0) {
                             $createData['entidad'] = (int) $n['entidad'];
                         }
+                        require_once __DIR__ . '/NumfvdHelper.php';
+                        $nfImp = NumfvdHelper::resolverDesdeCedula($pdo, $cedula);
+                        if ($nfImp > 0) {
+                            $createData['numfvd'] = $nfImp;
+                        }
                         $create = Security::createUser($createData);
                         if (!empty($create['errors'])) {
                             $errores[] = ['fila' => $filaNum, 'cedula' => $cedula, 'motivo' => implode(', ', $create['errors'])];

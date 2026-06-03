@@ -1,12 +1,60 @@
 /**
- * Panel de control de torneo — legibilidad en 14"
- * Botones internos ~2× sin aumentar el ancho del layout.
+ * Panel de control de torneo — legibilidad en 14" (+30% tipografía base).
  */
 body.page-panel-control-torneos .tw-panel {
-  font-size: 14px;
+  --panel-font-scale: 1.3;
+  --panel-card-font-scale: 1.35;
+  --panel-card-width-scale: 0.8;
+  font-size: calc(14px * var(--panel-font-scale));
   max-width: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Cabecera torneo: azul institucional, texto blanco */
+body.page-panel-control-torneos .tw-panel .fvd-panel-header,
+body.page-panel-control-torneos .tw-panel .panel-header.fvd-panel-header {
+  background: linear-gradient(135deg, #1e40af 0%, #1a365d 100%) !important;
+  border: 1px solid #1e3a8a !important;
+  color: #fff !important;
+}
+
+body.page-panel-control-torneos .tw-panel .fvd-panel-header .titulo-torneo,
+body.page-panel-control-torneos .tw-panel .fvd-panel-header .meta,
+body.page-panel-control-torneos .tw-panel .fvd-panel-header .meta span,
+body.page-panel-control-torneos .tw-panel .fvd-panel-header .meta i {
+  color: #fff !important;
+}
+
+body.page-panel-control-torneos .tw-panel .fvd-panel-header .meta {
+  border-top-color: rgba(255, 255, 255, 0.45) !important;
+}
+
+/* Auditoría: QR + ADM en una sola fila */
+body.page-panel-control-torneos .tw-panel .panel-top-strip__audit-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem !important;
+  width: 100%;
+  flex-wrap: nowrap !important;
+}
+
+body.page-panel-control-torneos .tw-panel .panel-top-strip__audit-row .panel-badge-med {
+  min-width: 0;
+  width: 100%;
+}
+
+body.page-panel-control-torneos .tw-panel .panel-top-strip__label {
+  font-size: calc(0.78rem * var(--panel-font-scale, 1.3)) !important;
+}
+
+body.page-panel-control-torneos .tw-panel .panel-top-strip .panel-badge-med {
+  font-size: calc(0.95em * var(--panel-font-scale, 1.3));
+  min-height: calc(2.5rem * var(--panel-font-scale, 1.3));
+}
+
+body.page-panel-control-torneos .tw-panel .panel-top-strip {
+  font-size: calc(0.9rem * var(--panel-font-scale, 1.3));
 }
 
 body.page-panel-control-torneos .tw-panel .tw-columns,
@@ -16,43 +64,89 @@ body.page-panel-control-torneos .tw-panel .tw-column {
   min-width: 0;
 }
 
-/* Nombre del torneo (+25%) */
-body.page-panel-control-torneos .tw-panel .panel-header .titulo-torneo,
-body.page-panel-control-torneos .tw-panel h2.titulo-torneo {
-  font-size: calc(1.5rem * 1.3 * 1.25) !important;
-  font-weight: 700 !important;
-  line-height: 1.3 !important;
+/* Tres tarjetas (Gestión de Mesas, Operaciones, Resultados): −20% ancho, centradas */
+body.page-panel-control-torneos .tw-panel .tw-columns {
+  justify-content: center;
+  gap: calc(0.45rem * var(--panel-card-width-scale, 0.8)) !important;
 }
 
-/* Títulos de tarjetas / columnas (+25%) */
+body.page-panel-control-torneos .tw-panel .tw-column {
+  flex: 0 1 calc(33.333% * var(--panel-card-width-scale, 0.8)) !important;
+  max-width: calc(33.333% * var(--panel-card-width-scale, 0.8)) !important;
+  width: calc(33.333% * var(--panel-card-width-scale, 0.8)) !important;
+  font-size: calc(1em * var(--panel-card-font-scale, 1.35));
+}
+
+/* Nombre del torneo (+30% sobre escala panel) */
+body.page-panel-control-torneos .tw-panel .panel-header .titulo-torneo,
+body.page-panel-control-torneos .tw-panel h2.titulo-torneo {
+  font-size: calc(1.5rem * var(--panel-font-scale, 1.3) * 1.15) !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  color: #fff !important;
+}
+
+/* Títulos de tarjetas / columnas (+30% panel + 35% tarjeta) */
 body.page-panel-control-torneos .tw-panel .tw-column h3,
-body.page-panel-control-torneos .tw-panel .panel-card-header {
-  font-size: 1.3125rem !important;
+body.page-panel-control-torneos .tw-panel .panel-card-header,
+body.page-panel-control-torneos .tw-panel .tw-column > .bg-white > div[class*="bg-gradient-to-r"] h3 {
+  font-size: calc(1.05rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35)) !important;
   font-weight: 600 !important;
   line-height: 1.35 !important;
   letter-spacing: 0.02em;
 }
 
-/* Botones dentro de tarjetas (−25% respecto al tamaño anterior) */
-body.page-panel-control-torneos .tw-panel .tw-btn,
-body.page-panel-control-torneos .tw-panel a.tw-btn,
-body.page-panel-control-torneos .tw-panel button.tw-btn,
-body.page-panel-control-torneos .tw-panel span.tw-btn[role="text"] {
-  font-size: 0.8625rem !important;
+/* Botones de tarjetas: misma anchura (80% tarjeta), tipografía +35% */
+body.page-panel-control-torneos .tw-panel .tw-column > div > div.p-5,
+body.page-panel-control-torneos .tw-panel .tw-column .panel-card-body,
+body.page-panel-control-torneos .tw-panel .tw-column .space-y-4 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Carril único: todos los controles ocupan el mismo ancho */
+body.page-panel-control-torneos .tw-panel .tw-column > div > div.p-5 > *,
+body.page-panel-control-torneos .tw-panel .tw-column form,
+body.page-panel-control-torneos .tw-panel .tw-column .d-flex.flex-column {
+  width: 80% !important;
+  max-width: 80% !important;
+  box-sizing: border-box;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-column .tw-btn,
+body.page-panel-control-torneos .tw-panel .tw-column a.tw-btn,
+body.page-panel-control-torneos .tw-panel .tw-column button.tw-btn,
+body.page-panel-control-torneos .tw-panel .tw-column span.tw-btn[role="text"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+  font-size: calc(0.8625rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35)) !important;
   font-weight: 600 !important;
   line-height: 1.3 !important;
   letter-spacing: 0.015em;
-  min-height: 2.25rem !important;
-  padding: 0.42rem 0.5rem !important;
+  min-height: calc(2.25rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35)) !important;
+  padding: 0.42rem 0.55rem !important;
   white-space: normal !important;
   text-align: center;
   hyphens: auto;
   word-break: break-word;
 }
 
+body.page-panel-control-torneos .tw-panel .tw-column form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-column .d-flex.flex-column {
+  align-items: stretch;
+}
+
 body.page-panel-control-torneos .tw-panel .tw-btn i,
 body.page-panel-control-torneos .tw-panel a.tw-btn i,
-body.page-panel-control-torneos .tw-panel button.tw-btn i {
+body.page-panel-control-torneos .tw-panel button.tw-btn i,
+body.page-panel-control-torneos .tw-panel .tw-column .tw-btn i {
   font-size: 1em !important;
   margin-right: 0.35rem !important;
   flex-shrink: 0;
@@ -65,8 +159,20 @@ body.page-panel-control-torneos .tw-panel .tw-btn:hover:not(:disabled) {
 
 /* Cuerpo de tarjetas: padding lateral reducido para no ensanchar */
 body.page-panel-control-torneos .tw-panel .tw-column > div > div.p-5,
-body.page-panel-control-torneos .tw-panel .panel-card-body {
+body.page-panel-control-torneos .tw-panel .tw-column .panel-card-body {
   padding: 0.55rem 0.45rem !important;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-column .text-sm,
+body.page-panel-control-torneos .tw-panel .tw-column .text-xs {
+  font-size: calc(0.875em * var(--panel-card-font-scale, 1.35)) !important;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-column .bg-gray-50,
+body.page-panel-control-torneos .tw-panel .tw-column .bg-green-100 {
+  font-size: calc(1em * var(--panel-card-font-scale, 1.35));
+  width: 80%;
+  max-width: 80%;
 }
 
 body.page-panel-control-torneos .tw-panel .panel-btn-group {
@@ -74,7 +180,7 @@ body.page-panel-control-torneos .tw-panel .panel-btn-group {
 }
 
 body.page-panel-control-torneos .tw-panel .tw-columns {
-  gap: 0.45rem !important;
+  gap: calc(0.45rem * var(--panel-card-width-scale, 0.8)) !important;
 }
 
 body.page-panel-control-torneos .tw-panel .space-y-4 > :not([hidden]) ~ :not([hidden]) {
@@ -82,15 +188,17 @@ body.page-panel-control-torneos .tw-panel .space-y-4 > :not([hidden]) ~ :not([hi
 }
 
 /* Selects y etiquetas auxiliares en tarjetas */
-body.page-panel-control-torneos .tw-panel .panel-card-body label,
+body.page-panel-control-torneos .tw-panel .tw-column .panel-card-body label,
 body.page-panel-control-torneos .tw-panel .tw-column label.block {
-  font-size: 0.8rem !important;
+  font-size: calc(0.8rem * var(--panel-card-font-scale, 1.35)) !important;
 }
 
-body.page-panel-control-torneos .tw-panel .panel-card-body select,
+body.page-panel-control-torneos .tw-panel .tw-column .panel-card-body select,
 body.page-panel-control-torneos .tw-panel .tw-column select {
-  font-size: 1rem !important;
+  font-size: calc(1rem * var(--panel-card-font-scale, 1.35)) !important;
   padding: 0.35rem 0.45rem !important;
+  width: 80%;
+  max-width: 80%;
 }
 
 body.page-panel-control-torneos .tw-panel .panel-top-strip__cerrar-btn,
@@ -106,17 +214,20 @@ body.page-panel-control-torneos .tw-panel .panel-top-strip__cron-btn {
   }
 
   body.page-panel-control-torneos .tw-panel .tw-column h3,
-  body.page-panel-control-torneos .tw-panel .panel-card-header {
-    font-size: 1.5rem !important;
+  body.page-panel-control-torneos .tw-panel .panel-card-header,
+  body.page-panel-control-torneos .tw-panel .tw-column > .bg-white > div[class*="bg-gradient-to-r"] h3 {
+    font-size: calc(1.05rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35)) !important;
   }
 
-  body.page-panel-control-torneos .tw-panel .tw-btn,
-  body.page-panel-control-torneos .tw-panel a.tw-btn,
-  body.page-panel-control-torneos .tw-panel button.tw-btn,
-  body.page-panel-control-torneos .tw-panel span.tw-btn[role="text"] {
-    font-size: 1.35rem !important;
-    min-height: 2.7rem !important;
-    padding: 0.48rem 0.55rem !important;
+  body.page-panel-control-torneos .tw-panel .tw-column .tw-btn,
+  body.page-panel-control-torneos .tw-panel .tw-column a.tw-btn,
+  body.page-panel-control-torneos .tw-panel .tw-column button.tw-btn,
+  body.page-panel-control-torneos .tw-panel .tw-column span.tw-btn[role="text"] {
+    font-size: calc(1.05rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35)) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: calc(2.7rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35)) !important;
+    padding: 0.48rem 0.6rem !important;
     line-height: 1.28 !important;
   }
 
@@ -129,11 +240,20 @@ body.page-panel-control-torneos .tw-panel .panel-top-strip__cron-btn {
 
 /* Pantallas medianas (tablet horizontal / 14" bajo) */
 @media (min-width: 1024px) and (max-width: 1279px) {
-  body.page-panel-control-torneos .tw-panel .tw-btn,
-  body.page-panel-control-torneos .tw-panel a.tw-btn,
-  body.page-panel-control-torneos .tw-panel button.tw-btn,
-  body.page-panel-control-torneos .tw-panel span.tw-btn[role="text"] {
-    font-size: 1.0875rem !important;
-    min-height: 2.45rem !important;
+  body.page-panel-control-torneos .tw-panel .tw-column .tw-btn,
+  body.page-panel-control-torneos .tw-panel .tw-column a.tw-btn,
+  body.page-panel-control-torneos .tw-panel .tw-column button.tw-btn,
+  body.page-panel-control-torneos .tw-panel .tw-column span.tw-btn[role="text"] {
+    font-size: calc(1.0875rem * var(--panel-card-font-scale, 1.35)) !important;
+    min-height: calc(2.45rem * var(--panel-card-font-scale, 1.35)) !important;
+  }
+}
+
+/* Móvil: tarjetas a ancho completo */
+@media (max-width: 1023px) {
+  body.page-panel-control-torneos .tw-panel .tw-column {
+    flex: 1 1 100% !important;
+    max-width: 100% !important;
+    width: 100% !important;
   }
 }

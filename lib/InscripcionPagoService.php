@@ -31,7 +31,71 @@ final class InscripcionPagoService
      */
     public static function marcarRetiradoInscripcion(PDO $pdo, int $inscripcionId, int $torneoId): array
     {
-        return self::establecerEstatusDirecto($pdo, $inscripcionId, $torneoId, InscritosHelper::ESTATUS_RETIRADO_NUM);
+        if ($inscripcionId <= 0 || $torneoId <= 0) {
+            return ['ok' => false, 'message' => 'Parámetros inválidos.'];
+        }
+        if (!InscritosHelper::eliminarInscripcionPorId($pdo, $torneoId, $inscripcionId)) {
+            return ['ok' => false, 'message' => 'Inscripción no encontrada.'];
+        }
+
+        return ['ok' => true, 'message' => 'Jugador retirado y liberado para nueva inscripción.'];
+    }
+
+    /**
+     * Elimina físicamente una inscripción en estatus retirado (legacy) y libera al atleta.
+     *
+     * @return array{ok:bool, message:string}
+     */
+    public static function eliminarInscripcionRetirada(PDO $pdo, int $inscripcionId, int $torneoId): array
+    {
+        if ($inscripcionId <= 0 || $torneoId <= 0) {
+            return ['ok' => false, 'message' => 'Parámetros inválidos.'];
+        }
+        $row = self::cargarInscripcion($pdo, $inscripcionId, $torneoId);
+        if ($row === null) {
+            return ['ok' => false, 'message' => 'Inscripción no encontrada.'];
+        }
+        if (!InscritosHelper::esRetirado($row['estatus'] ?? 0)) {
+            return ['ok' => false, 'message' => 'Solo se pueden eliminar inscripciones marcadas como retiradas.'];
+        }
+        if (!InscritosHelper::eliminarInscripcionPorId($pdo, $torneoId, $inscripcionId)) {
+            return ['ok' => false, 'message' => 'No se pudo eliminar la inscripción.'];
+        }
+
+        return ['ok' => true, 'message' => 'Inscripción eliminada. El jugador queda disponible para inscribir de nuevo.'];
+    }
+
+    /**
+     * Quita una inscripción activa (pendiente o confirmada) por error de selección.
+     *
+     * @return array{ok:bool, message:string}
+     */
+    public static function quitarInscripcionActiva(PDO $pdo, int $inscripcionId, int $torneoId): array
+    {
+        if ($inscripcionId <= 0 || $torneoId <= 0) {
+            return ['ok' => false, 'message' => 'Parámetros inválidos.'];
+        }
+        $row = self::cargarInscripcion($pdo, $inscripcionId, $torneoId);
+        if ($row === null) {
+            return ['ok' => false, 'message' => 'Inscripción no encontrada.'];
+        }
+        if (InscritosHelper::esRetirado($row['estatus'] ?? 0)) {
+            return ['ok' => false, 'message' => 'Para retirados use el botón Eliminar en la pestaña correspondiente.'];
+        }
+        if (InscritosHelper::esConfirmado($row['estatus'] ?? 0)) {
+            return [
+                'ok' => false,
+                'message' => 'No se puede quitar: ya se emitió el recibo de pago. Solo puede modificarlo desde administración con confirmación doble.',
+            ];
+        }
+
+        require_once __DIR__ . '/Tournament/Handlers/RegistrationHandler.php';
+        $out = \Tournament\Handlers\RegistrationHandler::apiDesinscribirUsuario($pdo, $torneoId, (int) ($row['id_usuario'] ?? 0));
+
+        return [
+            'ok' => !empty($out['success']),
+            'message' => (string) ($out['message'] ?? $out['error'] ?? 'No se pudo quitar la inscripción.'),
+        ];
     }
 
     /**
@@ -39,9 +103,28 @@ final class InscripcionPagoService
      *
      * @return array{ok:bool, message:string, recibo?:array}
      */
-    public static function establecerEstatusInscripcion(PDO $pdo, int $inscripcionId, int $torneoId, string $estado): array
-    {
+    public static function establecerEstatusInscripcion(
+        PDO $pdo,
+        int $inscripcionId,
+        int $torneoId,
+        string $estado,
+        bool $confirmacionDoble = false
+    ): array {
         $estado = strtolower(trim($estado));
+        $row = self::cargarInscripcion($pdo, $inscripcionId, $torneoId);
+        if ($row === null) {
+            return ['ok' => false, 'message' => 'Inscripción no encontrada.'];
+        }
+        $estatusActual = is_numeric($row['estatus'] ?? '') ? (int) $row['estatus'] : InscritosHelper::getEstatusNumero((string) $row['estatus']);
+        $yaConfirmado = InscritosHelper::esConfirmado($estatusActual);
+
+        if ($yaConfirmado && in_array($estado, ['pendiente', 'retirado'], true) && !$confirmacionDoble) {
+            return [
+                'ok' => false,
+                'message' => 'Requiere confirmación doble: el recibo de pago ya fue emitido.',
+            ];
+        }
+
         if ($estado === 'retirado') {
             return self::marcarRetiradoInscripcion($pdo, $inscripcionId, $torneoId);
         }
@@ -49,7 +132,7 @@ final class InscripcionPagoService
             return self::validarPagoInscripcion($pdo, $inscripcionId, $torneoId);
         }
         if ($estado === 'pendiente') {
-            return self::establecerEstatusDirecto($pdo, $inscripcionId, $torneoId, InscritosHelper::ESTATUS_PENDIENTE_NUM);
+            return self::marcarPendienteInscripcion($pdo, $inscripcionId, $torneoId);
         }
 
         return ['ok' => false, 'message' => 'Estatus no válido.'];
@@ -139,28 +222,39 @@ final class InscripcionPagoService
 
         $pdo->beginTransaction();
         try {
+            $valorEstatus = InscritosHelper::valorEstatusParaColumna($pdo, $estatusPago);
             $upd = $pdo->prepare('UPDATE inscritos SET estatus = ? WHERE id = ? AND torneo_id = ?');
-            $upd->execute([$estatusPago, $inscripcionId, $torneoId]);
+            $upd->execute([$valorEstatus, $inscripcionId, $torneoId]);
 
             if ($quierePagado) {
                 if (self::tablaExiste($pdo, 'reportes_pago_usuarios')) {
-                    $stR = $pdo->prepare("
+                    $setRpu = ["estatus = 'confirmado'"];
+                    if (self::columnaExiste($pdo, 'reportes_pago_usuarios', 'updated_at')) {
+                        $setRpu[] = 'updated_at = NOW()';
+                    }
+                    $stR = $pdo->prepare('
                         UPDATE reportes_pago_usuarios
-                        SET estatus = 'confirmado', updated_at = NOW()
+                        SET ' . implode(', ', $setRpu) . '
                         WHERE torneo_id = ? AND id_usuario = ?
-                          AND estatus NOT IN ('confirmado', 'rechazado')
-                    ");
+                          AND estatus NOT IN (\'confirmado\', \'rechazado\')
+                    ');
                     $stR->execute([$torneoId, $idUsuario]);
                 }
-                if (self::tablaExiste($pdo, 'payments')) {
-                    $stP = $pdo->prepare("
+                if (self::tablaExiste($pdo, 'payments') && $idClub > 0) {
+                    $setPay = ["status = 'confirmado'"];
+                    if (self::columnaExiste($pdo, 'payments', 'updated_at')) {
+                        $setPay[] = 'updated_at = NOW()';
+                    }
+                    $stP = $pdo->prepare('
                         UPDATE payments
-                        SET status = 'pagado', updated_at = NOW()
+                        SET ' . implode(', ', $setPay) . '
                         WHERE torneo_id = ? AND club_id = ?
-                          AND status IN ('pendiente', 'pending')
-                    ");
-                    $stP->execute([$torneoId, $idClub > 0 ? $idClub : null]);
+                          AND status = \'pendiente\'
+                    ');
+                    $stP->execute([$torneoId, $idClub]);
                 }
+            } elseif ($yaPagado) {
+                self::revertirPagosConfirmados($pdo, $torneoId, $idUsuario, $idClub);
             }
 
             $pdo->commit();
@@ -170,7 +264,7 @@ final class InscripcionPagoService
             }
             error_log('InscripcionPagoService: ' . $e->getMessage());
 
-            return ['ok' => false, 'message' => 'Error al actualizar el estatus de pago.'];
+            return ['ok' => false, 'message' => 'Error al actualizar el estatus de pago: ' . $e->getMessage()];
         }
 
         if ($quierePagado && $notificarSiPagado) {
@@ -185,8 +279,38 @@ final class InscripcionPagoService
 
         return [
             'ok' => true,
-            'message' => $quierePagado ? 'Pago marcado como pagado.' : 'Marcado como pendiente de pago.',
+            'message' => $quierePagado ? 'Pago marcado como pagado.' : 'Marcado como pendiente de pago. Confirmación revertida.',
         ];
+    }
+
+    private static function revertirPagosConfirmados(PDO $pdo, int $torneoId, int $idUsuario, int $idClub): void
+    {
+        if (self::tablaExiste($pdo, 'reportes_pago_usuarios')) {
+            $setRpu = ["estatus = 'pendiente'"];
+            if (self::columnaExiste($pdo, 'reportes_pago_usuarios', 'updated_at')) {
+                $setRpu[] = 'updated_at = NOW()';
+            }
+            $stR = $pdo->prepare('
+                UPDATE reportes_pago_usuarios
+                SET ' . implode(', ', $setRpu) . '
+                WHERE torneo_id = ? AND id_usuario = ?
+                  AND estatus = \'confirmado\'
+            ');
+            $stR->execute([$torneoId, $idUsuario]);
+        }
+        if (self::tablaExiste($pdo, 'payments') && $idClub > 0) {
+            $setPay = ["status = 'pendiente'"];
+            if (self::columnaExiste($pdo, 'payments', 'updated_at')) {
+                $setPay[] = 'updated_at = NOW()';
+            }
+            $stP = $pdo->prepare('
+                UPDATE payments
+                SET ' . implode(', ', $setPay) . '
+                WHERE torneo_id = ? AND club_id = ?
+                  AND status = \'confirmado\'
+            ');
+            $stP->execute([$torneoId, $idClub]);
+        }
     }
 
     /**
@@ -209,12 +333,12 @@ final class InscripcionPagoService
             return ['ok' => false, 'message' => 'Inscripción no encontrada.'];
         }
 
-        $pdo->prepare('UPDATE inscritos SET estatus = ? WHERE id = ? AND torneo_id = ?')
-            ->execute([$estatusNum, $inscripcionId, $torneoId]);
-
         if ($estatusNum === InscritosHelper::ESTATUS_RETIRADO_NUM) {
-            return ['ok' => true, 'message' => 'Jugador marcado como retirado del torneo.'];
+            return self::marcarRetiradoInscripcion($pdo, $inscripcionId, $torneoId);
         }
+
+        $pdo->prepare('UPDATE inscritos SET estatus = ? WHERE id = ? AND torneo_id = ?')
+            ->execute([InscritosHelper::valorEstatusParaColumna($pdo, $estatusNum), $inscripcionId, $torneoId]);
         if ($estatusNum === InscritosHelper::ESTATUS_PENDIENTE_NUM) {
             return ['ok' => true, 'message' => 'Marcado como pendiente de pago.'];
         }
@@ -274,6 +398,18 @@ final class InscripcionPagoService
     {
         $st = $pdo->prepare('SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1');
         $st->execute([$tabla]);
+
+        return (bool) $st->fetchColumn();
+    }
+
+    private static function columnaExiste(PDO $pdo, string $tabla, string $columna): bool
+    {
+        $st = $pdo->prepare('
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?
+            LIMIT 1
+        ');
+        $st->execute([$tabla, $columna]);
 
         return (bool) $st->fetchColumn();
     }

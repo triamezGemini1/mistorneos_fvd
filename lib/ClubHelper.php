@@ -12,6 +12,66 @@ require_once __DIR__ . '/../config/db.php';
 class ClubHelper {
     private static ?bool $hasCodOrgColumn = null;
 
+    /** Condición SQL: club activo (acepta 1, '1' o 'activo' en producción). */
+    public static function sqlWhereClubActivo(string $alias = ''): string
+    {
+        $p = ($alias !== '' && preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $alias)) ? $alias . '.' : '';
+
+        return "({$p}estatus = 1 OR {$p}estatus = '1' OR {$p}estatus = 'activo')";
+    }
+
+    /**
+     * Etiqueta de asociación (código + nombre canónico FVD).
+     */
+    public static function etiquetaAsociacion(int $clubId, ?string $nombreDb = null): string
+    {
+        require_once __DIR__ . '/EntidadFvdCatalogo.php';
+
+        return EntidadFvdCatalogo::etiqueta($clubId, $nombreDb);
+    }
+
+    /**
+     * Nombre canónico de asociación para listados y persistencia.
+     */
+    public static function nombreAsociacionCanonico(int $clubId, ?string $nombreDb = null): string
+    {
+        require_once __DIR__ . '/EntidadFvdCatalogo.php';
+
+        return EntidadFvdCatalogo::normalizarNombre($clubId, $nombreDb);
+    }
+
+    /**
+     * @return list<array{id: int, nombre: string, entidad?: int}>
+     */
+    public static function listarClubesActivos(PDO $pdo, string $extraWhere = '', string $orderBy = 'nombre ASC'): array
+    {
+        $where = self::sqlWhereClubActivo();
+        if ($extraWhere !== '') {
+            $where = '(' . $where . ') AND (' . $extraWhere . ')';
+        }
+        $orderBy = preg_match('/^[a-zA-Z0-9_,.`\s]+$/', $orderBy) ? $orderBy : 'nombre ASC';
+        try {
+            $hasEntidad = (bool) $pdo->query("SHOW COLUMNS FROM clubes LIKE 'entidad'")->fetch(PDO::FETCH_ASSOC);
+            $cols = $hasEntidad ? 'id, nombre, entidad' : 'id, nombre';
+            $stmt = $pdo->query("SELECT {$cols} FROM clubes WHERE {$where} ORDER BY {$orderBy}");
+
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            foreach ($rows as &$row) {
+                $id = (int) ($row['id'] ?? 0);
+                if ($id > 0) {
+                    $row['nombre'] = self::nombreAsociacionCanonico($id, (string) ($row['nombre'] ?? ''));
+                }
+            }
+            unset($row);
+
+            return $rows;
+        } catch (Throwable $e) {
+            error_log('ClubHelper::listarClubesActivos: ' . $e->getMessage());
+
+            return [];
+        }
+    }
+
     /**
      * Afiliados de un club: misma condición que en SQL manual `WHERE entidad = <id del club>`.
      * `usuarios.entidad` = PK `clubes.id`. Sin CAST, sin club_id/id_club, sin filtro de rol aquí.

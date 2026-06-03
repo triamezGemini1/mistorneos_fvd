@@ -131,7 +131,7 @@ try {
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header bg-success text-white">
-                    <h4 class="mb-0">? Nueva Invitaci�n a Torneo</h4>
+                    <h4 class="mb-0">? Nueva Invitación a Torneo</h4>
                 </div>
                 <div class="card-body">
                     
@@ -207,7 +207,7 @@ try {
                             <input type="text" name="usuario" class="form-control" 
                                    value="<?= htmlspecialchars($_POST['usuario'] ?? '') ?>"
                                    placeholder="Nombre del usuario/delegado">
-                            <small class="text-muted">Nombre de referencia del responsable de la inscripci�n</small>
+                            <small class="text-muted">Nombre de referencia del responsable de la inscripción</small>
                         </div>
 
                         <div class="mb-3">
@@ -221,14 +221,14 @@ try {
 
                         <div class="alert alert-info">
                             <small>
-                                <strong>?? Nota:</strong> El token de seguridad se generar� autom�ticamente.
-                                Este token ser� necesario para que el club pueda inscribir jugadores.
+                                <strong>?? Nota:</strong> El token de seguridad se generará automáticamente.
+                                Este token ser• necesario para que el club pueda inscribir jugadores.
                             </small>
                         </div>
 
                         <div class="border-top pt-3 mt-3">
                             <button type="submit" class="btn btn-success">
-                                ? Crear Invitaci�n
+                                ? Crear Invitación
                             </button>
                             <a href="index.php" class="btn btn-secondary">
                                 ? Cancelar

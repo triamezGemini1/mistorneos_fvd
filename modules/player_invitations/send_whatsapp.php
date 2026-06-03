@@ -97,7 +97,7 @@ foreach ($jugadores as $jugador) {
     }
     
     // Generar link de inscripción directa
-    $inscripcion_link = $base_url . "/public/player_register.php?torneo=" . $torneo_id . "&token=" . $token;
+    $inscripcion_link = AppHelpers::url('player_register.php', ['torneo' => $torneo_id, 'token' => $token]);
     
     // Formatear teléfono
     $telefono = preg_replace('/[^0-9]/', '', $jugador['celular']);

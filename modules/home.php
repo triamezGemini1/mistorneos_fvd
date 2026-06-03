@@ -1,8 +1,8 @@
 <?php
 /**
  * Punto de entrada al Dashboard (page=home)
- * Admin General: delega en admin_general (solo tarjetas).
- * Otros roles: delega en admin_dashboard.php.
+ * Admin General: estadísticas + panel operativo.
+ * Otros roles admin: estadísticas vía admin_dashboard.php.
  */
 if (!defined('APP_BOOTSTRAPPED')) {
     require_once __DIR__ . '/../config/bootstrap.php';

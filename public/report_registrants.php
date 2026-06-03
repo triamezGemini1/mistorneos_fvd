@@ -65,7 +65,7 @@ try {
     $stmt->execute($params);
     $registrants = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Obtener estad�sticas
+    // Obtener estadísticas
     $stats_where = $tournament_filter ? "WHERE torneo_id = {$tournament_filter}" : "";
     $stmt = $pdo->query("
         SELECT 
@@ -99,12 +99,12 @@ try {
     }
     
     if ($search) {
-        $subtitle .= ' - B�squeda: "' . htmlspecialchars($search) . '"';
+        $subtitle .= ' - Búsqueda: "' . htmlspecialchars($search) . '"';
     }
     
     $content .= $report->addReportHeader($subtitle);
     
-    // Estad�sticas
+    // Estadísticas
     $content .= $report->generateStatsBoxes([
         ['number' => $stats['total'], 'label' => 'Total Inscritos'],
         ['number' => $stats['masculino'], 'label' => 'Masculino'],
@@ -118,7 +118,7 @@ try {
     if (empty($registrants)) {
         $content .= '<p style="text-align: center; color: #999; padding: 20px;">No se encontraron jugadores inscritos con los filtros aplicados</p>';
     } else {
-        $headers = ['#', 'C�dula', 'Nombre', 'Sexo', 'Fecha Nac.', 'Edad', 'Club', 'Torneo', 'Celular'];
+        $headers = ['#', 'Cédula', 'Nombre', 'Sexo', 'Fecha Nac.', 'Edad', 'Club', 'Torneo', 'Celular'];
         $rows = [];
         
         foreach ($inscripciones AS $index => $registrant) {
@@ -152,7 +152,7 @@ try {
         $content .= $report->generateTable($headers, $rows);
     }
     
-    // Agrupaci�n por club si hay torneo seleccionado
+    // Agrupación por club si hay torneo seleccionado
     if ($tournament_filter && !empty($registrants)) {
         $content .= '<div class="page-break"></div>';
         $content .= '<h2>Inscritos Agrupados por Club</h2>';
@@ -210,7 +210,7 @@ try {
             if (!empty($club_players)) {
                 $content .= '<table style="width: 95%; margin: 10px auto;">';
                 $content .= '<thead><tr>';
-                $content .= '<th>C�dula</th><th>Nombre</th><th>Sexo</th><th>Fecha Nac.</th><th>Celular</th>';
+                $content .= '<th>Cédula</th><th>Nombre</th><th>Sexo</th><th>Fecha Nac.</th><th>Celular</th>';
                 $content .= '</tr></thead><tbody>';
                 
                 foreach ($club_players as $player) {

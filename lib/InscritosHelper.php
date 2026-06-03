@@ -201,6 +201,38 @@ class InscritosHelper {
         return isset(self::ESTATUS_MAP[$estatus_num]);
     }
 
+    /**
+     * Valor listo para UPDATE/INSERT según tipo real de inscritos.estatus (INT o ENUM/varchar).
+     *
+     * @return int|string
+     */
+    public static function valorEstatusParaColumna(PDO $pdo, int $estatusNum)
+    {
+        static $tipoColumna = null;
+        if ($tipoColumna === null) {
+            try {
+                $st = $pdo->query("SHOW COLUMNS FROM inscritos LIKE 'estatus'");
+                $row = $st->fetch(PDO::FETCH_ASSOC);
+                $tipoColumna = strtolower((string) ($row['Type'] ?? 'int'));
+            } catch (Throwable $e) {
+                $tipoColumna = 'int';
+            }
+        }
+        if (str_contains($tipoColumna, 'enum') || str_contains($tipoColumna, 'varchar') || str_contains($tipoColumna, 'char')) {
+            $txt = self::getEstatusTexto($estatusNum);
+            if ($txt !== 'desconocido') {
+                return $txt;
+            }
+            if ($estatusNum === self::ESTATUS_PAGADO_NUM) {
+                return self::ESTATUS_CONFIRMADO;
+            }
+
+            return (string) $estatusNum;
+        }
+
+        return $estatusNum;
+    }
+
     /** Indica si el valor (string o int) es un estatus confirmado (puede jugar). */
     public static function esConfirmado($estatus): bool {
         if (is_numeric($estatus)) {
@@ -236,6 +268,48 @@ class InscritosHelper {
     {
         $e = $alias !== '' ? $alias . '.' : '';
         return '(CAST(' . $e . 'estatus AS CHAR) IN (\'4\', \'9\', \'retirado\'))';
+    }
+
+    public static function sqlWherePendienteConAlias(string $alias = ''): string
+    {
+        $e = $alias !== '' ? $alias . '.' : '';
+
+        return '(CAST(' . $e . 'estatus AS CHAR) IN (\'0\', \'pendiente\'))';
+    }
+
+    public static function sqlWhereConfirmadoConAlias(string $alias = ''): string
+    {
+        $e = $alias !== '' ? $alias . '.' : '';
+
+        return '(CAST(' . $e . 'estatus AS CHAR) IN (\'1\', \'2\', \'3\', \'confirmado\', \'solvente\', \'pagado\'))';
+    }
+
+    /**
+     * Elimina la inscripción del torneo (libera al atleta para disponibles / nueva inscripción).
+     */
+    public static function eliminarInscripcionPorUsuarioTorneo(PDO $pdo, int $torneoId, int $idUsuario): bool
+    {
+        if ($torneoId <= 0 || $idUsuario <= 0) {
+            return false;
+        }
+        $stmt = $pdo->prepare('DELETE FROM inscritos WHERE torneo_id = ? AND id_usuario = ?');
+        $stmt->execute([$torneoId, $idUsuario]);
+
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Elimina una fila de inscritos por id (mismo torneo).
+     */
+    public static function eliminarInscripcionPorId(PDO $pdo, int $torneoId, int $inscripcionId): bool
+    {
+        if ($torneoId <= 0 || $inscripcionId <= 0) {
+            return false;
+        }
+        $stmt = $pdo->prepare('DELETE FROM inscritos WHERE id = ? AND torneo_id = ?');
+        $stmt->execute([$inscripcionId, $torneoId]);
+
+        return $stmt->rowCount() > 0;
     }
 
     /** @deprecated Cancelado no se usa en FVD (0/1/4). */
@@ -367,7 +441,7 @@ class InscritosHelper {
         }
         $numfvd_inscrito = isset($datos['numfvd']) ? (int)$datos['numfvd'] : 0;
         if ($numfvd_inscrito <= 0) {
-            $numfvd_inscrito = self::obtenerNumfvdDesdeUsuario($pdo, $id_usuario);
+            $numfvd_inscrito = self::resolverNumfvdParaInscripcion($pdo, $id_usuario, $cedula_inscrito);
         }
         
         // Verificar que no esté ya inscrito (excluir retirados)
@@ -503,18 +577,79 @@ class InscritosHelper {
         }
     }
 
-    private static function obtenerNumfvdDesdeUsuario(PDO $pdo, int $usuarioId): int
+    /**
+     * NUMFVD para inscripción (compatible con NumfvdHelper antiguo en producción).
+     */
+    public static function resolverNumfvdParaInscripcion(PDO $pdo, int $usuarioId, string $cedula = ''): int
     {
-        if ($usuarioId <= 0) {
+        require_once __DIR__ . '/NumfvdHelper.php';
+        if (class_exists('NumfvdHelper', false) && method_exists('NumfvdHelper', 'resolverParaUsuario')) {
+            return NumfvdHelper::resolverParaUsuario($pdo, $usuarioId, $cedula);
+        }
+        $ced = preg_replace('/\D/', '', $cedula);
+        if ($usuarioId > 0) {
+            try {
+                $st = $pdo->prepare('SELECT COALESCE(NULLIF(numfvd, 0), 0) AS nf, cedula FROM usuarios WHERE id = ? LIMIT 1');
+                $st->execute([$usuarioId]);
+                $row = $st->fetch(PDO::FETCH_ASSOC);
+                if ($row) {
+                    $nf = (int) ($row['nf'] ?? 0);
+                    if ($nf > 0) {
+                        return $nf;
+                    }
+                    if ($ced === '') {
+                        $ced = preg_replace('/\D/', '', (string) ($row['cedula'] ?? ''));
+                    }
+                }
+            } catch (Throwable $e) {
+            }
+        }
+        if ($ced !== '' && class_exists('NumfvdHelper', false) && method_exists('NumfvdHelper', 'resolverDesdeCedula')) {
+            $nf = NumfvdHelper::resolverDesdeCedula($pdo, $ced);
+
+            return $nf > 0 ? $nf : 0;
+        }
+        if ($ced !== '') {
+            return self::resolverNumfvdAtletasPorCedula($pdo, $ced);
+        }
+
+        return 0;
+    }
+
+    /** NUMFVD desde cédula (tabla atletas o fallback). */
+    public static function resolverNumfvdDesdeCedula(PDO $pdo, string $cedula): int
+    {
+        return self::resolverNumfvdParaInscripcion($pdo, 0, $cedula);
+    }
+
+    private static function resolverNumfvdAtletasPorCedula(PDO $pdo, string $cedula): int
+    {
+        $ced = preg_replace('/\D/', '', trim($cedula));
+        if ($ced === '') {
             return 0;
         }
         try {
-            $stmt = $pdo->prepare('SELECT COALESCE(numfvd, 0) FROM usuarios WHERE id = ? LIMIT 1');
-            $stmt->execute([$usuarioId]);
-            return (int)($stmt->fetchColumn() ?: 0);
+            $st = $pdo->query("SHOW TABLES LIKE 'atletas'");
+            if (!$st || !$st->fetchColumn()) {
+                return 0;
+            }
+            $st = $pdo->prepare(
+                'SELECT COALESCE(NULLIF(numfvd, 0), 0) AS nf FROM atletas
+                 WHERE cedula = ? OR REPLACE(REPLACE(REPLACE(TRIM(CAST(cedula AS CHAR)), \'-\', \'\'), \'.\', \'\'), \' \', \'\') = ?
+                 ORDER BY id DESC LIMIT 1'
+            );
+            $st->execute([$ced, $ced]);
+            $nf = (int) ($st->fetchColumn() ?: 0);
+
+            return $nf > 0 ? $nf : 0;
         } catch (Throwable $e) {
             return 0;
         }
+    }
+
+    private static function obtenerNumfvdDesdeUsuario(PDO $pdo, int $usuarioId): int
+    {
+        return self::resolverNumfvdParaInscripcion($pdo, $usuarioId);
     }
     
     /**

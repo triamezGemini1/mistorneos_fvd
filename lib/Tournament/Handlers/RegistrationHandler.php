@@ -256,6 +256,11 @@ final class RegistrationHandler
             'club_id' => $id_club,
             '_allow_club_for_usuario' => true,
         ];
+        require_once __DIR__ . '/../../InscritosHelper.php';
+        $nfAtleta = InscritosHelper::resolverNumfvdDesdeCedula($pdo, $cedula);
+        if ($nfAtleta > 0) {
+            $createData['numfvd'] = $nfAtleta;
+        }
         require_once __DIR__ . '/../../AsociacionAdminHelper.php';
         $ctxOp = \AsociacionAdminHelper::contextoInscripcionOperativa($pdo);
         if ($ctxOp !== null && ($ctxOp['entidad_id'] ?? 0) > 0) {
@@ -341,22 +346,9 @@ final class RegistrationHandler
         if ($existe && !InscritosHelper::esRetirado($existe['estatus'])) {
             return ['success' => false, 'error' => 'Este usuario ya está inscrito en el torneo'];
         }
-        if ($existe) {
-            $idClubRe = $idClubPost;
-            $errRe = self::aplicarAlcanceOperativo($pdo, $idClubRe, $idUsuario);
-            if ($errRe !== null) {
-                return ['success' => false, 'error' => $errRe['error'] ?? 'Sin permiso'];
-            }
-            $estatusRe = $estatus > 0 ? $estatus : InscritosHelper::ESTATUS_PENDIENTE_NUM;
-            $sqlUp = 'UPDATE inscritos SET estatus = ?' . ($idClubRe ? ', id_club = ?' : '') . ' WHERE id = ?';
-            $stmt = $pdo->prepare($sqlUp);
-            $idClubRe
-                ? $stmt->execute([$estatusRe, $idClubRe, $existe['id']])
-                : $stmt->execute([$estatusRe, $existe['id']]);
-            UserActivationHelper::activateUser($pdo, $idUsuario);
-            self::notificarInscripcion($pdo, $idUsuario, $torneoId, $idClubRe, (int) $existe['id']);
-
-            return ['success' => true, 'message' => 'Jugador inscrito exitosamente', 'id' => (int) $existe['id']];
+        if ($existe && InscritosHelper::esRetirado($existe['estatus'])) {
+            InscritosHelper::eliminarInscripcionPorUsuarioTorneo($pdo, $torneoId, $idUsuario);
+            $existe = null;
         }
 
         $stmt = $pdo->prepare('SELECT nombre, cedula, sexo, email, username, entidad, nacionalidad FROM usuarios WHERE id = ?');
@@ -484,5 +476,117 @@ final class RegistrationHandler
         } catch (\Throwable $e) {
             error_log('notificarInscripcion: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Cambia la asociación/club de un inscrito (clubes.id) y sincroniza usuarios.club_id / entidad.
+     *
+     * @return array{success: true, message: string, club_id: int, club_nombre: string}|array{success: false, error: string}
+     */
+    public static function apiCambiarClubInscrito(
+        PDO $pdo,
+        int $torneoId,
+        int $idUsuario,
+        int $nuevoClubId,
+        int $actorUserId,
+        bool $permitirSiConfirmado = false
+    ): array {
+        require_once __DIR__ . '/../../InscritosHelper.php';
+        require_once __DIR__ . '/../../AsociacionAdminHelper.php';
+
+        if ($nuevoClubId <= 0) {
+            return ['success' => false, 'error' => 'Seleccione una asociación válida.'];
+        }
+
+        $club = \AsociacionAdminHelper::clubPorId($pdo, $nuevoClubId);
+        if ($club === null) {
+            return ['success' => false, 'error' => 'La asociación indicada no existe o está inactiva.'];
+        }
+
+        $errAlcance = self::aplicarAlcanceOperativo($pdo, $nuevoClubId, $idUsuario);
+        if ($errAlcance !== null) {
+            return ['success' => false, 'error' => $errAlcance['error'] ?? 'Sin permiso'];
+        }
+
+        $stmt = $pdo->prepare('SELECT id, estatus, id_club FROM inscritos WHERE torneo_id = ? AND id_usuario = ? LIMIT 1');
+        $stmt->execute([$torneoId, $idUsuario]);
+        $inscrito = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$inscrito) {
+            return ['success' => false, 'error' => 'El jugador no está inscrito en este torneo.'];
+        }
+        if (InscritosHelper::esRetirado($inscrito['estatus'] ?? null)) {
+            return ['success' => false, 'error' => 'El jugador está retirado; reinscríbalo antes de cambiar la asociación.'];
+        }
+        if (!$permitirSiConfirmado && InscritosHelper::esConfirmado($inscrito['estatus'] ?? null)) {
+            return [
+                'success' => false,
+                'error' => 'No se puede cambiar la asociación: el recibo de pago ya fue emitido. Use Administración de inscritos.',
+            ];
+        }
+
+        $stmt = $pdo->prepare('SELECT modalidad FROM tournaments WHERE id = ? LIMIT 1');
+        $stmt->execute([$torneoId]);
+        $modalidad = (int) ($stmt->fetchColumn() ?? 0);
+
+        $codigoEquipo = InscritosHelper::codigoEquipoParaInscripcionSitioIndividual($pdo, $torneoId, $nuevoClubId, $modalidad);
+
+        try {
+            $pdo->beginTransaction();
+
+            $stmt = $pdo->prepare('UPDATE inscritos SET id_club = ?, codigo_equipo = ? WHERE id = ?');
+            $stmt->execute([$nuevoClubId, $codigoEquipo, (int) $inscrito['id']]);
+
+            $stmt = $pdo->prepare('UPDATE usuarios SET club_id = ?, entidad = ? WHERE id = ?');
+            $stmt->execute([$nuevoClubId, $nuevoClubId, $idUsuario]);
+
+            $pdo->commit();
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('apiCambiarClubInscrito: ' . $e->getMessage());
+
+            return ['success' => false, 'error' => 'No se pudo cambiar la asociación: ' . $e->getMessage()];
+        }
+
+        require_once __DIR__ . '/../../ClubHelper.php';
+        $etiqueta = \ClubHelper::etiquetaAsociacion($nuevoClubId, (string) ($club['nombre'] ?? ''));
+
+        return [
+            'success' => true,
+            'message' => 'Asociación actualizada a ' . $etiqueta,
+            'club_id' => $nuevoClubId,
+            'club_nombre' => \ClubHelper::nombreAsociacionCanonico($nuevoClubId, (string) ($club['nombre'] ?? '')),
+        ];
+    }
+
+    /**
+     * API: desinscribir = eliminar registro en inscritos (no marcar retirado).
+     *
+     * @return array{success: true, message: string}|array{success: false, error: string}
+     */
+    public static function apiDesinscribirUsuario(PDO $pdo, int $torneoId, int $idUsuario): array
+    {
+        if ($torneoId <= 0 || $idUsuario <= 0) {
+            return ['success' => false, 'error' => 'Parámetros inválidos'];
+        }
+        require_once __DIR__ . '/../../InscritosHelper.php';
+        $st = $pdo->prepare('SELECT estatus FROM inscritos WHERE torneo_id = ? AND id_usuario = ? LIMIT 1');
+        $st->execute([$torneoId, $idUsuario]);
+        $estatus = $st->fetchColumn();
+        if ($estatus !== false && InscritosHelper::esConfirmado($estatus)) {
+            return [
+                'success' => false,
+                'error' => 'No se puede desinscribir: el recibo de pago ya fue emitido (inscripción confirmada).',
+            ];
+        }
+        if (!InscritosHelper::eliminarInscripcionPorUsuarioTorneo($pdo, $torneoId, $idUsuario)) {
+            return ['success' => false, 'error' => 'El jugador no estaba inscrito en este torneo'];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Jugador desinscrito. Ya puede inscribirse de nuevo desde disponibles.',
+        ];
     }
 }

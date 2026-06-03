@@ -199,7 +199,7 @@ $stats = [
 $csrf_token = CSRF::token();
 $rpu_api_url = class_exists('AppHelpers')
     ? rtrim(AppHelpers::getPublicUrl(), '/') . '/api/reporte_pago_admin.php'
-    : '/public/api/reporte_pago_admin.php';
+    : AppHelpers::url('api/reporte_pago_admin.php');
 $rpu_asset_base = class_exists('AppHelpers')
     ? rtrim(AppHelpers::getPublicUrl(), '/')
     : '/public';

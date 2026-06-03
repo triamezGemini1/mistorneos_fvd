@@ -1,7 +1,7 @@
 <?php
 /**
  * Exportar Inscritos a PDF
- * Versi�n corregida: sin fecha nacimiento, sin torneo, sexo 1/2, identificador de BD
+ * Versión corregida: sin fecha nacimiento, sin torneo, sexo 1/2, identificador de BD
  */
 
 
@@ -10,7 +10,7 @@ require_once __DIR__ . '/../../config/bootstrap.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/auth.php';
 
-// Verificar autenticaci�n
+// Verificar autenticación
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 
 try {
@@ -18,7 +18,7 @@ try {
     $torneo_id = !empty($_GET['torneo_id']) ? (int)$_GET['torneo_id'] : null;
     $club_ids = !empty($_GET['club_ids']) ? $_GET['club_ids'] : [];
     
-    // Obtener informaci�n del filtro para el t�tulo
+    // Obtener información del filtro para el t�tulo
     $titulo_torneo = 'Todos los Torneos';
     $titulo_clubs = 'Todos los Clubs';
     
@@ -118,7 +118,7 @@ try {
     die('Error: ' . htmlspecialchars($e->getMessage()));
 }
 
-// Funci�n helper
+// Función helper
 function getSexoNum($sexo) {
     if ($sexo === 'M' || $sexo == 1) return '1';
     if ($sexo === 'F' || $sexo == 2) return '2';

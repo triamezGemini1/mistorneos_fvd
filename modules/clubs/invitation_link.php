@@ -49,7 +49,7 @@ try {
 
 // Generar link de invitación
 $app_url = $_ENV['APP_URL'] ?? 'http://localhost/mistorneos_fvd';
-$invitation_link = $app_url . "/public/register_by_club.php?club_id=" . $club_id_to_use;
+$invitation_link = AppHelpers::url("register_by_club.php?club_id=") . $club_id_to_use;
 $admin_nombre = $current_user['nombre'] ?? $current_user['username'] ?? 'Administrador';
 
 // Obtener ruta del PDF de invitación

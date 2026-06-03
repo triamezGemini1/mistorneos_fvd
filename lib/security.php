@@ -4,7 +4,7 @@
 final class Security
 {
     /**
-     * Genera un hash seguro de contrase�a usando bcrypt
+     * Genera un hash seguro de contraseña usando bcrypt
      */
     public static function hashPassword(string $plain): string
     {
@@ -12,7 +12,7 @@ final class Security
     }
 
     /**
-     * Verifica una contrase�a contra su hash
+     * Verifica una contraseña contra su hash
      */
     public static function verifyPassword(string $password, string $hash): bool
     {
@@ -94,7 +94,7 @@ final class Security
     }
 
     /**
-     * Autentica un usuario admin_club espec�ficamente
+     * Autentica un usuario admin_club específicamente
      */
     public static function authenticateClubAdmin(string $username, string $password, string $expectedEmail = null): ?array
     {
@@ -120,7 +120,7 @@ final class Security
     }
 
     /**
-     * Contrase�a por defecto para clubes
+     * Contraseña por defecto para clubes
      */
     public static function defaultClubPassword(): string
     {
@@ -282,6 +282,14 @@ final class Security
             $placeholders = ['?', '?', '?', '?'];
             
             // Campos opcionales (nacionalidad existe en usuarios: V, E, J, P)
+            if ((!isset($data['numfvd']) || (int) ($data['numfvd'] ?? 0) <= 0) && !empty($data['cedula'])) {
+                require_once __DIR__ . '/NumfvdHelper.php';
+                $nfAtleta = NumfvdHelper::resolverDesdeCedula($pdo, (string) $data['cedula']);
+                if ($nfAtleta > 0) {
+                    $data['numfvd'] = $nfAtleta;
+                }
+            }
+
             $optional_fields = [
                 'cedula' => 'cedula',
                 'nacionalidad' => 'nacionalidad',
@@ -294,10 +302,19 @@ final class Security
                 'entidad' => 'entidad',
                 'cod_org' => 'cod_org',
                 'uuid' => 'uuid',
-                'photo_path' => 'photo_path'
+                'photo_path' => 'photo_path',
+                'numfvd' => 'numfvd',
             ];
             
             foreach ($optional_fields as $key => $field) {
+                if ($key === 'numfvd') {
+                    if (array_key_exists('numfvd', $data)) {
+                        $fields[] = $field;
+                        $values[] = (int) $data['numfvd'];
+                        $placeholders[] = '?';
+                    }
+                    continue;
+                }
                 if (isset($data[$key]) && $data[$key] !== null && $data[$key] !== '') {
                     $fields[] = $field;
                     $values[] = $data[$key];

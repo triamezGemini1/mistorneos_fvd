@@ -1,7 +1,7 @@
 <?php
 /**
- * Generador Simple de PDF de Invitaci�n
- * Versi�n optimizada para 1 p�gina con archivos adjuntos
+ * Generador Simple de PDF de Invitación
+ * Versión optimizada para 1 página con archivos adjuntos
  */
 
 
@@ -9,18 +9,18 @@ require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/auth.php';
 
-// Verificar autenticaci�n
+// Verificar autenticación
 Auth::requireRole(['admin_general', 'admin_torneo']);
 
 try {
-    // Obtener ID de invitaci�n
+    // Obtener ID de invitación
     $invitation_id = (int)($_GET['id'] ?? 0);
     
     if ($invitation_id <= 0) {
-        throw new Exception('ID de invitaci�n inv�lido');
+        throw new Exception('ID de invitación inválido');
     }
     
-    // Obtener datos completos de la invitaci�n
+    // Obtener datos completos de la invitación
     $stmt = DB::pdo()->prepare("
         SELECT 
             i.*,
@@ -50,7 +50,7 @@ try {
     $inv = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$inv) {
-        throw new Exception('Invitaci�n no encontrada');
+        throw new Exception('Invitación no encontrada');
     }
     
     // Generar URL de acceso directo
@@ -68,7 +68,7 @@ try {
     die('Error: ' . $e->getMessage());
 }
 
-// Funci�n helper para labels
+// Función helper para labels
 function getClaseLabel($clase) {
     $labels = [0 => 'No definido', 1 => 'Torneo', 2 => 'Campeonato'];
     return $labels[(int)$clase] ?? 'No definido';
@@ -84,7 +84,7 @@ function getModalidadLabel($modalidad) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invitaci�n - <?= htmlspecialchars($inv['torneo_nombre']) ?></title>
+    <title>Invitación - <?= htmlspecialchars($inv['torneo_nombre']) ?></title>
     <style>
         @page { 
             margin: 1cm; 
@@ -285,7 +285,7 @@ function getModalidadLabel($modalidad) {
     <div class="container">
         <!-- Header Compacto -->
         <div class="header">
-            <h1>?? INVITACI�N A TORNEO</h1>
+            <h1>?? INVITACIÓN A TORNEO</h1>
             <p><?= htmlspecialchars($inv['torneo_nombre']) ?> - <?= date('d/m/Y', strtotime($inv['torneo_fecha'])) ?></p>
         </div>
         
@@ -343,7 +343,7 @@ function getModalidadLabel($modalidad) {
                         <div class="info-value"><?= htmlspecialchars($inv['club_invitado_delegado'] ?? 'N/A') ?></div>
                     </div>
                     <div class="info-row">
-                        <div class="info-label">?? Tel�fono:</div>
+                        <div class="info-label">?? Teléfono:</div>
                         <div class="info-value"><?= htmlspecialchars($inv['club_invitado_telefono'] ?? 'N/A') ?></div>
                     </div>
                 </div>
@@ -354,7 +354,7 @@ function getModalidadLabel($modalidad) {
                     <?php if ($inv['torneo_invitacion']): ?>
                     <div class="archivo-item">
                         <i>??</i>
-                        <strong>Invitaci�n:</strong>
+                        <strong>Invitación:</strong>
                         <span style="margin-left: 5px; font-size: 6pt; color: #666;">
                             <?= basename($inv['torneo_invitacion']) ?>
                         </span>
@@ -398,7 +398,7 @@ function getModalidadLabel($modalidad) {
                     <h4>?? TOKEN DE ACCESO</h4>
                     <div class="token"><?= htmlspecialchars($inv['token']) ?></div>
                     <p style="font-size: 6pt; margin-top: 4px;">
-                        ? V�lido: <?= date('d/m', strtotime($inv['acceso1'])) ?> al <?= date('d/m/Y', strtotime($inv['acceso2'])) ?>
+                        ? Válido: <?= date('d/m', strtotime($inv['acceso1'])) ?> al <?= date('d/m/Y', strtotime($inv['acceso2'])) ?>
                     </p>
                 </div>
                 
@@ -414,7 +414,7 @@ function getModalidadLabel($modalidad) {
                         ?? <strong>IMPORTANTE:</strong> Seleccione TODO el link, copielo y p�guelo en su navegador
                     </p>
                     <p style="font-size: 6pt; margin-top: 2px; color: #0c5460;">
-                        ?? O escanee el c�digo QR si est� disponible
+                        ?? O escanee el código QR si est• disponible
                     </p>
                 </div>
                 

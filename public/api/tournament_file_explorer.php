@@ -13,7 +13,7 @@ $search = $_GET['search'] ?? '';
 $allowed_types = ['invitation', 'norms', 'poster'];
 if (!in_array($file_type, $allowed_types)) {
     http_response_code(400);
-    echo json_encode(['error' => 'Tipo de archivo no v�lido']);
+    echo json_encode(['error' => 'Tipo de archivo no válido']);
     exit;
 }
 
@@ -25,7 +25,7 @@ if (is_dir($upload_dir)) {
     $files = array_diff(scandir($upload_dir), ['.', '..', 'README.md']);
     
     foreach ($files as $file) {
-        // Filtrar por b�squeda si se especifica
+        // Filtrar por búsqueda si se especifica
         if (!empty($search) && stripos($file, $search) === false) {
             continue;
         }
@@ -55,7 +55,7 @@ if (is_dir($upload_dir)) {
     }
 }
 
-// Ordenar por fecha de modificaci�n (m�s reciente primero)
+// Ordenar por fecha de modificación (más reciente primero)
 usort($files_data, function($a, $b) {
     return $b['modified'] - $a['modified'];
 });

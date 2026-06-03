@@ -67,17 +67,17 @@ class TournamentFileHelper {
         // Limpiar barras adicionales
         $clean_path = ltrim($clean_path, '/');
         
-        // Obtener la URL base de la aplicaci�n
+        // Obtener la URL base de la aplicación
         $base_url = self::getAppBaseUrl();
         
         return AppHelpers::tournamentFile($clean_path);
     }
     
     /**
-     * Obtiene la URL base de la aplicaci�n
+     * Obtiene la URL base de la aplicación
      */
     private static function getAppBaseUrl(): string {
-        // Usar la funci�n global del sistema
+        // Usar la función global del sistema
         if (function_exists('app_base_url')) {
             return app_base_url();
         }
@@ -107,7 +107,7 @@ class TournamentFileHelper {
     }
     
     /**
-     * Obtiene informaci�n detallada de un archivo
+     * Obtiene información detallada de un archivo
      */
     public static function getFileInfo(string $file_path): array {
         if (empty($file_path)) {

@@ -105,11 +105,24 @@ try {
         );
         toggle_inscripcion_responder($out);
     } elseif ($action === 'desinscribir') {
-        // Marcar como retirado (estatus 4) en lugar de eliminar
-        $stmt = $pdo->prepare("UPDATE inscritos SET estatus = ? WHERE id_usuario = ? AND torneo_id = ?");
-        $stmt->execute([InscritosHelper::ESTATUS_RETIRADO_NUM, $id_usuario, $torneo_id]);
-        
-        toggle_inscripcion_responder(['success' => true, 'message' => 'Jugador desinscrito exitosamente']);
+        $out = \Tournament\Handlers\RegistrationHandler::apiDesinscribirUsuario($pdo, $torneo_id, $id_usuario);
+        toggle_inscripcion_responder($out);
+    } elseif ($action === 'cambiar_club') {
+        $nuevoClub = (int) ($_POST['id_club'] ?? 0);
+        if ($torneo_id <= 0 || $id_usuario <= 0) {
+            toggle_inscripcion_responder(['success' => false, 'error' => 'Parámetros inválidos']);
+        }
+        if (!Auth::canAccessTournament($torneo_id)) {
+            toggle_inscripcion_responder(['success' => false, 'error' => 'No tiene permisos para acceder a este torneo']);
+        }
+        $out = \Tournament\Handlers\RegistrationHandler::apiCambiarClubInscrito(
+            $pdo,
+            $torneo_id,
+            $id_usuario,
+            $nuevoClub,
+            Auth::id()
+        );
+        toggle_inscripcion_responder($out);
     } else {
         toggle_inscripcion_responder(['success' => false, 'error' => 'Acción inválida']);
     }

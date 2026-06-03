@@ -1,7 +1,7 @@
 <?php
 /**
  * Script de limpieza de base de datos
- * Limpia tokens vac�os y registros inv�lidos
+ * Limpia tokens vacíos y registros inválidos
  */
 
 
@@ -19,7 +19,7 @@ $info = [];
 try {
     $pdo = DB::pdo();
     
-    // 1. Verificar tokens vac�os o NULL
+    // 1. Verificar tokens vacíos o NULL
     $stmt = $pdo->query("
         SELECT id, torneo_id, club_id, token, LENGTH(token) as token_length 
         FROM invitations 
@@ -27,9 +27,9 @@ try {
     ");
     $invalid_tokens = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    $info[] = "Tokens inv�lidos encontrados: " . count($invalid_tokens);
+    $info[] = "Tokens inválidos encontrados: " . count($invalid_tokens);
     
-    // 2. Eliminar registros con tokens inv�lidos
+    // 2. Eliminar registros con tokens inválidos
     if (count($invalid_tokens) > 0) {
         $stmt = $pdo->prepare("DELETE FROM invitations WHERE id = ?");
         $deleted = 0;
@@ -40,9 +40,9 @@ try {
             }
         }
         
-        $success[] = "? {$deleted} registro(s) con tokens inv�lidos eliminados";
+        $success[] = "? {$deleted} registro(s) con tokens inválidos eliminados";
     } else {
-        $success[] = "? No se encontraron tokens inv�lidos";
+        $success[] = "? No se encontraron tokens inválidos";
     }
     
     // 3. Verificar duplicados de torneo + club
@@ -57,7 +57,7 @@ try {
     if (count($duplicates) > 0) {
         $info[] = "Duplicados encontrados: " . count($duplicates);
         
-        // Eliminar duplicados, conservando solo el m�s reciente
+        // Eliminar duplicados, conservando solo el más reciente
         foreach ($duplicates as $dup) {
             $stmt = $pdo->prepare("
                 DELETE FROM invitations 
@@ -73,12 +73,12 @@ try {
             $stmt->execute([$dup['torneo_id'], $dup['club_id'], $dup['torneo_id'], $dup['club_id']]);
         }
         
-        $success[] = "? Duplicados eliminados, conservando los m�s recientes";
+        $success[] = "? Duplicados eliminados, conservando los más recientes";
     } else {
         $success[] = "? No se encontraron duplicados";
     }
     
-    // 4. Actualizar tokens vac�os que a�n existan
+    // 4. Actualizar tokens vacíos que a�n existan
     $stmt = $pdo->query("
         SELECT id FROM invitations 
         WHERE token = '' OR token IS NULL
@@ -99,7 +99,7 @@ try {
         $success[] = "? {$updated} token(s) regenerado(s)";
     }
     
-    // 5. Estad�sticas finales
+    // 5. Estadísticas finales
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM invitations");
     $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
     
@@ -145,7 +145,7 @@ try {
                     
                     <?php if (!empty($info)): ?>
                         <div class="alert alert-info">
-                            <h5>?? Informaci�n</h5>
+                            <h5>?? Información</h5>
                             <ul class="mb-0">
                                 <?php foreach ($info as $msg): ?>
                                     <li><?= htmlspecialchars($msg) ?></li>
@@ -176,8 +176,8 @@ try {
             <div class="alert alert-warning mt-4">
                 <h5>?? Importante</h5>
                 <ul>
-                    <li>Este script limpia tokens vac�os o inv�lidos</li>
-                    <li>Elimina duplicados (mantiene el m�s reciente)</li>
+                    <li>Este script limpia tokens vacíos o inválidos</li>
+                    <li>Elimina duplicados (mantiene el más reciente)</li>
                     <li>Regenera tokens cuando es necesario</li>
                     <li>Solo usuarios con rol admin_general pueden acceder</li>
                 </ul>

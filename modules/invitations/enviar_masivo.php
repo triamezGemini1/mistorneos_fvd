@@ -1,14 +1,14 @@
 <?php
 /**
- * Env�o Masivo de Invitaciones por WhatsApp
- * Permite enviar m�ltiples invitaciones a la vez
+ * Envío Masivo de Invitaciones por WhatsApp
+ * Permite enviar múltiples invitaciones a la vez
  */
 
 require_once __DIR__ . '/../../config/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../lib/whatsapp_sender.php';
 
-// Verificar autenticaci�n (ya verificada en index.php, pero por seguridad)
+// Verificar autenticación (ya verificada en index.php, pero por seguridad)
 $user = $_SESSION['user'] ?? Auth::user();
 $pagination_page = isset($_GET['pag']) ? (int)$_GET['pag'] : 1;
 $per_page = 20;
@@ -18,11 +18,11 @@ $offset = ($pagination_page - 1) * $per_page;
 $torneo_filter = $_GET['torneo'] ?? '';
 $estado_filter = $_GET['estado'] ?? '';
 
-// Variable para modo de procesamiento autom�tico
+// Variable para modo de procesamiento automático
 $modo_auto_envio = false;
 $enlaces_whatsapp = [];
 
-// Procesar env�o masivo
+// Procesar envío masivo
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_masivo'])) {
     $invitations_ids = $_POST['invitations'] ?? [];
     
@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_masivo'])) {
         
         foreach ($invitations_ids as $inv_id) {
             try {
-                // Obtener datos de la invitaci�n
+                // Obtener datos de la invitación
                 $stmt = DB::pdo()->prepare("
                     SELECT i.*, t.nombre as torneo_nombre, c.nombre as club_nombre, 
                            c.email as club_email, c.telefono as club_telefono
@@ -47,13 +47,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_masivo'])) {
                 $invitation = $stmt->fetch();
                 
                 if (!$invitation) {
-                    $errors[] = "Invitaci�n #$inv_id no encontrada";
+                    $errors[] = "Invitación #$inv_id no encontrada";
                     continue;
                 }
                 
-                // Verificar que tiene tel�fono
+                // Verificar que tiene teléfono
                 if (empty($invitation['club_telefono'])) {
-                    $errors[] = "Club '{$invitation['club_nombre']}' no tiene tel�fono registrado";
+                    $errors[] = "Club '{$invitation['club_nombre']}' no tiene teléfono registrado";
                     continue;
                 }
                 
@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_masivo'])) {
                 
                 if ($result['success']) {
                     $sent_count++;
-                    // Guardar enlace para env�o autom�tico
+                    // Guardar enlace para envío automático
                     $enlaces_whatsapp[] = [
                         'id' => $inv_id,
                         'club_nombre' => $invitation['club_nombre'],
@@ -74,11 +74,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_masivo'])) {
                 }
                 
             } catch (Exception $e) {
-                $errors[] = "Error en invitaci�n #$inv_id: " . $e->getMessage();
+                $errors[] = "Error en invitación #$inv_id: " . $e->getMessage();
             }
         }
         
-        // Si hay enlaces generados, activar modo autom�tico
+        // Si hay enlaces generados, activar modo automático
         if (!empty($enlaces_whatsapp)) {
             $modo_auto_envio = true;
             $success_message = "? Se generaron $sent_count enlaces de WhatsApp";
@@ -145,7 +145,7 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
 
 ?>
 
-<!-- M�dulo de Env�o Masivo -->
+<!-- Módulo de Envío Masivo -->
 <style>
     .btn-whatsapp { background: #25D366; color: white; border: none; }
     .btn-whatsapp:hover { background: #128C7E; color: white; }
@@ -155,10 +155,10 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
     .phone-missing { color: #dc3545; }
 </style>
 
-<!-- M�dulo de Env�o Masivo -->
+<!-- Módulo de Envío Masivo -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1 class="h3 mb-2"><i class="fab fa-whatsapp me-3"></i>Env�o Masivo de Invitaciones</h1>
+        <h1 class="h3 mb-2"><i class="fab fa-whatsapp me-3"></i>Envío Masivo de Invitaciones</h1>
         <p class="text-muted mb-0">Selecciona las invitaciones que deseas enviar por WhatsApp</p>
     </div>
 </div>
@@ -217,7 +217,7 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
     </div>
 </div>
 
-<!-- Formulario de env�o masivo -->
+<!-- Formulario de envío masivo -->
 <form method="POST" action="index.php?page=invitations/enviar_masivo" id="massiveSendForm">
     <div class="select-all-section">
         <div class="row align-items-center">
@@ -258,9 +258,9 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
                                         <th>ID</th>
                                         <th>Torneo</th>
                                         <th>Club</th>
-                                        <th>Tel�fono</th>
+                                        <th>Teléfono</th>
                                         <th>Estado</th>
-                                        <th>Fecha Creaci�n</th>
+                                        <th>Fecha Creación</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -270,7 +270,7 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
                                                 <?php if (!empty($inv['club_telefono'])): ?>
                                                     <input type="checkbox" name="invitations[]" value="<?= $inv['id'] ?>" class="form-check-input invitation-checkbox">
                                                 <?php else: ?>
-                                                    <i class="fas fa-ban phone-missing" title="Sin tel�fono"></i>
+                                                    <i class="fas fa-ban phone-missing" title="Sin teléfono"></i>
                                                 <?php endif; ?>
                                             </td>
                                             <td><?= $inv['id'] ?></td>
@@ -282,7 +282,7 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
                                                         <i class="fas fa-phone me-1"></i><?= htmlspecialchars($inv['club_telefono']) ?>
                                                     </span>
                                                 <?php else: ?>
-                                                    <span class="badge bg-danger">Sin tel�fono</span>
+                                                    <span class="badge bg-danger">Sin teléfono</span>
                                                 <?php endif; ?>
                                             </td>
                                             <td>
@@ -308,7 +308,7 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
                 </div>
             </div>
 
-            <!-- Paginaci�n -->
+            <!-- Paginación -->
             <?php if ($total_pages > 1): ?>
                 <nav class="mt-3">
                     <ul class="pagination justify-content-center">
@@ -325,7 +325,7 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
         </form>
 
 <script>
-        // Selecci�n de checkboxes
+        // Selección de checkboxes
         const selectAll = document.getElementById('selectAll');
         const selectAllHeader = document.getElementById('selectAllHeader');
         const checkboxes = document.querySelectorAll('.invitation-checkbox');
@@ -369,21 +369,21 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
             });
         });
 
-        // Confirmaci�n antes de enviar
+        // Confirmación antes de enviar
         document.getElementById('massiveSendForm').addEventListener('submit', function(e) {
             const count = document.querySelectorAll('.invitation-checkbox:checked').length;
-            if (!confirm(`�Enviar ${count} invitaciones por WhatsApp?\n\nLos mensajes se abrir�n autom�ticamente uno por uno.`)) {
+            if (!confirm(`�Enviar ${count} invitaciones por WhatsApp?\n\nLos mensajes se abrir�n automáticamente uno por uno.`)) {
                 e.preventDefault();
             }
         });
         
         <?php if ($modo_auto_envio && !empty($enlaces_whatsapp)): ?>
-        // ENV�O MASIVO AUTOM�TICO
+        // ENVÍO MASIVO AUTOMÁTICO
         (function() {
             const enlaces = <?= json_encode($enlaces_whatsapp, JSON_UNESCAPED_UNICODE) ?>;
             let indice = 0;
             const total = enlaces.length;
-            const DELAY_ENTRE_ENVIOS = 4000; // 4 segundos entre cada env�o
+            const DELAY_ENTRE_ENVIOS = 4000; // 4 segundos entre cada envío
             
             // Crear modal de progreso
             const modalHTML = `
@@ -392,7 +392,7 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
                         <div class="modal-content">
                             <div class="modal-header bg-success text-white">
                                 <h5 class="modal-title">
-                                    <i class="fab fa-whatsapp me-2"></i>Env�o Masivo Autom�tico
+                                    <i class="fab fa-whatsapp me-2"></i>Envío Masivo Autom�tico
                                 </h5>
                             </div>
                             <div class="modal-body text-center">
@@ -401,7 +401,7 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
                                         <span class="visually-hidden">Enviando...</span>
                                     </div>
                                 </div>
-                                <h4 id="progresoTexto">Preparando env�os...</h4>
+                                <h4 id="progresoTexto">Preparando envíos...</h4>
                                 <p class="text-muted mb-3" id="clubActual"></p>
                                 <div class="progress" style="height: 25px;">
                                     <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
@@ -411,8 +411,8 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
                                 </div>
                                 <div class="mt-3">
                                     <small class="text-muted">
-                                        ?? Espere entre 4-5 segundos entre cada env�o<br>
-                                        ?? Confirme el env�o en cada ventana de WhatsApp que se abra
+                                        ?? Espere entre 4-5 segundos entre cada envío<br>
+                                        ?? Confirme el envío en cada ventana de WhatsApp que se abra
                                     </small>
                                 </div>
                             </div>
@@ -437,7 +437,7 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
             function enviarSiguiente() {
                 if (indice >= total) {
                     // Completado
-                    progresoTexto.textContent = '? �Env�o Masivo Completado!';
+                    progresoTexto.textContent = '? �Envío Masivo Completado!';
                     progresoTexto.className = 'text-success';
                     clubActual.textContent = `Se abrieron ${total} conversaciones de WhatsApp`;
                     progressBar.style.width = '100%';
@@ -456,7 +456,7 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
                 // Actualizar progreso
                 progressBar.style.width = progreso + '%';
                 progressText.textContent = `${indice + 1} / ${total}`;
-                progresoTexto.textContent = `Enviando invitaci�n ${indice + 1} de ${total}`;
+                progresoTexto.textContent = `Enviando invitación ${indice + 1} de ${total}`;
                 clubActual.innerHTML = `
                     <strong>${enlace.club_nombre}</strong><br>
                     <small>?? ${enlace.telefono}</small>
@@ -465,15 +465,15 @@ $tournaments = DB::pdo()->query("SELECT id, nombre FROM tournaments ORDER BY fec
                 // Abrir WhatsApp en nueva ventana
                 window.location.href = enlace.url;
                 
-                // Siguiente env�o despu�s del delay
+                // Siguiente envío después del delay
                 indice++;
                 setTimeout(enviarSiguiente, DELAY_ENTRE_ENVIOS);
             }
             
-            // Iniciar proceso autom�ticamente
+            // Iniciar proceso automáticamente
             modal.show();
             setTimeout(enviarSiguiente, 1000);
         })();
         <?php endif; ?>
     </script>
-<!-- Fin M�dulo de Env�o Masivo -->
+<!-- Fin Módulo de Envío Masivo -->

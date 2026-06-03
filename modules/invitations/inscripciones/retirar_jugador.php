@@ -19,7 +19,7 @@ try {
     $club_id = $_SESSION['club_id'];
     
     if (!$id) {
-        echo json_encode(['success' => false, 'message' => 'ID inv�lido']);
+        echo json_encode(['success' => false, 'message' => 'ID inválido']);
         exit;
     }
     
@@ -39,7 +39,7 @@ try {
         exit;
     }
     
-    // Eliminar inscripci�n
+    // Eliminar inscripción
     $stmt = $pdo->prepare("DELETE FROM inscripciones WHERE id = ?");
     
     if ($stmt->execute([$id])) {

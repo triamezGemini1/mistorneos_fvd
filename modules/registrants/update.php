@@ -8,7 +8,7 @@ require_once __DIR__ . '/../../lib/validation.php';
 Auth::requireRole(['admin_general','admin_torneo','admin_club']);
 CSRF::validate();
 
-// Obtener informaci�n del usuario actual
+// Obtener información del usuario actual
 $current_user = Auth::user();
 $user_role = $current_user['role'] ?? '';
 $user_club_id = !empty($current_user['club_id']) ? (int)$current_user['club_id'] : null;
@@ -95,7 +95,7 @@ if ($is_admin_torneo || $is_admin_club) {
 // Ensure composite uniqueness on update
 $check = DB::pdo()->prepare("SELECT id FROM inscripciones WHERE torneo_id=:t AND cedula=:c AND id<>:id");
 $check->execute([':t'=>$torneo_id, ':c'=>$cedula, ':id'=>$id]);
-if ($check->fetch()) { die('Conflicto: c�dula ya existe en el torneo'); }
+if ($check->fetch()) { die('Conflicto: cédula ya existe en el torneo'); }
 
 // Datos completos del usuario (atleta)
 $athlete_data = [
@@ -114,7 +114,7 @@ $data = [
   ':club_id' => $club_id,
   ':estatus' => V::int($_POST['estatus'] ?? 1,0,1),
   ':torneo_id' => $torneo_id,
-  ':categ' => 0, // Se puede calcular despu�s si es necesario
+  ':categ' => 0, // Se puede calcular después si es necesario
   ':celular' => $athlete_data['celular'] ?: null,
 ];
 

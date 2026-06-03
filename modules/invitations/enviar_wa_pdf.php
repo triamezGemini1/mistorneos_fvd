@@ -1,6 +1,6 @@
 <?php
 /**
- * Env�o por WhatsApp con PDF
+ * Envío por WhatsApp con PDF
  * Env�a mensaje corto + enlace a PDF
  */
 
@@ -50,11 +50,11 @@ try {
     $inv = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$inv) {
-        die('Invitaci�n no encontrada');
+        die('Invitación no encontrada');
     }
     
     if (empty($inv['club_telefono'])) {
-        die('El club no tiene tel�fono configurado');
+        die('El club no tiene teléfono configurado');
     }
     
     // URLs del sistema
@@ -63,11 +63,11 @@ try {
     
     // Generar PDF
     $delegado = !empty($inv['club_delegado']) ? $inv['club_delegado'] : $inv['club_nombre'];
-    $organizacion = !empty($inv['organizacion_nombre']) ? $inv['organizacion_nombre'] : 'Organizaci�n';
+    $organizacion = !empty($inv['organizacion_nombre']) ? $inv['organizacion_nombre'] : 'Organización';
     $fecha_torneo = date('d/m/Y', strtotime($inv['torneo_fecha']));
     $vigencia = date('d/m/Y', strtotime($inv['acceso1'])) . ' al ' . date('d/m/Y', strtotime($inv['acceso2']));
     
-    // HTML del PDF (versi�n simplificada)
+    // HTML del PDF (versión simplificada)
     $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
     body{font-family:Arial;margin:30px;color:#333}
     .header{text-align:center;background:#667eea;color:white;padding:20px;border-radius:8px;margin-bottom:20px}
@@ -79,7 +79,7 @@ try {
     .token{font-family:monospace;font-size:14px;font-weight:bold;background:white;padding:12px;border-radius:4px;word-break:break-all;color:#d63031}
     </style></head><body>';
     
-    $html .= '<div class="header"><h1>?? INVITACI�N A TORNEO</h1><p>' . htmlspecialchars($organizacion) . '</p></div>';
+    $html .= '<div class="header"><h1>?? INVITACIÓN A TORNEO</h1><p>' . htmlspecialchars($organizacion) . '</p></div>';
     
     $html .= '<div class="section"><h2>?? TORNEO</h2>';
     $html .= '<div class="info"><span class="label">Torneo:</span> ' . htmlspecialchars($inv['torneo_nombre']) . '</div>';
@@ -130,11 +130,11 @@ try {
     $pdf_generated = true;
     
     // Mensaje corto para WhatsApp
-    $mensaje = "?? *INVITACI�N AL TORNEO*\n\n";
+    $mensaje = "• *INVITACIÓN AL TORNEO*\n\n";
     $mensaje .= "*" . $inv['torneo_nombre'] . "*\n\n";
-    $mensaje .= "?? Fecha: " . $fecha_torneo . "\n";
-    $mensaje .= "?? Club: " . $inv['club_nombre'] . "\n\n";
-    $mensaje .= "?? *Descargue su invitaci�n completa aqu�:*\n";
+    $mensaje .= "• Fecha: " . $fecha_torneo . "\n";
+    $mensaje .= "• Club: " . $inv['club_nombre'] . "\n\n";
+    $mensaje .= "• *Descargue su invitación completa aquí:*\n";
     $mensaje .= $pdf_url . "\n\n";
     $mensaje .= "El documento incluye:\n";
     $mensaje .= "? TOKEN de acceso\n";
@@ -142,7 +142,7 @@ try {
     $mensaje .= "? Instrucciones completas\n\n";
     $mensaje .= "_" . $organizacion . "_";
     
-    // Limpiar tel�fono
+    // Limpiar teléfono
     $telefono = preg_replace('/[^0-9]/', '', $inv['club_telefono']);
     if (!str_starts_with($telefono, '58')) {
         $telefono = '58' . $telefono;
@@ -212,10 +212,10 @@ try {
         </div>
         
         <div class="alert alert-success mt-4">
-            <h5><i class="fas fa-file-pdf"></i> Invitaci�n Creada</h5>
+            <h5><i class="fas fa-file-pdf"></i> Invitación Creada</h5>
             <p class="mb-0"><strong>Club:</strong> <?= htmlspecialchars($inv['club_nombre']) ?></p>
             <p class="mb-0"><strong>Torneo:</strong> <?= htmlspecialchars($inv['torneo_nombre']) ?></p>
-            <p class="mb-0"><strong>Tel�fono:</strong> <?= htmlspecialchars($inv['club_telefono']) ?></p>
+            <p class="mb-0"><strong>Teléfono:</strong> <?= htmlspecialchars($inv['club_telefono']) ?></p>
         </div>
         
         <div class="preview-box">
@@ -224,9 +224,9 @@ try {
         </div>
         
         <div class="alert alert-info">
-            <h6><i class="fas fa-info-circle"></i> Qu� incluye el PDF:</h6>
+            <h6><i class="fas fa-info-circle"></i> Qu• incluye el PDF:</h6>
             <ul class="mb-0">
-                <li>? Informaci�n completa del torneo</li>
+                <li>? Información completa del torneo</li>
                 <li>? TOKEN de acceso (64 caracteres)</li>
                 <li>? URL del sistema</li>
                 <li>? Instrucciones paso a paso</li>
@@ -249,14 +249,14 @@ try {
         
         <div class="alert alert-warning mt-4">
             <h6><i class="fas fa-exclamation-triangle"></i> Importante:</h6>
-            <p class="mb-1">1. Se abrir� WhatsApp con un mensaje CORTO</p>
-            <p class="mb-1">2. El mensaje incluye enlace al PDF con toda la informaci�n</p>
-            <p class="mb-0">3. El delegado descarga el PDF y all� encuentra el TOKEN</p>
+            <p class="mb-1">1. Se abrió WhatsApp con un mensaje CORTO</p>
+            <p class="mb-1">2. El mensaje incluye enlace al PDF con toda la información</p>
+            <p class="mb-0">3. El delegado descarga el PDF y all• encuentra el TOKEN</p>
         </div>
     </div>
     
     <script>
-        // Abrir WhatsApp autom�ticamente
+        // Abrir WhatsApp automáticamente
         setTimeout(function() {
             window.location.href = '<?= addslashes($whatsapp_url) ?>';
         }, 1500);

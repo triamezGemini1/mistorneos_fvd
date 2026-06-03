@@ -1,7 +1,7 @@
 <?php
 /**
  * Numerar consecutivamente jugadores POR CLUB
- * Cada club tendr� su propia numeraci�n: 1, 2, 3...
+ * Cada club tendrá su propia numeración: 1, 2, 3...
  */
 
 
@@ -13,14 +13,14 @@ require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/auth.php';
 
 try {
-    // Verificar autenticaci�n
+    // Verificar autenticación
     Auth::requireRole(['admin_general', 'admin_torneo']);
     
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('M�todo no permitido');
     }
     
-    // Obtener par�metros
+    // Obtener parámetros
     $torneo_id = !empty($_GET['torneo_id']) ? (int)$_GET['torneo_id'] : null;
     $club_id = !empty($_GET['club_id']) ? (int)$_GET['club_id'] : null;
     $numerar_todos = isset($_GET['numerar_todos']) && $_GET['numerar_todos'] === '1';
@@ -31,7 +31,7 @@ try {
     
     $pdo = DB::pdo();
     
-    // Validar que el torneo no est� finalizado
+    // Validar que el torneo no est• finalizado
     $stmt = $pdo->prepare("
         SELECT fechator, 
                CASE WHEN fechator < CURDATE() THEN 1 ELSE 0 END as pasado
@@ -94,7 +94,7 @@ try {
         $jugadores = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
         if (!empty($jugadores)) {
-            // Asignar n�meros consecutivos: 1, 2, 3...
+            // Asignar números consecutivos: 1, 2, 3...
             $numero = 1;
             $update_stmt = $pdo->prepare("UPDATE registrants SET identificador = ? WHERE id = ?");
             
@@ -116,7 +116,7 @@ try {
     
     echo json_encode([
         'success' => true,
-        'message' => 'Numeraci�n por club completada exitosamente',
+        'message' => 'Numeración por club completada exitosamente',
         'total_jugadores_actualizados' => $total_actualizados,
         'clubes_procesados' => count($clubes_procesados),
         'detalle_clubes' => $clubes_procesados

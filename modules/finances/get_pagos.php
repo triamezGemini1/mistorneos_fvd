@@ -18,7 +18,7 @@ try {
     $club_id = (int)($_GET['club_id'] ?? 0);
     
     if ($torneo_id <= 0 || $club_id <= 0) {
-        throw new Exception('Par�metros inv�lidos');
+        throw new Exception('Parámetros inválidos');
     }
     
     $pdo = DB::pdo();

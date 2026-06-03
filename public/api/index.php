@@ -22,7 +22,7 @@ $base = preg_replace('#/+#', '/', $base);
 // Normaliza base en /api/*
 $pos = strpos($base, '/api/');
 if ($pos === false) { json_err('Invalid API base', 404); }
-$endpoint = substr($base, $pos + 5); // despu�s de "/api/"
+$endpoint = substr($base, $pos + 5); // después de "/api/"
 $segments = array_values(array_filter(explode('/', $endpoint), 'strlen'));
 
 // Helpers
@@ -55,7 +55,7 @@ try {
     $b = get_json_body();
     $ok = Auth::login(trim($b['username'] ?? ''), (string)($b['password'] ?? ''));
     if ($ok) json_ok(['user'=>Auth::user(),'csrf'=>CSRF::token()]);
-    json_err('Credenciales inv�lidas', 401);
+    json_err('Credenciales inválidas', 401);
   }
   if ($segments === ['auth','logout']) {
     allow_methods(['POST']);
@@ -63,7 +63,7 @@ try {
     json_ok(['message'=>'bye']);
   }
 
-  // Rutas protegidas (validar CSRF en m�todos mutadores)
+  // Rutas protegidas (validar CSRF en métodos mutadores)
   if (in_array($method, ['POST','PUT','PATCH','DELETE'], true)) {
     CSRF::validateApi();
   }
@@ -114,7 +114,7 @@ try {
           ]);
           $club_id = (int)$pdo->lastInsertId();
           
-          // 2. Crear usuario �nico para el club
+          // 2. Crear usuario único para el club
           $username_invitado = Security::defaultClubUsername($club_id); // 'invitado' + club_id
           $password_hash = Security::hashPassword(Security::defaultClubPassword()); // hash de 'invitado123'
           
@@ -306,7 +306,7 @@ try {
         // Unique composite check
         $chk = DB::pdo()->prepare("SELECT id FROM inscripciones WHERE torneo_id=:t AND cedula=:c");
         $chk->execute([':t'=>(int)($b['torneo_id'] ?? 0), ':c'=>V::str($b['cedula'] ?? '',1,20)]);
-        if ($chk->fetch()) json_err('Ya existe un inscrito con esa c�dula para este torneo', 409);
+        if ($chk->fetch()) json_err('Ya existe un inscrito con esa cédula para este torneo', 409);
         $stmt = DB::pdo()->prepare("INSERT INTO inscripciones (cedula,nombre,sexo,fechnac,club_id,estatus,torneo_id,categ,celular,email) VALUES (:cedula,:nombre,:sexo,:fechnac,:club_id,:estatus,:torneo_id,:categ,:celular,:email)");
         $stmt->execute([
           ':cedula'=>V::str($b['cedula'] ?? '',1,20),
@@ -338,7 +338,7 @@ try {
         // ensure uniqueness
         $chk = DB::pdo()->prepare("SELECT id FROM inscripciones WHERE torneo_id=:t AND cedula=:c AND id<>:id");
         $chk->execute([':t'=>V::int($b['torneo_id'] ?? 0,1), ':c'=>V::str($b['cedula'] ?? '',1,20), ':id'=>$id]);
-        if ($chk->fetch()) json_err('Conflicto: c�dula ya existe en el torneo',409);
+        if ($chk->fetch()) json_err('Conflicto: cédula ya existe en el torneo',409);
         $stmt = DB::pdo()->prepare("UPDATE registrants SET cedula=:cedula, nombre=:nombre, sexo=:sexo, fechnac=:fechnac, club_id=:club_id, estatus=:estatus, torneo_id=:torneo_id, categ=:categ, celular=:celular, email=:email WHERE id=:id");
         $stmt->execute([
           ':id'=>$id,
@@ -393,9 +393,9 @@ try {
         $b = get_json_body();
         $a1 = V::date($b['acceso1'] ?? null);
         $a2 = V::date($b['acceso2'] ?? null);
-        if (strtotime($a2) < strtotime($a1)) json_err('Rango de fechas inv�lido',422);
+        if (strtotime($a2) < strtotime($a1)) json_err('Rango de fechas inválido',422);
         // Sistema SIN tokens - solo almacenamos link simple
-        $token = ''; // Token vac�o - ya no generamos tokens complejos
+        $token = ''; // Token vacío - ya no generamos tokens complejos
         $club_id = V::int($b['club_id'] ?? 0,1);
         $usuario_invitado = "usuario" . $club_id;
         
@@ -415,7 +415,7 @@ try {
                 $existing = $stmt_check->fetch();
                 
                 if ($existing) {
-                    // Actualizar la invitaci�n existente SIN cambiar token (lo mantenemos vac�o)
+                    // Actualizar la invitación existente SIN cambiar token (lo mantenemos vacío)
                     $stmt_update = DB::pdo()->prepare("UPDATE invitations SET acceso1 = :a1, acceso2 = :a2, token = '', estado = 'activa', fecha_modificacion = NOW() WHERE id = :id");
                     $stmt_update->execute([':a1' => $a1, ':a2' => $a2, ':id' => $existing['id']]);
                 } else {
@@ -426,7 +426,7 @@ try {
             }
         }
         
-        // Crear usuario invitado autom�ticamente
+        // Crear usuario invitado automáticamente
         $username_invitado = Security::defaultClubUsername($club_id);
         $password_hash = Security::hashPassword(Security::defaultClubPassword());
         

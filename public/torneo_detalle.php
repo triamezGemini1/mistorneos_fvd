@@ -104,7 +104,7 @@ $landing_url = rtrim($public_url, '/') . '/landing.php';
     
     <!-- Open Graph -->
     <meta property="og:type" content="article">
-    <meta property="og:url" content="<?= htmlspecialchars(app_base_url() . '/public/torneo_detalle.php?torneo_id=' . $torneo_id) ?>">
+    <meta property="og:url" content="<?= htmlspecialchars(AppHelpers::url('torneo_detalle.php', ['torneo_id' => $torneo_id])) ?>">
     <meta property="og:title" content="<?= htmlspecialchars($torneo_data['nombre']) ?> - Torneo de Dominó">
     <meta property="og:description" content="Información del torneo de dominó <?= htmlspecialchars($torneo_data['nombre']) ?>. <?= date('d/m/Y', strtotime($torneo_data['fechator'])) ?>">
     <meta property="og:image" content="<?= htmlspecialchars(AppHelpers::getAppLogo()) ?>">
@@ -115,7 +115,7 @@ $landing_url = rtrim($public_url, '/') . '/landing.php';
     <meta name="twitter:description" content="Torneo de dominó - <?= date('d/m/Y', strtotime($torneo_data['fechator'])) ?>">
     
     <!-- Canonical -->
-    <link rel="canonical" href="<?= htmlspecialchars(app_base_url() . '/public/torneo_detalle.php?torneo_id=' . $torneo_id) ?>">
+    <link rel="canonical" href="<?= htmlspecialchars(AppHelpers::url('torneo_detalle.php', ['torneo_id' => $torneo_id])) ?>">
     
     <!-- Schema.org Event -->
     <script type="application/ld+json">

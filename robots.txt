@@ -39,6 +39,6 @@ Allow: /public/resultados.php
 Allow: /public/resultados_detalle.php
 
 # Sitemap dinámico
-Sitemap: https://laestaciondeldominohoy.com/mistorneos/public/sitemap.php
+Sitemap: https://laestaciondeldominohoy.com/mistorneos_fvd/public/sitemap.php
 
 

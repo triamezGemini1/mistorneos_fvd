@@ -13,6 +13,7 @@ require_once __DIR__ . '/../lib/app_helpers.php';
 header('Content-Type: text/html; charset=utf-8');
 
 $base = function_exists('app_base_url') ? app_base_url() : 'N/A';
+$publicUrl = class_exists('AppHelpers', false) ? AppHelpers::getPublicUrl() : $base . '/public';
 $env = $_ENV['APP_ENV'] ?? 'N/A';
 $checks = [];
 
@@ -27,33 +28,43 @@ try {
     $checks['BD Principal (' . $dbName . ')'] = ['ok' => false, 'msg' => $e->getMessage()];
 }
 
-// 2. Conexión BD secundaria (fvdadmin)
-try {
-    $pdo2 = DB::pdoSecondary();
-    $stmt = $pdo2->query("SELECT 1");
-    $checks['BD Secundaria (fvdadmin)'] = ['ok' => true, 'msg' => 'Conectado'];
-} catch (Exception $e) {
-    $checks['BD Secundaria (fvdadmin)'] = ['ok' => false, 'msg' => $e->getMessage()];
-}
-
-// 3. Tabla persona en fvdadmin
-try {
-    $pdo2 = DB::pdoSecondary();
-    $tables = ['persona', 'dbo_persona'];
-    $found = false;
-    foreach ($tables as $t) {
+// 2. Conexión BD secundaria (opcional — solo búsqueda por cédula)
+require_once __DIR__ . '/../config/persona_database.php';
+if (DB::isSecondaryConfigured()) {
+    $pdo2 = DB::tryPdoSecondary();
+    if ($pdo2 !== null) {
         try {
-            $pdo2->query("SELECT 1 FROM `$t` LIMIT 1");
-            $checks['Tabla persona'] = ['ok' => true, 'msg' => "Tabla '$t' existe"];
-            $found = true;
-            break;
-        } catch (Exception $e) {}
+            $pdo2->query('SELECT 1');
+            $checks['BD Secundaria (opcional)'] = ['ok' => true, 'msg' => 'Conectado'];
+        } catch (Exception $e) {
+            $checks['BD Secundaria (opcional)'] = ['ok' => false, 'msg' => $e->getMessage()];
+        }
+    } else {
+        $checks['BD Secundaria (opcional)'] = ['ok' => false, 'msg' => 'Configurada pero no conecta (revise credenciales)'];
     }
-    if (!$found) {
-        $checks['Tabla persona'] = ['ok' => false, 'msg' => 'No se encontró tabla persona ni dbo_persona'];
+
+    // 3. Tabla persona en fvdadmin
+    if ($pdo2 !== null) {
+        $tables = ['persona', 'dbo_persona', 'dbo.persona'];
+        $found = false;
+        foreach ($tables as $t) {
+            try {
+                $pdo2->query("SELECT 1 FROM `$t` LIMIT 1");
+                $checks['Tabla persona (opcional)'] = ['ok' => true, 'msg' => "Tabla '$t' existe"];
+                $found = true;
+                break;
+            } catch (Exception $e) {
+            }
+        }
+        if (!$found) {
+            $checks['Tabla persona (opcional)'] = ['ok' => false, 'msg' => 'No se encontró tabla persona ni dbo_persona'];
+        }
     }
-} catch (Exception $e) {
-    $checks['Tabla persona'] = ['ok' => false, 'msg' => $e->getMessage()];
+} else {
+    $checks['BD Secundaria (opcional)'] = [
+        'ok' => true,
+        'msg' => 'No configurada — la app funciona sin ella; solo enriquece búsquedas por cédula',
+    ];
 }
 
 // 4. Carpetas escribibles
@@ -100,13 +111,36 @@ $checks['URL_BASE definido'] = [
     'ok' => defined('URL_BASE') && URL_BASE !== '' && URL_BASE !== '/',
     'msg' => defined('URL_BASE') ? URL_BASE : 'no definido',
 ];
+$integralRoot = class_exists('Env', false) ? trim((string) Env::get('INTEGRAL_WEB_ROOT', '')) : '';
+$checks['INTEGRAL_WEB_ROOT (.env)'] = [
+    'ok' => $integralRoot === '' || str_contains((string) URL_BASE, trim($integralRoot, '/')),
+    'msg' => $integralRoot === ''
+        ? 'no definido (correcto en standalone /mistorneos_fvd/public/)'
+        : ($integralRoot . ' — quitar en standalone si la app no está bajo mistorneos_fvd1/'),
+];
+$appUrlEnv = class_exists('Env', false) ? trim((string) Env::get('APP_URL', '')) : '';
+$urlIssues = [];
+foreach ([$publicUrl, $appUrlEnv, defined('URL_BASE') ? URL_BASE : ''] as $candidate) {
+    if ($candidate === '') {
+        continue;
+    }
+    foreach (AppHelpers::detectSuspiciousUrlSegments((string) $candidate) as $issue) {
+        $urlIssues[$issue] = true;
+    }
+}
+$checks['Rutas sospechosas (fvd1 / mistorneos antiguo)'] = [
+    'ok' => $urlIssues === [],
+    'msg' => $urlIssues === []
+        ? 'Ninguna detectada en APP_URL / URL_BASE / getPublicUrl()'
+        : implode('; ', array_keys($urlIssues)),
+];
 
 // 7. URLs críticas
 $urls = [
-    'Landing SPA' => $base . '/public/landing-spa.php',
-    'Login' => $base . '/public/login.php',
-    'API Landing' => $base . '/public/api/landing_data.php',
-    'API Search Persona' => $base . '/public/api/search_user_persona.php',
+    'Landing SPA' => AppHelpers::url('landing-spa.php'),
+    'Login' => AppHelpers::url('login.php'),
+    'API Landing' => AppHelpers::url('api/landing_data.php'),
+    'API Search Persona' => AppHelpers::url('api/search_user_persona.php'),
 ];
 
 ?>
@@ -128,7 +162,7 @@ $urls = [
 </head>
 <body>
     <h1>Verificación de Producción</h1>
-    <p><strong>Entorno:</strong> <?= htmlspecialchars($env) ?> | <strong>Base URL:</strong> <code><?= htmlspecialchars($base) ?></code></p>
+    <p><strong>Entorno:</strong> <?= htmlspecialchars($env) ?> | <strong>Base URL:</strong> <code><?= htmlspecialchars($base) ?></code> | <strong>Public URL:</strong> <code><?= htmlspecialchars($publicUrl) ?></code></p>
     
     <h2>Comprobaciones</h2>
     <?php foreach ($checks as $name => $r): ?>

@@ -25,6 +25,8 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../lib/QrMesaTokenHelper.php';
 require_once __DIR__ . '/../lib/PartiresulEstatusSql.php';
 require_once __DIR__ . '/../lib/TorneoCampoNumerico.php';
+require_once __DIR__ . '/../lib/PartiresulJugadorHelper.php';
+require_once __DIR__ . '/../lib/NumfvdHelper.php';
 
 $torneo_id = (int)($_POST['torneo_id'] ?? $_POST['t'] ?? 0);
 $mesa_id = (int)($_POST['mesa_id'] ?? $_POST['mesa'] ?? $_POST['m'] ?? 0);
@@ -247,13 +249,18 @@ try {
             $params[] = $ruta_relativa;
         }
 
+        $clavesJug = PartiresulJugadorHelper::clavesBusquedaDesdeIdentificador($pdo, $torneo_id, $id_usuario);
+        $whereJug = PartiresulJugadorHelper::sqlWhereClaveIn('partiresul', $clavesJug);
         $params[] = $torneo_id;
         $params[] = $ronda;
         $params[] = $mesa_id;
-        $params[] = $id_usuario;
+        foreach ($clavesJug as $c) {
+            $params[] = $c;
+        }
         $params[] = $secuencia;
 
-        $sql = 'UPDATE partiresul SET ' . implode(', ', $update_cols) . ' WHERE id_torneo = ? AND partida = ? AND mesa = ? AND id_usuario = ? AND secuencia = ?';
+        $sql = 'UPDATE partiresul SET ' . implode(', ', $update_cols)
+            . ' WHERE id_torneo = ? AND partida = ? AND mesa = ? AND ' . $whereJug . ' AND secuencia = ?';
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
     }
@@ -269,6 +276,7 @@ try {
             SELECT pr.id_usuario, u.nombre" . ($hasTg ? ", u.telegram_chat_id" : "") . "
             FROM partiresul pr
             INNER JOIN usuarios u ON u.id = pr.id_usuario
+            INNER JOIN inscritos i ON " . PartiresulJugadorHelper::sqlOnInscritosPartiresul('i', 'pr') . "
             WHERE pr.id_torneo = ? AND pr.partida = ? AND pr.mesa = ?
             ORDER BY pr.secuencia
         ");

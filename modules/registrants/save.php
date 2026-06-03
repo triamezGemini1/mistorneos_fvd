@@ -9,7 +9,7 @@ require_once __DIR__ . '/../../lib/ClubHelper.php';
 Auth::requireRole(['admin_general','admin_torneo','admin_club']);
 CSRF::validate();
 
-// Obtener informaci�n del usuario actual
+// Obtener información del usuario actual
 $current_user = Auth::user();
 $user_role = $current_user['role'] ?? '';
 $user_club_id = !empty($current_user['club_id']) ? (int)$current_user['club_id'] : null;
@@ -89,7 +89,7 @@ try {
     ");
     $stmt->execute([$torneo_id, $cedula]);
     if ($stmt->fetch()) {
-        throw new Exception('Ya existe un jugador con esta c�dula inscrito en este torneo');
+        throw new Exception('Ya existe un jugador con esta cédula inscrito en este torneo');
     }
     
     // Obtener el siguiente identificador consecutivo para este torneo
@@ -108,7 +108,7 @@ try {
         'celular' => $athlete['celular'] ?? null,
     ];
 
-    // Insertar en la base de datos con identificador autom�tico
+    // Insertar en la base de datos con identificador automático
     $stmt = DB::pdo()->prepare("
         INSERT INTO inscripciones (
             athlete_id, cedula, nombre, sexo, club_id, torneo_id, 
@@ -127,13 +127,13 @@ try {
         ':club_id' => $club_id,
         ':torneo_id' => $torneo_id,
         ':celular' => $athlete_data['celular'] ?: null,
-        ':categ' => 0, // Se puede calcular despu�s si es necesario
+        ':categ' => 0, // Se puede calcular después si es necesario
         ':estatus' => $estatus,
         ':identificador' => $siguiente_identificador,
         ':team_id' => null // For now, set to null; UI can set for teams
     ]);
     
-    // Redirigir con �xito y mostrar deuda actualizada
+    // Redirigir con éxito y mostrar deuda actualizada
     header('Location: ../../public/index.php?page=registrants&success=' . urlencode('Inscrito creado exitosamente') . '&show_deuda=1&club_id=' . $club_id . '&torneo_id=' . $torneo_id);
     exit;
     

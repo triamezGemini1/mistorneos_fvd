@@ -15,7 +15,7 @@ $host = $_SERVER['HTTP_HOST'];
 $base_url = $protocol . '://' . $host;
 
 // Construir la URL completa al formulario de consulta
-$consulta_url = $base_url . '/public/consulta_credencial.php';
+$consulta_url = AppHelpers::url('consulta_credencial.php');
 
 // URL de la API de QR Code (usando QR Server API - no requiere instalación)
 $qr_code_url = 'https://api.qrserver.com/v1/create-qr-code/?' . http_build_query([

@@ -11,6 +11,9 @@ require_once __DIR__ . '/../../config/csrf.php';
 require_once __DIR__ . '/../../lib/InscripcionPagoService.php';
 require_once __DIR__ . '/../../lib/ReportePagoUsuarioService.php';
 require_once __DIR__ . '/../../lib/InscritosHelper.php';
+require_once __DIR__ . '/../../lib/Tournament/Handlers/RegistrationHandler.php';
+require_once __DIR__ . '/../../lib/ReciboPagoQrHelper.php';
+require_once __DIR__ . '/../../lib/ReciboInscripcionRenderer.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -56,7 +59,14 @@ try {
             echo json_encode(['ok' => false, 'message' => 'Estatus no válido'], JSON_UNESCAPED_UNICODE);
             exit;
         }
-        $res = InscripcionPagoService::establecerEstatusInscripcion($pdo, $inscripcionId, $torneoId, $estado);
+        $confirmacionDoble = (int) ($_POST['confirmacion_doble'] ?? 0) === 1;
+        $res = InscripcionPagoService::establecerEstatusInscripcion(
+            $pdo,
+            $inscripcionId,
+            $torneoId,
+            $estado,
+            $confirmacionDoble
+        );
         $payload = [
             'ok' => $res['ok'],
             'message' => $res['message'],
@@ -64,9 +74,16 @@ try {
             'pagado' => $estado === 'confirmado',
         ];
         if ($res['ok'] && $estado === 'confirmado') {
-            $recibo = cargarReciboInscripcion($pdo, $inscripcionId, $torneoId);
-            if ($recibo !== null) {
-                $payload['recibo_html'] = $recibo['html'];
+            try {
+                $recibo = cargarReciboInscripcion($pdo, $inscripcionId, $torneoId);
+                if ($recibo !== null && ($recibo['html'] ?? '') !== '') {
+                    $payload['recibo_html'] = $recibo['html'];
+                } else {
+                    $payload['recibo_warning'] = 'Pago confirmado, pero no se pudo generar el recibo. Use el botón Confirmado para reintentar.';
+                }
+            } catch (Throwable $reciboEx) {
+                error_log('inscripcion_admin recibo: ' . $reciboEx->getMessage());
+                $payload['recibo_warning'] = 'Pago confirmado. Error al generar recibo: ' . $reciboEx->getMessage();
             }
         }
         echo json_encode($payload, JSON_UNESCAPED_UNICODE);
@@ -80,6 +97,16 @@ try {
     }
 
     if ($accion === 'ver_recibo') {
+        $stE = $pdo->prepare('SELECT estatus FROM inscritos WHERE id = ? AND torneo_id = ? LIMIT 1');
+        $stE->execute([$inscripcionId, $torneoId]);
+        $estatusRec = $stE->fetchColumn();
+        if ($estatusRec !== false && !InscritosHelper::esConfirmado($estatusRec)) {
+            echo json_encode([
+                'ok' => false,
+                'message' => 'El recibo solo está disponible cuando la inscripción está confirmada (pago validado).',
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
         $recibo = cargarReciboInscripcion($pdo, $inscripcionId, $torneoId);
         if ($recibo === null) {
             echo json_encode(['ok' => false, 'message' => 'No hay datos para generar recibo'], JSON_UNESCAPED_UNICODE);
@@ -89,11 +116,71 @@ try {
         exit;
     }
 
+    if ($accion === 'eliminar_inscripcion') {
+        if (Auth::isAdminTorneo() && !Auth::canModifyTournament($torneoId)) {
+            http_response_code(403);
+            echo json_encode(['ok' => false, 'message' => 'No tiene permiso para eliminar inscripciones de este torneo'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $res = InscripcionPagoService::eliminarInscripcionRetirada($pdo, $inscripcionId, $torneoId);
+        echo json_encode($res, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($accion === 'desinscribir' || $accion === 'quitar_inscripcion') {
+        if (Auth::isAdminTorneo() && !Auth::canModifyTournament($torneoId)) {
+            http_response_code(403);
+            echo json_encode(['ok' => false, 'message' => 'No tiene permiso para quitar inscripciones de este torneo'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $res = InscripcionPagoService::quitarInscripcionActiva($pdo, $inscripcionId, $torneoId);
+        echo json_encode($res, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($accion === 'cambiar_asociacion') {
+        $nuevoClubId = (int) ($_POST['id_club'] ?? 0);
+        $stU = $pdo->prepare('SELECT id_usuario, estatus FROM inscritos WHERE id = ? AND torneo_id = ? LIMIT 1');
+        $stU->execute([$inscripcionId, $torneoId]);
+        $rowIns = $stU->fetch(PDO::FETCH_ASSOC);
+        $idUsuario = (int) ($rowIns['id_usuario'] ?? 0);
+        if ($idUsuario <= 0) {
+            echo json_encode(['ok' => false, 'message' => 'Inscripción no encontrada'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $confirmacionDoble = (int) ($_POST['confirmacion_doble'] ?? 0) === 1;
+        if (InscritosHelper::esConfirmado($rowIns['estatus'] ?? 0) && !$confirmacionDoble) {
+            echo json_encode([
+                'ok' => false,
+                'message' => 'Requiere confirmación doble: el recibo de pago ya fue emitido.',
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $out = \Tournament\Handlers\RegistrationHandler::apiCambiarClubInscrito(
+            $pdo,
+            $torneoId,
+            $idUsuario,
+            $nuevoClubId,
+            (int) (Auth::id() ?? 0),
+            true
+        );
+        echo json_encode([
+            'ok' => !empty($out['success']),
+            'message' => $out['message'] ?? ($out['error'] ?? 'Error'),
+            'club_id' => $out['club_id'] ?? $nuevoClubId,
+            'club_nombre' => $out['club_nombre'] ?? '',
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     echo json_encode(['ok' => false, 'message' => 'Acción no válida'], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {
-    error_log('inscripcion_admin: ' . $e->getMessage());
+    error_log('inscripcion_admin: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
     http_response_code(500);
-    echo json_encode(['ok' => false, 'message' => 'Error del servidor'], JSON_UNESCAPED_UNICODE);
+    echo json_encode([
+        'ok' => false,
+        'message' => 'Error del servidor: ' . $e->getMessage(),
+    ], JSON_UNESCAPED_UNICODE);
 }
 
 /**
@@ -136,38 +223,16 @@ function cargarReciboInscripcion(PDO $pdo, int $inscripcionId, int $torneoId): ?
         }
     }
 
-    return ['html' => renderReciboInscripcionBasico($pdo, $ins, $torneoId)];
+    return ReciboInscripcionRenderer::htmlDesdeInscripcion($pdo, $inscripcionId, $torneoId);
 }
 
 /**
  * @param array<string, mixed> $ins
+ * @deprecated Usar ReciboInscripcionRenderer
  */
 function renderReciboInscripcionBasico(PDO $pdo, array $ins, int $torneoId): string
 {
-    $st = $pdo->prepare('SELECT nombre, fechator, costo FROM tournaments WHERE id = ? LIMIT 1');
-    $st->execute([$torneoId]);
-    $t = $st->fetch(PDO::FETCH_ASSOC) ?: [];
-    $nombre = htmlspecialchars((string) ($ins['nombre'] ?? ''), ENT_QUOTES, 'UTF-8');
-    $cedula = htmlspecialchars((string) ($ins['cedula'] ?? ''), ENT_QUOTES, 'UTF-8');
-    $torneo = htmlspecialchars((string) ($t['nombre'] ?? ''), ENT_QUOTES, 'UTF-8');
-    $fecha = !empty($t['fechator']) ? date('d/m/Y', strtotime((string) $t['fechator'])) : '—';
-    $costo = number_format((float) ($t['costo'] ?? 0), 2);
-    $ahora = date('d/m/Y H:i');
+    $recibo = ReciboInscripcionRenderer::htmlDesdeInscripcion($pdo, (int) ($ins['id'] ?? 0), $torneoId);
 
-    return <<<HTML
-<div class="recibo-pago-tarjeta border border-success rounded-3 overflow-hidden bg-white" id="recibo-pago-print">
-  <div class="bg-success text-white p-3 text-center">
-    <h4 class="mb-1">Comprobante de inscripción pagada</h4>
-    <p class="mb-0 small opacity-90">Validado {$ahora}</p>
-  </div>
-  <div class="p-4">
-    <h5 class="text-center fw-bold text-success mb-3">{$torneo}</h5>
-    <p class="text-center text-muted small mb-3">{$fecha}</p>
-    <p class="mb-1"><strong>Atleta:</strong> {$nombre}</p>
-    <p class="mb-1"><strong>Cédula:</strong> {$cedula}</p>
-    <p class="mb-1"><strong>ID usuario:</strong> {$ins['user_id']}</p>
-    <p class="mb-0"><strong>Costo torneo:</strong> <span class="text-success fs-5">\${$costo}</span></p>
-  </div>
-</div>
-HTML;
+    return $recibo['html'] ?? '';
 }

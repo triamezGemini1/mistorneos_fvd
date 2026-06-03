@@ -506,7 +506,7 @@ function handleUpdateUser() {
     $errors = [];
     
     if ($user_id <= 0) {
-        $errors[] = 'ID de usuario inv�lido';
+        $errors[] = 'ID de usuario inválido';
     }
     
     if (empty($username)) {
@@ -516,11 +516,11 @@ function handleUpdateUser() {
     }
     
     if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'El email no es v�lido';
+        $errors[] = 'El email no es válido';
     }
     
     if (!in_array($role, ['admin_general', 'admin_torneo', 'admin_club', 'usuario'])) {
-        $errors[] = 'El rol seleccionado no es v�lido';
+        $errors[] = 'El rol seleccionado no es válido';
     }
     
     // Validar que admin_torneo tenga club asignado
@@ -548,7 +548,7 @@ function handleUpdateUser() {
                 // Actualizar usuario
                 if (!empty($password)) {
                     if (strlen($password) < 6) {
-                        $errors[] = 'La contrase�a debe tener al menos 6 caracteres';
+                        $errors[] = 'La contraseña debe tener al menos 6 caracteres';
                     } else {
                         $password_hash = Security::hashPassword($password);
                         $stmt = $pdo->prepare("UPDATE usuarios SET username = ?, email = ?, role = ?, password_hash = ?, club_id = ?, entidad = ? WHERE id = ?");
@@ -578,7 +578,7 @@ function handleDeleteUser() {
     $user_id = (int)($_POST['user_id'] ?? 0);
     
     if ($user_id <= 0) {
-        $_SESSION['errors'] = ['ID de usuario inv�lido'];
+        $_SESSION['errors'] = ['ID de usuario inválido'];
         return;
     }
     
@@ -607,7 +607,7 @@ function handleToggleStatus() {
     $user_id = (int)($_POST['user_id'] ?? 0);
     
     if ($user_id <= 0) {
-        $_SESSION['errors'] = ['ID de usuario inv�lido'];
+        $_SESSION['errors'] = ['ID de usuario inválido'];
         return;
     }
     
@@ -640,17 +640,17 @@ function handleChangePassword() {
     $errors = [];
     
     if ($user_id <= 0) {
-        $errors[] = 'ID de usuario inv�lido';
+        $errors[] = 'ID de usuario inválido';
     }
     
     if (empty($new_password)) {
-        $errors[] = 'La nueva contrase�a es requerida';
+        $errors[] = 'La nueva contraseña es requerida';
     } elseif (strlen($new_password) < 6) {
-        $errors[] = 'La contrase�a debe tener al menos 6 caracteres';
+        $errors[] = 'La contraseña debe tener al menos 6 caracteres';
     }
     
     if ($new_password !== $confirm_password) {
-        $errors[] = 'Las contrase�as no coinciden';
+        $errors[] = 'Las contraseñas no coinciden';
     }
     
     if (empty($errors)) {
@@ -663,15 +663,15 @@ function handleChangePassword() {
             if (!$stmt->fetch()) {
                 $errors[] = 'Usuario no encontrado';
             } else {
-                // Actualizar contrase�a
+                // Actualizar contraseña
                 $password_hash = Security::hashPassword($new_password);
                 $stmt = $pdo->prepare("UPDATE usuarios SET password_hash = ?, updated_at = NOW() WHERE id = ?");
                 $stmt->execute([$password_hash, $user_id]);
                 
-                $_SESSION['success_message'] = 'Contrase�a actualizada exitosamente';
+                $_SESSION['success_message'] = 'Contraseña actualizada exitosamente';
             }
         } catch (Exception $e) {
-            $errors[] = 'Error al actualizar la contrase�a: ' . $e->getMessage();
+            $errors[] = 'Error al actualizar la contraseña: ' . $e->getMessage();
         }
     }
     
@@ -1108,7 +1108,7 @@ function getEntidadesOptions(): array {
     }
 }
 
-// Obtener datos para la vista con paginaci�n
+// Obtener datos para la vista con paginación
 $current_page = isset($_GET['p']) ? max(1, (int)$_GET['p']) : 1;
 $per_page = isset($_GET['per_page']) ? max(10, min(100, (int)$_GET['per_page'])) : 25;
 $admin_id = isset($_GET['admin_id']) ? (int)$_GET['admin_id'] : null;
@@ -1136,12 +1136,12 @@ if ($action === 'edit' && $user_id > 0) {
     }
 }
 
-// Obtener mensajes de sesi�n
+// Obtener mensajes de sesión
 $success_message = $_SESSION['success_message'] ?? null;
 $errors = $_SESSION['errors'] ?? [];
 $form_data = $_SESSION['form_data'] ?? [];
 
-// Limpiar mensajes de sesi�n
+// Limpiar mensajes de sesión
 unset($_SESSION['success_message'], $_SESSION['errors'], $_SESSION['form_data']);
 
 $entidades_options = getEntidadesOptions();

@@ -1,6 +1,6 @@
 <?php
 /**
- * Editar Invitaci�n
+ * Editar Invitación
  */
 
 
@@ -12,7 +12,7 @@ require_once __DIR__ . '/../../config/csrf.php';
 
 Auth::requireRole(['admin_general','admin_torneo']);
 
-$title = "Editar Invitaci�n";
+$title = "Editar Invitación";
 $errors = [];
 
 if (!isset($_GET['id']) && !isset($_POST['id'])) {
@@ -29,7 +29,7 @@ if ($id <= 0) {
 try {
     $pdo = DB::pdo();
     
-    // Obtener invitaci�n
+    // Obtener invitación
     $stmt = $pdo->prepare("
         SELECT i.*, t.nombre as torneo_nombre, c.nombre as club_nombre
         FROM " . TABLE_INVITATIONS . " i
@@ -41,7 +41,7 @@ try {
     $invitacion = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$invitacion) {
-        die("Invitaci�n no encontrada");
+        die("Invitación no encontrada");
     }
     
     // Procesar formulario
@@ -111,7 +111,7 @@ try {
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">?? Editar Invitaci�n #<?= $id ?></h4>
+                    <h4 class="mb-0">?? Editar Invitación #<?= $id ?></h4>
                 </div>
                 <div class="card-body">
                     
@@ -126,7 +126,7 @@ try {
                         </div>
                     <?php endif; ?>
 
-                    <!-- Informaci�n no editable -->
+                    <!-- Información no editable -->
                     <div class="alert alert-info">
                         <strong>?? Torneo:</strong> <?= htmlspecialchars($invitacion['torneo_nombre']) ?><br>
                         <strong>?? Club:</strong> <?= htmlspecialchars($invitacion['club_nombre']) ?><br>

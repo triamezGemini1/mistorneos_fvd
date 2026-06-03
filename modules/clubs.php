@@ -45,7 +45,7 @@ $org_join_expr = $has_cod_org
     ? "LEFT JOIN organizaciones o ON (t.club_responsable = o.id OR t.club_responsable = o.cod_org)"
     : "LEFT JOIN organizaciones o ON t.club_responsable = o.id";
 
-// Procesar eliminaci�n si se solicita
+// Procesar eliminación si se solicita
 if ($action === 'delete' && $id) {
     try {
         $club_id = (int)$id;
@@ -84,7 +84,7 @@ if ($action === 'delete' && $id) {
     exit;
 }
 
-// Obtener datos para edici�n o vista
+// Obtener datos para edición o vista
 $club = null;
 $afiliado_detail = null;
 $afiliado_torneos = [];
@@ -759,7 +759,7 @@ document.addEventListener('DOMContentLoaded', function () {
         $return_url = 'index.php?page=admin_clubs&view=detail&admin_id=' . $from_admin_id;
     } elseif ($from_page === 'home') {
         // Si viene del dashboard (home), volver al dashboard
-        $return_url = 'index.php?page=home';
+        $return_url = class_exists('AppHelpers') ? AppHelpers::landingUrl() : 'index.php?page=torneo_gestion&action=index';
     } elseif ($from_page === 'clubes_asociados') {
         $return_url = 'index.php?page=clubes_asociados';
     }
@@ -1303,7 +1303,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title">
-                    <i class="fas fa-paper-plane me-2"></i>Enviar Invitaci�n a Torneo
+                    <i class="fas fa-paper-plane me-2"></i>Enviar Invitación a Torneo
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -1316,7 +1316,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="mb-3">
                         <label class="form-label fw-bold">Club a Invitar:</label>
                         <p id="inviting_club_name" class="form-control-plaintext bg-light p-2 rounded"></p>
-                        <small class="text-muted">Este club recibir� la invitaci�n para participar en el torneo</small>
+                        <small class="text-muted">Este club recibirá la invitación para participar en el torneo</small>
                     </div>
                     
                     <div class="mb-3">
@@ -1326,13 +1326,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         <select class="form-select" id="tournament_select" name="torneo_id" required>
                             <option value="">Cargando torneos...</option>
                         </select>
-                        <div class="form-text">Seleccione el torneo para el cual se generar� la invitaci�n</div>
+                        <div class="form-text">Seleccione el torneo para el cual se generará la invitación</div>
                     </div>
                     
                     <div id="tournament_info" class="mb-3 d-none">
                         <div class="card">
                             <div class="card-header bg-info text-white">
-                                <i class="fas fa-info-circle me-2"></i>Informaci�n del Torneo
+                                <i class="fas fa-info-circle me-2"></i>Información del Torneo
                             </div>
                             <div class="card-body">
                                 <div class="row">
@@ -1352,7 +1352,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             Fecha Inicio de Acceso <span class="text-danger">*</span>
                         </label>
                         <input type="date" class="form-control" id="access_start" name="acceso1" required>
-                        <small class="text-muted">Se calcular� autom�ticamente: 7 d�as antes del torneo</small>
+                        <small class="text-muted">Se calculará automáticamente: 7 días antes del torneo</small>
                     </div>
                     
                     <div class="mb-3">
@@ -1360,12 +1360,12 @@ document.addEventListener('DOMContentLoaded', function () {
                             Fecha Fin de Acceso <span class="text-danger">*</span>
                         </label>
                         <input type="date" class="form-control" id="access_end" name="acceso2" required>
-                        <small class="text-muted">Se calcular� autom�ticamente: 1 d�a antes del torneo</small>
+                        <small class="text-muted">Se calculará automáticamente: 1 día antes del torneo</small>
                     </div>
                     
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>Nota:</strong> Se generar� autom�ticamente un PDF de invitaci�n con los logos de los clubes.
+                        <strong>Nota:</strong> Se generará automáticamente un PDF de invitación con los logos de los clubes.
                     </div>
                 </form>
             </div>
@@ -1374,7 +1374,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <i class="fas fa-times me-2"></i>Cancelar
                 </button>
                 <button type="button" class="btn btn-success" id="sendInvitationBtn" onclick="sendInvitation()">
-                    <i class="fas fa-paper-plane me-2"></i>Generar Invitaci�n
+                    <i class="fas fa-paper-plane me-2"></i>Generar Invitación
                 </button>
             </div>
         </div>
@@ -1382,7 +1382,7 @@ document.addEventListener('DOMContentLoaded', function () {
 </div>
 
 <script>
-// Funci�n para mostrar logo completo
+// Función para mostrar logo completo
 function showLogoModal(logoPath, clubName) {
     document.getElementById('logoModalTitle').textContent = `Logo - ${clubName}`;
     document.getElementById('logoModalImage').src = logoPath;
@@ -1392,19 +1392,19 @@ function showLogoModal(logoPath, clubName) {
     logoModal.show();
 }
 
-// Abrir modal de invitaci�n
+// Abrir modal de invitación
 async function openInvitationModal(clubId, clubName) {
-    console.log('?? Abriendo modal para club:', clubId, clubName);
+    console.log('• Abriendo modal para club:', clubId, clubName);
     
     // IMPORTANTE: Resetear formulario completamente primero
     resetInvitationForm();
     
-    // Esperar un tick para asegurar que el reset se complet�
+    // Esperar un tick para asegurar que el reset se completó
     await new Promise(resolve => setTimeout(resolve, 50));
     
-    // Establecer nuevo club - forzar la asignaci�n
+    // Establecer nuevo club - forzar la asignación
     const clubIdInput = document.getElementById('inviting_club_id');
-    clubIdInput.value = '';  // Limpiar primero expl�citamente
+    clubIdInput.value = '';  // Limpiar primero explícitamente
     clubIdInput.value = clubId;  // Asignar nuevo valor
     document.getElementById('inviting_club_name').textContent = clubName;
     document.getElementById('tournament_info').classList.add('d-none');
@@ -1420,14 +1420,14 @@ async function openInvitationModal(clubId, clubName) {
     await loadTournaments();
 }
 
-// Funci�n para resetear el formulario de invitaci�n
+// Función para resetear el formulario de invitación
 function resetInvitationForm() {
     const form = document.getElementById('invitationForm');
     if (form) {
         form.reset();
     }
     
-    // Limpiar campos espec�ficos
+    // Limpiar campos específicos
     document.getElementById('inviting_club_id').value = '';
     document.getElementById('tournament_select').value = '';
     document.getElementById('access_start').value = '';
@@ -1452,11 +1452,11 @@ function resetInvitationForm() {
         invitationForm.style.display = 'block';
     }
     
-    // Restaurar bot�n original
+    // Restaurar botón original
     const btn = document.getElementById('sendInvitationBtn');
     if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Generar Invitaci�n';
+        btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Generar Invitación';
     }
     
     // Restaurar footer original
@@ -1467,7 +1467,7 @@ function resetInvitationForm() {
                 <i class="fas fa-times me-2"></i>Cancelar
             </button>
             <button type="button" class="btn btn-success" id="sendInvitationBtn" onclick="sendInvitation()">
-                <i class="fas fa-paper-plane me-2"></i>Generar Invitaci�n
+                <i class="fas fa-paper-plane me-2"></i>Generar Invitación
             </button>
         `;
     }
@@ -1481,7 +1481,7 @@ async function loadTournaments() {
         select.innerHTML = '<option value="">Cargando torneos...</option>';
         select.disabled = true;
         
-        // API est� en public/api/ - usar ruta relativa correcta
+        // API está en public/api/ - usar ruta relativa correcta
         // Estamos en /public/index.php cargando modules/clubs.php
         const response = await fetch('api/tournaments.php?estatus=1');
         
@@ -1536,7 +1536,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('tournament_cost').textContent = costo;
                 infoDiv.classList.remove('d-none');
                 
-                // Calcular fechas autom�ticamente
+                // Calcular fechas automáticamente
                 calculateDates(fecha);
             } else {
                 infoDiv.classList.add('d-none');
@@ -1553,35 +1553,35 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Calcular fechas de acceso autom�ticamente
+// Calcular fechas de acceso automáticamente
 function calculateDates(fechaTorneo) {
     // Agregar T12:00:00 para evitar problema de zona horaria
     const fecha = new Date(fechaTorneo + 'T12:00:00');
     
-    console.log('?? Calculando fechas para torneo:', fechaTorneo);
+    console.log('• Calculando fechas para torneo:', fechaTorneo);
     
-    // acceso1: 7 d�as antes del torneo
+    // acceso1: 7 días antes del torneo
     const acceso1 = new Date(fecha);
     acceso1.setDate(acceso1.getDate() - 7);
     
-    // acceso2: 1 d�a antes del torneo
+    // acceso2: 1 día antes del torneo
     const acceso2 = new Date(fecha);
     acceso2.setDate(acceso2.getDate() - 1);
     
     const acceso1_str = acceso1.toISOString().split('T')[0];
     const acceso2_str = acceso2.toISOString().split('T')[0];
     
-    console.log('?? Fechas calculadas:', {
+    console.log('• Fechas calculadas:', {
         'Torneo': fechaTorneo,
-        'Inicio inscripci�n (acceso1)': acceso1_str,
-        'Fin inscripci�n (acceso2)': acceso2_str
+        'Inicio inscripción (acceso1)': acceso1_str,
+        'Fin inscripción (acceso2)': acceso2_str
     });
     
     document.getElementById('access_start').value = acceso1_str;
     document.getElementById('access_end').value = acceso2_str;
 }
 
-// Enviar invitaci�n
+// Enviar invitación
 async function sendInvitation() {
     const form = document.getElementById('invitationForm');
     const btn = document.getElementById('sendInvitationBtn');
@@ -1600,7 +1600,7 @@ async function sendInvitation() {
         acceso2: document.getElementById('access_end').value
     };
     
-    console.log('?? Enviando invitaci�n:', data);
+    console.log('• Enviando invitación:', data);
     
     // Validar datos
     if (!data.club_id || !data.torneo_id) {
@@ -1614,14 +1614,14 @@ async function sendInvitation() {
         return;
     }
     
-    console.log('? Validaci�n pasada. Datos a enviar:', {
+    console.log('? Validación pasada. Datos a enviar:', {
         club_id: data.club_id,
         torneo_id: data.torneo_id,
         acceso1: data.acceso1,
         acceso2: data.acceso2
     });
     
-    // Deshabilitar bot�n
+    // Deshabilitar botón
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Procesando...';
     
@@ -1641,18 +1641,18 @@ async function sendInvitation() {
         console.log('Result:', result);
         
         if (result.success) {
-            // Generar mensaje de WhatsApp y enviar autom�ticamente
+            // Generar mensaje de WhatsApp y enviar automáticamente
             enviarAutomaticoWhatsApp(result);
         } else {
             showInvitationAlert('? Error: ' + result.error, 'danger');
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Generar Invitaci�n';
+            btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Generar Invitación';
         }
     } catch (error) {
         console.error('Error completo:', error);
-        showInvitationAlert('? Error de conexi�n: ' + error.message, 'danger');
+        showInvitationAlert('? Error de conexión: ' + error.message, 'danger');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Generar Invitaci�n';
+        btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Generar Invitación';
     }
 }
 
@@ -1664,7 +1664,7 @@ function showInvitationAlert(message, type) {
     alert.classList.remove('d-none');
 }
 
-// Mostrar vista previa del PDF y opciones de env�o
+// Mostrar vista previa del PDF y opciones de envío
 function mostrarVistaPrevia(result) {
     const modalBody = document.querySelector('#invitationModal .modal-body');
     const modalFooter = document.querySelector('#invitationModal .modal-footer');
@@ -1679,12 +1679,12 @@ function mostrarVistaPrevia(result) {
     previewContainer.innerHTML = `
         <div class="alert alert-success mb-3">
             <i class="fas fa-check-circle me-2"></i>
-            <strong>�Invitaci�n creada exitosamente!</strong><br>
+            <strong>¡Invitación creada exitosamente!</strong><br>
             <small>Token generado: <code>${result.token.substring(0, 20)}...</code></small>
         </div>
         
         <h6 class="mb-3">
-            <i class="fas fa-file-pdf me-2 text-danger"></i>Vista Previa del PDF de Invitaci�n
+            <i class="fas fa-file-pdf me-2 text-danger"></i>Vista Previa del PDF de Invitación
         </h6>
         
         <div class="border rounded mb-3" style="height: 400px; overflow: hidden;">
@@ -1695,10 +1695,10 @@ function mostrarVistaPrevia(result) {
         
         <div class="alert alert-info">
             <i class="fas fa-info-circle me-2"></i>
-            <strong>Pr�ximos pasos:</strong><br>
-            1. Descargue el PDF de invitaci�n<br>
-            2. Env�elo por WhatsApp al delegado del club<br>
-            3. El delegado usar� el token para acceder e inscribir jugadores
+            <strong>Próximos pasos:</strong><br>
+            1. Descargue el PDF de invitación<br>
+            2. Envíelo por WhatsApp al delegado del club<br>
+            3. El delegado usar• el token para acceder e inscribir jugadores
         </div>
     `;
     
@@ -1721,7 +1721,7 @@ function mostrarVistaPrevia(result) {
     `;
 }
 
-// Enviar autom�ticamente por WhatsApp despu�s de generar invitaci�n
+// Enviar automáticamente por WhatsApp después de generar invitación
 async function enviarAutomaticoWhatsApp(result) {
     const modalBody = document.querySelector('#invitationModal .modal-body');
     const modalFooter = document.querySelector('#invitationModal .modal-footer');
@@ -1730,7 +1730,7 @@ async function enviarAutomaticoWhatsApp(result) {
     document.getElementById('invitationForm').style.display = 'none';
     document.getElementById('invitationAlert').classList.add('d-none');
     
-    // Mostrar proceso de env�o
+    // Mostrar proceso de envío
     const processingContainer = document.createElement('div');
     processingContainer.id = 'processingContainer';
     processingContainer.innerHTML = `
@@ -1738,10 +1738,10 @@ async function enviarAutomaticoWhatsApp(result) {
             <div class="spinner-border text-success mb-3" role="status" style="width: 3rem; height: 3rem;">
                 <span class="visually-hidden">Procesando...</span>
             </div>
-            <h5 class="mb-3">Generando y enviando invitaci�n...</h5>
+            <h5 class="mb-3">Generando y enviando invitación...</h5>
             <div class="alert alert-info">
                 <i class="fas fa-info-circle me-2"></i>
-                Se abrir� WhatsApp autom�ticamente en unos segundos
+                Se abrió WhatsApp automáticamente en unos segundos
             </div>
             <div id="statusMessage" class="text-muted"></div>
         </div>
@@ -1758,9 +1758,9 @@ async function enviarAutomaticoWhatsApp(result) {
     
     try {
         // Actualizar estado
-        document.getElementById('statusMessage').textContent = 'Obteniendo datos de la invitaci�n...';
+        document.getElementById('statusMessage').textContent = 'Obteniendo datos de la invitación...';
         
-        // Obtener datos completos de la invitaci�n
+        // Obtener datos completos de la invitación
         const response = await fetch(`../modules/invitations/get_invitation_data.php?id=${result.invitation_id}`);
         const data = await response.json();
         
@@ -1782,32 +1782,32 @@ async function enviarAutomaticoWhatsApp(result) {
         const loginUrl = `${protocol}//${host}${projectRoot}/modules/invitations/inscripciones/login.php?token=${inv.token}`;
         const pdfUrl = `${protocol}//${host}${projectRoot}/modules/generar_pdf_invitacion_simple.php?id=${result.invitation_id}`;
         
-        // Funci�n helper para formatear fechas sin problemas de zona horaria
+        // Función helper para formatear fechas sin problemas de zona horaria
         function formatearFecha(fechaStr) {
             if (!fechaStr) return 'N/A';
-            // Agregar 'T12:00:00' para forzar interpretaci�n local (mediod�a)
+            // Agregar 'T12:00:00' para forzar interpretación local (mediodía)
             const fecha = new Date(fechaStr + 'T12:00:00');
             return fecha.toLocaleDateString('es-ES');
         }
         
-        let mensaje = `*?? INVITACI�N TORNEO DE DOMIN�*\n\n`;
+        let mensaje = `*📋 INVITACIÓN TORNEO DE DOMINÓ*\n\n`;
         mensaje += `Estimado/a *${inv.club_invitado_delegado || 'Delegado'}*\n`;
         mensaje += `Club: *${inv.club_invitado_nombre}*\n\n`;
         mensaje += `????????????????\n\n`;
-        mensaje += `?? *TORNEO:* ${inv.torneo_nombre}\n`;
-        mensaje += `?? *FECHA DEL TORNEO:* ${formatearFecha(inv.torneo_fecha)}\n`;
-        mensaje += `?? *ORGANIZA:* ${inv.club_responsable_nombre || 'N/A'}\n\n`;
-        mensaje += `? *PER�ODO DE INSCRIPCI�N:*\n`;
+        mensaje += `*📋 TORNEO:* ${inv.torneo_nombre}\n`;
+        mensaje += `*📋 FECHA DEL TORNEO:* ${formatearFecha(inv.torneo_fecha)}\n`;
+        mensaje += `*📋 ORGANIZA:* ${inv.club_responsable_nombre || 'N/A'}\n\n`;
+        mensaje += `? *PERÍODO DE INSCRIPCIÓN:*\n`;
         mensaje += `Desde: ${formatearFecha(inv.acceso1)}\n`;
         mensaje += `Hasta: ${formatearFecha(inv.acceso2)}\n\n`;
         mensaje += `????????????????\n\n`;
-        mensaje += `?? *INSCRIBIR JUGADORES (Click aqu�):*\n${loginUrl}\n\n`;
-        mensaje += `?? *Ver PDF de Invitaci�n:*\n${pdfUrl}\n\n`;
+        mensaje += `*📋 INSCRIBIR JUGADORES (Click aquí):*\n${loginUrl}\n\n`;
+        mensaje += `*📋 Ver PDF de Invitación:*\n${pdfUrl}\n\n`;
         
         // Agregar archivos adjuntos del torneo si existen
         if (result.archivos && Object.keys(result.archivos).length > 0) {
             mensaje += `????????????????\n\n`;
-            mensaje += `?? *ARCHIVOS ADJUNTOS:*\n\n`;
+            mensaje += `*📋 ARCHIVOS ADJUNTOS:*\n\n`;
             
             if (result.archivos.afiche) {
                 const afficheUrl = `${protocol}//${host}${projectRoot}/${result.archivos.afiche.url}`;
@@ -1816,7 +1816,7 @@ async function enviarAutomaticoWhatsApp(result) {
             
             if (result.archivos.invitacion) {
                 const invitacionUrl = `${protocol}//${host}${projectRoot}/${result.archivos.invitacion.url}`;
-                mensaje += `${result.archivos.invitacion.icono} *Invitaci�n Oficial:*\n${invitacionUrl}\n\n`;
+                mensaje += `${result.archivos.invitacion.icono} *Invitación Oficial:*\n${invitacionUrl}\n\n`;
             }
             
             if (result.archivos.normas) {
@@ -1826,36 +1826,36 @@ async function enviarAutomaticoWhatsApp(result) {
         }
         
         mensaje += `????????????????\n\n`;
-        mensaje += `?? *INSTRUCCIONES:*\n`;
+        mensaje += `*📋 INSTRUCCIONES:*\n`;
         mensaje += `1?? Haga click en "INSCRIBIR JUGADORES"\n`;
-        mensaje += `2?? Acceso AUTOM�TICO (sin contrase�as)\n`;
+        mensaje += `2️⃣ Acceso AUTOMÁTICO (sin contraseñas)\n`;
         mensaje += `3?? Descargue los archivos adjuntos\n`;
-        mensaje += `4?? Complete el formulario de inscripci�n\n\n`;
-        mensaje += `?? *Importante:* El link funciona directamente desde su celular\n\n`;
-        mensaje += `�Esperamos su participaci�n! ??\n\n`;
+        mensaje += `4?? Complete el formulario de inscripción\n\n`;
+        mensaje += `*📋 Importante:* El link funciona directamente desde su celular\n\n`;
+        mensaje += `¡Esperamos su participación! ??\n\n`;
         mensaje += `_Serviclubes LED_`;
         
-        // Limpiar y formatear tel�fono para WhatsApp
+        // Limpiar y formatear teléfono para WhatsApp
         let telefono = '';
         if (inv.club_invitado_telefono) {
-            // Limpiar: solo n�meros
+            // Limpiar: solo números
             telefono = inv.club_invitado_telefono.replace(/[^0-9]/g, '');
             
-            // Si empieza con 0, quitarlo (t�pico de Venezuela)
+            // Si empieza con 0, quitarlo (típico de Venezuela)
             if (telefono.startsWith('0')) {
                 telefono = telefono.substring(1);
             }
             
-            // Si no tiene c�digo de pa�s, agregar 58 (Venezuela)
+            // Si no tiene código de país, agregar 58 (Venezuela)
             if (telefono.length === 10 && !telefono.startsWith('58')) {
                 telefono = '58' + telefono;
             }
             
-            // Si tiene c�digo de pa�s pero sin +, est� OK
+            // Si tiene código de país pero sin +, está OK
             // WhatsApp acepta sin +
             
-            console.log('Tel�fono original:', inv.club_invitado_telefono);
-            console.log('Tel�fono formateado:', telefono);
+            console.log('Teléfono original:', inv.club_invitado_telefono);
+            console.log('Teléfono formateado:', telefono);
         }
         
         // Generar URL de WhatsApp
@@ -1864,10 +1864,10 @@ async function enviarAutomaticoWhatsApp(result) {
         
         if (telefono && telefono.length >= 10) {
             whatsappUrl = `https://api.whatsapp.com/send?phone=${telefono}&text=${mensajeEncoded}`;
-            console.log('URL WhatsApp con tel�fono:', whatsappUrl);
+            console.log('URL WhatsApp con teléfono:', whatsappUrl);
         } else {
             whatsappUrl = `https://api.whatsapp.com/send?text=${mensajeEncoded}`;
-            console.log('URL WhatsApp sin tel�fono (debe seleccionar contacto)');
+            console.log('URL WhatsApp sin teléfono (debe seleccionar contacto)');
         }
         
         // Actualizar estado
@@ -1887,20 +1887,20 @@ async function enviarAutomaticoWhatsApp(result) {
             processingContainer.innerHTML = `
                 <div class="text-center py-4">
                     <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
-                    <h4 class="mt-3 mb-3">�Invitaci�n Creada Exitosamente!</h4>
+                    <h4 class="mt-3 mb-3">¡Invitación Creada Exitosamente!</h4>
                     
                     <div class="alert alert-info mb-4">
                         <i class="fab fa-whatsapp me-2"></i>
                         <strong>IMPORTANTE:</strong><br>
-                        WhatsApp se ha abierto en una nueva pesta�a.<br>
-                        <strong class="text-danger">Haga click en el bot�n "Enviar" de WhatsApp para completar el env�o.</strong><br>
-                        <small>Si WhatsApp no se abri�, use el bot�n "Abrir WhatsApp" de abajo.</small>
+                        WhatsApp se ha abierto en una nueva pestaña.<br>
+                        <strong class="text-danger">Haga click en el botón "Enviar" de WhatsApp para completar el envío.</strong><br>
+                        <small>Si WhatsApp no se abrió, use el botón "Abrir WhatsApp" de abajo.</small>
                     </div>
                     
                     <div class="alert alert-warning">
                         <i class="fas fa-info-circle me-2"></i>
                         <strong>�Problemas con WhatsApp?</strong><br>
-                        Si WhatsApp no se abri� o no puede enviar, puede copiar el mensaje manualmente usando el bot�n "Copiar Mensaje".
+                        Si WhatsApp no se abrió o no puede enviar, puede copiar el mensaje manualmente usando el botón "Copiar Mensaje".
                     </div>
                     
                     <div class="d-grid gap-2 mt-4">
@@ -1913,19 +1913,19 @@ async function enviarAutomaticoWhatsApp(result) {
                         </button>
                         
                         <a href="${pdfUrl}" class="btn btn-danger btn-lg">
-                            <i class="fas fa-file-pdf me-2"></i>Ver PDF de Invitaci�n
+                            <i class="fas fa-file-pdf me-2"></i>Ver PDF de Invitación
                         </a>
                         
                         <button type="button" class="btn btn-secondary" onclick="location.reload()">
-                            <i class="fas fa-sync me-2"></i>Crear Nueva Invitaci�n
+                            <i class="fas fa-sync me-2"></i>Crear Nueva Invitación
                         </button>
                     </div>
                     
                     <div class="mt-4 p-3 bg-light rounded">
-                        <h6 class="mb-2"><strong>Datos de la Invitaci�n:</strong></h6>
+                        <h6 class="mb-2"><strong>Datos de la Invitación:</strong></h6>
                         <p class="mb-1"><strong>Club:</strong> ${inv.club_invitado_nombre}</p>
                         <p class="mb-1"><strong>Delegado:</strong> ${inv.club_invitado_delegado || 'N/A'}</p>
-                        <p class="mb-1"><strong>Tel�fono:</strong> ${inv.club_invitado_telefono || 'No registrado'} ${telefono ? '(Formato WhatsApp: +' + telefono + ')' : ''}</p>
+                        <p class="mb-1"><strong>Teléfono:</strong> ${inv.club_invitado_telefono || 'No registrado'} ${telefono ? '(Formato WhatsApp: +' + telefono + ')' : ''}</p>
                         <p class="mb-1"><strong>Torneo:</strong> ${inv.torneo_nombre}</p>
                         <p class="mb-0"><strong>Token:</strong> <code>${inv.token}</code></p>
                     </div>
@@ -1938,10 +1938,10 @@ async function enviarAutomaticoWhatsApp(result) {
                 </button>
             `;
             
-            // Si WhatsApp no se abri� (bloqueador de popups), mostrar alerta
+            // Si WhatsApp no se abrió (bloqueador de popups), mostrar alerta
             if (false) {
                 setTimeout(() => {
-                    alert('?? WhatsApp no se pudo abrir autom�ticamente.\n\nPor favor, haga click en el bot�n "Abrir WhatsApp" que aparece arriba, o copie el mensaje manualmente.');
+                    alert('• WhatsApp no se pudo abrir automáticamente.\n\nPor favor, haga click en el botón "Abrir WhatsApp" que aparece arriba, o copie el mensaje manualmente.');
                 }, 500);
             }
         }, 1000);
@@ -1957,7 +1957,7 @@ async function enviarAutomaticoWhatsApp(result) {
     }
 }
 
-// Funci�n para copiar mensaje completo
+// Función para copiar mensaje completo
 function copiarMensajeCompleto(mensaje) {
     const textarea = document.createElement('textarea');
     textarea.value = mensaje;
@@ -1968,21 +1968,21 @@ function copiarMensajeCompleto(mensaje) {
     
     try {
         document.execCommand('copy');
-        alert('? Mensaje copiado al portapapeles!\n\nAhora puede pegarlo en WhatsApp manualmente.');
+        alert('✓ Mensaje copiado al portapapeles!\n\nAhora puede pegarlo en WhatsApp manualmente.');
     } catch (err) {
-        alert('? Error al copiar. Por favor, seleccione y copie el mensaje manualmente.');
+        alert('✓ Error al copiar. Por favor, seleccione y copie el mensaje manualmente.');
     }
     
     document.body.removeChild(textarea);
 }
 
-// Funci�n para exportar clubs a Excel
+// Función para exportar clubs a Excel
 function exportarClubsExcel() {
     window.location.href = '../modules/clubs/export_excel.php';
 }
 
 // Log para debugging
-console.log('M�dulo clubs.php cargado correctamente');
+console.log('Módulo clubs.php cargado correctamente');
 </script>
 
 <style>

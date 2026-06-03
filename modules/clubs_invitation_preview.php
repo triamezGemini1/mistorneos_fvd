@@ -90,15 +90,15 @@ try {
     // Mensaje para WhatsApp
     $separador = "??????????????????????";
     
-    $mensaje = "?? *INVITACI?N A TORNEO*\n\n";
+    $mensaje = "• *INVITACI?N A TORNEO*\n\n";
     $mensaje .= $separador . "\n\n";
     $mensaje .= "*" . $inv['torneo_nombre'] . "*\n\n";
-    $mensaje .= "?? *Fecha:* " . $fecha_torneo . "\n";
-    $mensaje .= "?? *Club Invitado:* " . $inv['club_nombre'] . "\n";
-    $mensaje .= "?? *Delegado:* " . $delegado . "\n";
+    $mensaje .= "• *Fecha:* " . $fecha_torneo . "\n";
+    $mensaje .= "• *Club Invitado:* " . $inv['club_nombre'] . "\n";
+    $mensaje .= "• *Delegado:* " . $delegado . "\n";
     $mensaje .= "? *Vigencia:* " . $vigencia . "\n\n";
     $mensaje .= $separador . "\n\n";
-    $mensaje .= "?? *Descargue su invitaci?n completa con toda la informaci?n aqu?:*\n";
+    $mensaje .= "• *Descargue su invitaci?n completa con toda la informaci?n aqu?:*\n";
     $mensaje .= $pdf_url . "\n\n";
     $mensaje .= "El documento PDF incluye:\n";
     $mensaje .= "? Logos de ambos clubes\n";

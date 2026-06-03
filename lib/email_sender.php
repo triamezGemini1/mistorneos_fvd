@@ -10,25 +10,25 @@ class EmailSender {
     private static $from_name = 'Sistema de Inscripciones - Mistorneos';
 
     /**
-     * Env�a un correo de invitaci�n a un club
+     * Env�a un correo de invitación a un club
      */
     public static function sendInvitationEmail(array $invitation_data): bool {
         try {
             $to_email = $invitation_data['club_email'];
             $to_name = $invitation_data['club_delegado'];
-            $subject = "Invitaci�n al Torneo: " . $invitation_data['tournament_name'];
+            $subject = "Invitación al Torneo: " . $invitation_data['tournament_name'];
             
             $message = self::generateInvitationMessage($invitation_data);
             
             return self::sendEmail($to_email, $to_name, $subject, $message);
         } catch (Exception $e) {
-            error_log("Error enviando correo de invitaci�n: " . $e->getMessage());
+            error_log("Error enviando correo de invitación: " . $e->getMessage());
             return false;
         }
     }
 
     /**
-     * Genera el mensaje de invitaci�n
+     * Genera el mensaje de invitación
      */
     private static function generateInvitationMessage(array $data): string {
         require_once __DIR__ . '/invitation_helpers.php';
@@ -40,7 +40,7 @@ class EmailSender {
         <head>
             <meta charset='UTF-8'>
             <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-            <title>Invitaci�n al Torneo</title>
+            <title>Invitación al Torneo</title>
             <style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
                 .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -55,7 +55,7 @@ class EmailSender {
         <body>
             <div class='container'>
                 <div class='header'>
-                    <h1>?? Invitaci�n al Torneo</h1>
+                    <h1>?? Invitación al Torneo</h1>
                     <p>Sistema de Inscripciones - Mistorneos</p>
                 </div>
                 
@@ -69,7 +69,7 @@ class EmailSender {
                     <p><strong>?? Fecha del torneo:</strong> {$data['tournament_date']}</p>
                     <p><strong>?? Club organizador:</strong> {$data['organizer_club_name']}</p>
                     <p><strong>?? Delegado organizador:</strong> {$data['organizer_delegado']}</p>
-                    <p><strong>?? Tel�fono del club invitado:</strong> {$data['club_telefono']}</p>
+                    <p><strong>?? Teléfono del club invitado:</strong> {$data['club_telefono']}</p>
                     
                     <p>Se anexan datos para su acceso al sistema de inscripciones:</p>
                     
@@ -77,12 +77,12 @@ class EmailSender {
                         <h3>?? Datos de Acceso</h3>
                         <p><strong>URL de acceso:</strong> <a href='{$login_url}'>{$login_url}</a></p>
                         <p><strong>Usuario:</strong> {$data['usuario']}</p>
-                        <p><strong>Contrase�a:</strong> usuario</p>
+                        <p><strong>Contraseña:</strong> usuario</p>
                     </div>
                     
                     <p>Esperando su pronta y positiva respuesta se suscriben de usted:</p>
                     
-                    <p><strong>Por la comisi�n de Domin� del {$data['organizer_club_name']}</strong></p>
+                    <p><strong>Por la comisi�n de Domin• del {$data['organizer_club_name']}</strong></p>
                     <p><strong>{$data['organizer_delegado']}</strong></p>
                     
                     <div style='text-align: center; margin: 30px 0;'>
@@ -93,8 +93,8 @@ class EmailSender {
                 </div>
                 
                 <div class='footer'>
-                    <p>� 2025 Sistema de Inscripciones - Mistorneos</p>
-                    <p>Este es un correo autom�tico, por favor no responda a este mensaje.</p>
+                    <p>• 2025 Sistema de Inscripciones - Mistorneos</p>
+                    <p>Este es un correo automático, por favor no responda a este mensaje.</p>
                 </div>
             </div>
         </body>
@@ -104,7 +104,7 @@ class EmailSender {
     }
 
     /**
-     * Env�a un correo usando la funci�n mail() de PHP
+     * Env�a un correo usando la función mail() de PHP
      */
     private static function sendEmail(string $to_email, string $to_name, string $subject, string $message): bool {
         try {
@@ -130,13 +130,13 @@ class EmailSender {
                 return false;
             }
         } catch (Exception $e) {
-            error_log("Excepci�n al enviar correo: " . $e->getMessage());
+            error_log("Excepción al enviar correo: " . $e->getMessage());
             return false;
         }
     }
 
     /**
-     * Obtiene los datos completos de una invitaci�n para el correo
+     * Obtiene los datos completos de una invitación para el correo
      */
     public static function getInvitationDataForEmail(int $invitation_id): ?array {
         try {
@@ -162,7 +162,7 @@ class EmailSender {
             
             return $data ?: null;
         } catch (Exception $e) {
-            error_log("Error obteniendo datos de invitaci�n: " . $e->getMessage());
+            error_log("Error obteniendo datos de invitación: " . $e->getMessage());
             return null;
         }
     }
@@ -171,12 +171,12 @@ class EmailSender {
      * Verifica si el correo se puede enviar
      */
     public static function canSendEmail(): bool {
-        // Verificar si la funci�n mail() est� disponible
+        // Verificar si la función mail() est• disponible
         if (!function_exists('mail')) {
             return false;
         }
         
-        // Verificar configuraci�n b�sica
+        // Verificar configuración básica
         $sendmail_path = ini_get('sendmail_path');
         if (empty($sendmail_path)) {
             return false;

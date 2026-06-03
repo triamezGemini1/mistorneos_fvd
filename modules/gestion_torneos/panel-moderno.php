@@ -243,7 +243,7 @@ $invitar_clubes_inhabil = ($ultima_ronda > 0);
                     <span class="panel-badge-med__v"><?php echo (int)$mesas_verificadas_count; ?></span>
                 </div>
                 <div class="panel-badge-med panel-badge-med--blue" title="Digitadas (admin)">
-                    <span class="panel-badge-med__k">Adm.</span>
+                    <span class="panel-badge-med__k">ADM</span>
                     <span class="panel-badge-med__v"><?php echo (int)$mesas_digitadas_count; ?></span>
                 </div>
             </div>
@@ -366,6 +366,11 @@ $invitar_clubes_inhabil = ($ultima_ronda > 0);
                         <a href="index.php?page=invitations&filter_torneo=<?= (int)($torneo['id'] ?? 0) ?>" class="tw-btn bg-slate-600 hover:bg-slate-700 text-white w-full text-center">
                             <i class="fas fa-envelope mr-2"></i> Invitaciones por club
                         </a>
+                        <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=export_access_portal&torneo_id=<?php echo (int)($torneo['id'] ?? 0); ?>"
+                           class="tw-btn bg-slate-800 hover:bg-slate-900 text-white w-full text-center border border-slate-600"
+                           title="Descargar inscritos para access y partidas para access">
+                            <i class="fas fa-database mr-2"></i> Exportar para Microsoft Access
+                        </a>
                         <?php
                         $tid_op = (int)($torneo['id'] ?? 0);
                         $href_op_swap = class_exists('AppHelpers', false)
@@ -486,14 +491,13 @@ $invitar_clubes_inhabil = ($ultima_ronda > 0);
                         <!-- Verificar Mesas (QR): activo cuando hay actas pendientes -->
                         <?php if ($actas_pendientes_count > 0): ?>
                             <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=verificar_resultados&torneo_id=<?php echo (int)$torneo['id']; ?>" 
-                               class="tw-btn tw-panel-btn--alert">
-                                <i class="fas fa-check-double"></i> Verificar Mesas
-                                <span class="tw-panel-btn__badge"><?php echo $actas_pendientes_count; ?></span>
+                               class="tw-btn tw-panel-btn--alert"
+                               title="<?php echo (int)$actas_pendientes_count; ?> acta(s) pendiente(s)">
+                                <i class="fas fa-check-double"></i> Verificar Mesas QR
                             </a>
                         <?php else: ?>
                             <button type="button" disabled class="tw-btn bg-gray-400 text-white">
-                                <i class="fas fa-check-double"></i> Verificar Mesas
-                                <span class="ml-2 text-xs opacity-75">(envíos QR pendientes)</span>
+                                <i class="fas fa-check-double"></i> Verificar Mesas QR
                             </button>
                         <?php endif; ?>
                         
@@ -504,13 +508,7 @@ $invitar_clubes_inhabil = ($ultima_ronda > 0);
                                 <input type="hidden" name="csrf_token" value="<?php echo CSRF::token(); ?>">
                                 <input type="hidden" name="torneo_id" value="<?php echo (int)($torneo['id'] ?? 0); ?>">
                                 <?php if (!$es_modalidad_equipos_o_parejas && !$es_modalidad_parejas_fijas): ?>
-                                <div class="mb-2 text-left">
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1" for="estrategia_ronda2_gen">Emparejamiento (individual)</label>
-                                    <select name="estrategia_ronda2" id="estrategia_ronda2_gen" class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm">
-                                        <option value="separar">Clásico: r2 separar líderes; r3+ Suizo</option>
-                                        <option value="club_interclub_rr">Interclub: RR por club; sin BYE en R1 (sobrantes por club → retirados automáticos)</option>
-                                    </select>
-                                </div>
+                                <input type="hidden" name="estrategia_ronda2" value="separar">
                                 <?php endif; ?>
                                 <button type="submit" id="btn-generar-ronda"
                                         data-btn-reset-html="<?php echo htmlspecialchars(
@@ -962,7 +960,7 @@ async function confirmarCierreTorneo(event) {
     function detectEncodingAndDecode(buffer) {
         var bytes = new Uint8Array(buffer);
         var utf8 = new TextDecoder('utf-8').decode(bytes);
-        var mojibakePattern = /Ã[Âª©®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ]/;
+        var mojibakePattern = /Ã[ª©®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ]/;
         if (mojibakePattern.test(utf8) || (utf8.indexOf('Ã') !== -1 && utf8.indexOf('©') !== -1)) {
             try {
                 return new TextDecoder('windows-1252').decode(bytes);

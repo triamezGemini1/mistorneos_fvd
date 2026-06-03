@@ -25,12 +25,12 @@ try {
     if (empty($cedula)) {
         echo json_encode([
             'encontrado' => false, 
-            'error' => 'Debe proporcionar una c�dula'
+            'error' => 'Debe proporcionar una cédula'
         ]);
         exit;
     }
     
-    // Obtener torneo_id de la sesi�n
+    // Obtener torneo_id de la sesión
     $torneo_id = $_SESSION['torneo_id'] ?? null;
     $club_id = $_SESSION['club_id'] ?? null;
     
@@ -42,7 +42,7 @@ try {
         exit;
     }
     
-    // 1. PRIMERO: Verificar si ya est� inscrito en ESTE torneo (clave �nica: cedula + torneo_id)
+    // 1. PRIMERO: Verificar si ya est• inscrito en ESTE torneo (clave única: cedula + torneo_id)
     $stmt = $pdo->prepare("
         SELECT id, nombre 
         FROM inscripciones 
@@ -56,12 +56,12 @@ try {
         echo json_encode([
             'encontrado' => false,
             'ya_inscrito' => true,
-            'error' => '?? El jugador con c�dula ' . $nacionalidad . $cedula . ' ya est� inscrito en este torneo'
+            'error' => '• El jugador con cédula ' . $nacionalidad . $cedula . ' ya est• inscrito en este torneo'
         ]);
         exit;
     }
     
-    // 2. Si NO est� inscrito en este torneo, buscar datos en registrants (otros torneos)
+    // 2. Si NO est• inscrito en este torneo, buscar datos en registrants (otros torneos)
     $stmt = $pdo->prepare("
         SELECT nombre, sexo, fechnac, celular 
         FROM inscripciones 
@@ -88,11 +88,23 @@ try {
         exit;
     }
     
-    // 3. Si no est� en local, buscar en BD externa
-    $database = new PersonaDatabase();
-    $result = $database->searchPersonaById($nacionalidad, $cedula);
-    
-    echo json_encode($result);
+    // 3. Si no está en local, buscar en BD externa (solo si está configurada)
+    if (PersonaDatabase::isConfigured()) {
+        $persona = PersonaDatabase::buscarPorCedula($nacionalidad, $cedula);
+        if ($persona !== null) {
+            echo json_encode([
+                'encontrado' => true,
+                'fuente' => 'externa',
+                'persona' => $persona,
+            ]);
+            exit;
+        }
+    }
+
+    echo json_encode([
+        'encontrado' => false,
+        'error' => 'No se encontró persona con esa cédula',
+    ]);
     
 } catch (Exception $e) {
     echo json_encode([

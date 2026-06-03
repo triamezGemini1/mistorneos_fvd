@@ -59,10 +59,10 @@ try {
         throw new Exception('La fecha del torneo es requerida');
     }
     if (empty($_POST['clase']) || !in_array((int)$_POST['clase'], [1, 2])) {
-        throw new Exception('La clase del torneo es inv�lida');
+        throw new Exception('La clase del torneo es inválida');
     }
     if (empty($_POST['modalidad']) || !in_array((int)$_POST['modalidad'], [1, 2, 3, 4])) {
-        throw new Exception('La modalidad del torneo es inv�lida');
+        throw new Exception('La modalidad del torneo es inválida');
     }
     
     // Preparar datos
@@ -475,7 +475,7 @@ try {
         ]);
     }
     
-    // Obtener el ID del torneo reci�n creado
+    // Obtener el ID del torneo reción creado
     $tournament_id = (int)DB::pdo()->lastInsertId();
 
     // Notificar a delegados de cada asociación (club) para inscripción / afiliación / carnets
@@ -525,7 +525,7 @@ try {
                 $file_path = FileUpload::uploadTournamentFile($_FILES[$field], $field, $tournament_id);
                 $file_updates[$field] = $file_path;
             } catch (Exception $e) {
-                // Si falla la subida, continuar con los dem�s archivos
+                // Si falla la subida, continuar con los demás archivos
                 error_log("Error al subir $field para torneo $tournament_id: " . $e->getMessage());
             }
         }

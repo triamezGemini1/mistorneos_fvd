@@ -1,0 +1,22 @@
+                    <motion class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl hero-inner relative z-10">
+                        <motion class="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+                            <motion class="text-center lg:text-left order-2 lg:order-1">
+                                <p class="fvd-section-label mb-4 justify-center lg:justify-start"><i class="fas fa-certificate" aria-hidden="true"></i> Federación Venezolana de Dominó</p>
+                                <h1 class="fvd-font-title text-3xl sm:text-4xl md:text-5xl xl:text-6xl text-white leading-tight mb-5">
+                                    Gestión oficial de <span class="text-amber-400">torneos de dominó</span>
+                                </h1>
+                                <p class="text-base md:text-lg text-blue-100/90 mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed">Inscripciones, calendario, resultados y documentación institucional en un solo portal para atletas, clubes y organizadores.</p>
+                                <motion class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start items-stretch sm:items-center">
+                                    <a href="#eventos" class="fvd-btn-primary inline-flex items-center justify-center rounded-xl px-8 py-4 text-base md:text-lg font-bold"><i class="fas fa-trophy mr-2 text-blue-900" aria-hidden="true"></i>Torneos activos</a>
+                                    <a href="<?= htmlspecialchars($base_url . 'login.php') ?>" class="fvd-btn-ghost inline-flex items-center justify-center rounded-xl px-8 py-4 text-base font-semibold"><i class="fas fa-sign-in-alt mr-2" aria-hidden="true"></i>Acceso miembros</a>
+                                </motion>
+                            </motion>
+                            <motion class="flex justify-center order-1 lg:order-2">
+                                <motion class="fvd-hero-logo-frame rounded-2xl p-8 sm:p-10 flex flex-col items-center w-full max-w-xs sm:max-w-sm">
+                                    <img src="<?= htmlspecialchars($logo_url) ?>" alt="Logo Federación Venezolana de Dominó" width="280" height="280" fetchpriority="high" loading="eager" decoding="async" class="landing-hero-logo">
+                                    <p class="mt-5 fvd-font-title text-amber-300 text-xs sm:text-sm tracking-widest uppercase text-center">La Estación del Dominó</p>
+                                    <p class="mt-2 text-blue-200/80 text-xs text-center">Portal oficial FVD</p>
+                                </motion>
+                            </motion>
+                        </motion>
+                    </motion>

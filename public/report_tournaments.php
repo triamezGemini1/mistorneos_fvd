@@ -56,7 +56,7 @@ try {
     $stmt->execute($params);
     $tournaments = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Obtener estad�sticas
+    // Obtener estadísticas
     $stmt = $pdo->query("
         SELECT 
             COUNT(*) as total,
@@ -77,7 +77,7 @@ try {
     // Encabezado del reporte
     $subtitle = 'Lista completa de torneos registrados en el sistema';
     if ($search) {
-        $subtitle .= ' - B�squeda: "' . htmlspecialchars($search) . '"';
+        $subtitle .= ' - Búsqueda: "' . htmlspecialchars($search) . '"';
     }
     if ($status_filter !== null) {
         $subtitle .= ' - Estado: ' . ($status_filter ? 'Activos' : 'Inactivos');
@@ -85,11 +85,11 @@ try {
     
     $content .= $report->addReportHeader($subtitle);
     
-    // Estad�sticas
+    // Estadísticas
     $content .= $report->generateStatsBoxes([
         ['number' => $stats['total'], 'label' => 'Total Torneos'],
         ['number' => $stats['activos'], 'label' => 'Activos'],
-        ['number' => $stats['proximos'], 'label' => 'Pr�ximos'],
+        ['number' => $stats['proximos'], 'label' => 'Próximos'],
         ['number' => $stats['pasados'], 'label' => 'Realizados']
     ]);
     
@@ -135,7 +135,7 @@ try {
         $content .= '<h2>Detalle de Torneos</h2>';
         
         foreach ($tournaments as $tournament) {
-            // Informaci�n b�sica
+            // Información básica
             $info_data = [
                 'Nombre' => htmlspecialchars($tournament['nombre']),
                 'Fecha' => ReportGenerator::formatDate($tournament['fechator']),
@@ -155,7 +155,7 @@ try {
                     : ReportGenerator::badge('Inactivo', 'danger')
             ];
             
-            // Estad�sticas del torneo
+            // Estadísticas del torneo
             $stmt = $pdo->prepare("
                 SELECT 
                     COUNT(DISTINCT i.id) as invitaciones_enviadas,

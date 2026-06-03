@@ -1,0 +1,519 @@
+/**
+ * Formularios y reportes FVD (alineado con admin_fvd).
+ * Ámbito: .fvd-afiliacion-wrap
+ */
+.fvd-afiliacion-wrap {
+    --fvd-azul-profundo: #2e2e8e;
+    --fvd-azul-panel: #1a1a5e;
+    --fvd-azul-elevado: #252570;
+    --fvd-oro: #ffd700;
+    --fvd-oro-hover: #ffe44d;
+    --fvd-texto-claro: #ffffff;
+    --fvd-texto-suave: #c5d4e6;
+    --fvd-placeholder: #8fa3b8;
+    --fvd-linea-sutil: rgba(255, 255, 255, 0.12);
+    --primary-blue: #2e2e8e;
+    background: linear-gradient(180deg, #eef1f8 0%, #f4f6f9 35%);
+    padding: 0.5rem 0 1.5rem;
+    margin: -0.5rem -0.75rem 0;
+    border-radius: 0.5rem;
+}
+
+.fvd-afiliacion-wrap .breadcrumb--fvd .breadcrumb-item a {
+    color: var(--fvd-azul-profundo);
+}
+
+.fvd-afiliacion-wrap .afiliacion-card,
+.fvd-afiliacion-wrap .fvd-reporte-card {
+    max-width: 1140px;
+    margin: 0 auto;
+    background: var(--fvd-azul-panel);
+    border-radius: 10px;
+    padding: 1rem 1.15rem 1.25rem;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--fvd-linea-sutil);
+    color: var(--fvd-texto-suave);
+}
+
+.fvd-afiliacion-wrap .afiliacion-title {
+    margin: 0 0 0.35rem;
+    font-size: 1.25rem;
+    color: var(--fvd-texto-claro);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.fvd-afiliacion-wrap .afiliacion-lead {
+    margin: 0 0 1rem;
+    font-size: 0.82rem;
+    color: var(--fvd-texto-suave);
+    line-height: 1.45;
+}
+
+.fvd-afiliacion-wrap .afiliacion-lead code {
+    color: var(--fvd-oro);
+}
+
+.fvd-afiliacion-wrap .afiliacion-twocol {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1rem 1.25rem;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .fvd-afiliacion-wrap .afiliacion-twocol {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Formulario afiliación: título centrado y reparto 60% datos / 40% imágenes */
+.fvd-afiliacion-wrap .afiliacion-card--form {
+    max-width: 980px;
+}
+
+.fvd-afiliacion-wrap .afiliacion-title-center {
+    margin: 0 0 0.35rem;
+    text-align: center;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--fvd-texto-claro);
+    letter-spacing: 0.02em;
+}
+
+.fvd-afiliacion-wrap .afiliacion-asoc-center {
+    margin: 0 0 0.5rem;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--fvd-oro);
+}
+
+.fvd-afiliacion-wrap .afiliacion-hint-center {
+    margin: 0 0 1rem;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--fvd-texto-suave);
+    line-height: 1.4;
+}
+
+.fvd-afiliacion-wrap .afiliacion-split-6040 {
+    --fvd-w-numfvd: 7.5rem;
+    display: grid;
+    grid-template-columns: minmax(0, 60%) minmax(0, 40%);
+    gap: 1rem 1.25rem;
+    align-items: start;
+}
+
+.fvd-afiliacion-wrap .afiliacion-fields-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.fvd-afiliacion-wrap .afiliacion-media-pane {
+    min-width: 0;
+}
+
+.fvd-afiliacion-wrap .afiliacion-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem 0.75rem;
+    align-items: flex-end;
+}
+
+.fvd-afiliacion-wrap .afiliacion-row .afiliacion-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+    min-width: 0;
+}
+
+.fvd-afiliacion-wrap .afiliacion-row .afiliacion-field .form-control,
+.fvd-afiliacion-wrap .afiliacion-row .afiliacion-field .form-select {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Fila 1: cédula +50% ancho base; nombre ocupa el resto */
+.fvd-afiliacion-wrap .afiliacion-row--cedula-nombre {
+    align-items: flex-end;
+}
+
+.fvd-afiliacion-wrap .afiliacion-field--cedula {
+    flex: 0 0 calc(22.5% * 1.5);
+    max-width: 38%;
+    min-width: 9.5rem;
+}
+
+.fvd-afiliacion-wrap .afiliacion-field--nombre {
+    flex: 1 1 0;
+    min-width: 8rem;
+}
+
+/* Fila 2: sexo y fecha +50% cada uno (columnas 1.5fr) */
+.fvd-afiliacion-wrap .afiliacion-row--sexo-fnac {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.5fr);
+    gap: 0.75rem;
+}
+
+.fvd-afiliacion-wrap .afiliacion-row--sexo-fnac .afiliacion-field--wide {
+    min-width: 0;
+}
+
+/* Fila 3: email y celular a partes iguales */
+.fvd-afiliacion-wrap .afiliacion-row--email-celular {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.75rem;
+}
+
+/* Fila 4: Nº FVD y categoría (categoría = ancho numfvd + 30%) */
+.fvd-afiliacion-wrap .afiliacion-row--numfvd-categ {
+    align-items: flex-end;
+}
+
+.fvd-afiliacion-wrap .afiliacion-field--numfvd .form-control {
+    width: var(--fvd-w-numfvd);
+    max-width: 100%;
+}
+
+.fvd-afiliacion-wrap .afiliacion-field--categ .afiliacion-categoria-input {
+    width: calc(var(--fvd-w-numfvd) * 1.3);
+    max-width: 100%;
+    background: rgba(212, 175, 55, 0.12);
+    color: var(--fvd-oro);
+    font-weight: 600;
+    cursor: default;
+}
+
+.fvd-afiliacion-wrap .afiliacion-field--club-admin .form-control {
+    max-width: 12rem;
+}
+
+.fvd-afiliacion-wrap .afiliacion-actions--center {
+    justify-content: center;
+}
+
+@media (max-width: 900px) {
+    .fvd-afiliacion-wrap .afiliacion-split-6040 {
+        grid-template-columns: 1fr;
+    }
+
+    .fvd-afiliacion-wrap .afiliacion-field--cedula {
+        flex: 1 1 100%;
+        max-width: 100%;
+    }
+
+    .fvd-afiliacion-wrap .afiliacion-row--sexo-fnac,
+    .fvd-afiliacion-wrap .afiliacion-row--email-celular {
+        grid-template-columns: 1fr;
+    }
+}
+
+.fvd-afiliacion-wrap .afiliacion-block-title {
+    margin: 0 0 0.5rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--fvd-texto-claro);
+    border-bottom: 1px solid var(--fvd-linea-sutil);
+    padding-bottom: 0.35rem;
+}
+
+.fvd-afiliacion-wrap .afiliacion-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem 0.75rem;
+}
+
+.fvd-afiliacion-wrap .afiliacion-field--full {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+    .fvd-afiliacion-wrap .afiliacion-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.fvd-afiliacion-wrap .afiliacion-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+    font-size: 0.8rem;
+}
+
+.fvd-afiliacion-wrap .afiliacion-field > span,
+.fvd-afiliacion-wrap .afiliacion-field label {
+    font-weight: 600;
+    color: var(--fvd-texto-claro);
+    margin: 0;
+}
+
+.fvd-afiliacion-wrap .form-label {
+    font-weight: 600;
+    color: var(--fvd-texto-claro);
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+}
+
+.fvd-afiliacion-wrap .form-control,
+.fvd-afiliacion-wrap .form-select {
+    background: var(--fvd-azul-elevado);
+    color: var(--fvd-texto-claro);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 5px;
+}
+
+.fvd-afiliacion-wrap .form-control:focus,
+.fvd-afiliacion-wrap .form-select:focus {
+    background: var(--fvd-azul-elevado);
+    color: var(--fvd-texto-claro);
+    border-color: var(--fvd-oro);
+    box-shadow: 0 0 0 0.15rem rgba(255, 215, 0, 0.25);
+}
+
+.fvd-afiliacion-wrap .afiliacion-field input,
+.fvd-afiliacion-wrap .afiliacion-field select,
+.fvd-afiliacion-wrap .afiliacion-field .form-control,
+.fvd-afiliacion-wrap .afiliacion-field .form-select {
+    padding: 0.42rem 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 5px;
+    font-size: 0.88rem;
+    background: var(--fvd-azul-elevado);
+    color: var(--fvd-texto-claro);
+}
+
+.fvd-afiliacion-wrap .afiliacion-field input::placeholder {
+    color: var(--fvd-placeholder);
+}
+
+.fvd-afiliacion-wrap .afiliacion-media-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.fvd-afiliacion-wrap .afiliacion-preview {
+    margin-top: 0.35rem;
+    min-height: 120px;
+    background: var(--fvd-azul-elevado);
+    border: 1px dashed rgba(255, 255, 255, 0.22);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.fvd-afiliacion-wrap .afiliacion-preview-ph {
+    color: var(--fvd-placeholder);
+    font-size: 0.82rem;
+}
+
+.fvd-afiliacion-wrap .afiliacion-preview-img {
+    max-width: 100%;
+    max-height: 180px;
+    display: none;
+    border-radius: 6px;
+}
+
+.fvd-afiliacion-wrap .afiliacion-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--fvd-linea-sutil);
+}
+
+.fvd-afiliacion-wrap .fvd-btn-primary,
+.fvd-afiliacion-wrap .afiliacion-actions .fvd-btn-primary {
+    background: var(--fvd-oro);
+    color: #1a1204;
+    font-weight: 700;
+    border: none;
+}
+
+.fvd-afiliacion-wrap .fvd-btn-primary:hover {
+    background: var(--fvd-oro-hover);
+    color: #1a1204;
+}
+
+.fvd-afiliacion-wrap .fvd-btn-secondary,
+.fvd-afiliacion-wrap .afiliacion-actions .fvd-btn-secondary {
+    background: transparent;
+    color: var(--fvd-texto-claro);
+    border: 1px solid var(--fvd-linea-sutil);
+}
+
+.fvd-afiliacion-wrap .fvd-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--fvd-texto-claro);
+}
+
+.fvd-afiliacion-wrap .alert-success,
+.fvd-afiliacion-wrap .alert-danger,
+.fvd-afiliacion-wrap .alert-warning {
+    border-radius: 6px;
+}
+
+/* Toolbar reportes carnet/traspaso */
+.fvd-afiliacion-wrap .ag-inf-carnet-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.65rem 1rem;
+    padding: 0.65rem 0.75rem;
+    background: var(--fvd-azul-elevado);
+    border-radius: 8px;
+    border: 1px solid var(--fvd-linea-sutil);
+}
+
+.fvd-afiliacion-wrap .ag-inf-carnet-fld {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 140px;
+}
+
+.fvd-afiliacion-wrap .ag-inf-carnet-lbl {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--fvd-texto-claro);
+}
+
+.fvd-afiliacion-wrap .ag-inf-carnet-meta {
+    align-self: center;
+    color: var(--fvd-texto-suave) !important;
+}
+
+/* Tablas reporte */
+.fvd-afiliacion-wrap .reporte-vista {
+    font-size: 0.78rem;
+    line-height: 1.35;
+    margin-top: 0.5rem;
+}
+
+.fvd-afiliacion-wrap .fvd-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    color: #333;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.fvd-afiliacion-wrap .fvd-table thead th {
+    background: var(--primary-blue);
+    color: #fff;
+    padding: 0.5rem 0.65rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.fvd-afiliacion-wrap .fvd-table tbody td {
+    padding: 0.45rem 0.65rem;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+}
+
+.fvd-afiliacion-wrap .fvd-table tbody tr:hover td {
+    background: #f9fafb;
+}
+
+.fvd-afiliacion-wrap .fvd-table tbody tr.fvd-row-nueva-afiliacion td {
+    background: rgba(255, 215, 0, 0.22);
+    animation: fvd-row-highlight 2s ease-out;
+}
+
+@keyframes fvd-row-highlight {
+    from {
+        background: rgba(255, 215, 0, 0.45);
+    }
+    to {
+        background: rgba(255, 215, 0, 0.22);
+    }
+}
+
+.fvd-afiliacion-wrap .fvd-table .ag-num {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+.fvd-afiliacion-wrap .ins-badge {
+    display: inline-block;
+    font-size: 0.62rem;
+    font-weight: 800;
+    padding: 0.1rem 0.28rem;
+    border-radius: 3px;
+    background: rgba(255, 215, 0, 0.2);
+    color: #8a6d00;
+    border: 1px solid rgba(255, 215, 0, 0.5);
+    margin-right: 0.15rem;
+}
+
+.fvd-afiliacion-wrap .ins-badge--tp {
+    background: rgba(220, 53, 69, 0.15);
+    color: #a71d2a;
+    border-color: rgba(220, 53, 69, 0.4);
+}
+
+.fvd-afiliacion-wrap .fvd-reporte-pager .page-link {
+    color: var(--fvd-azul-profundo);
+}
+
+.fvd-afiliacion-wrap .fvd-reporte-pager .page-item.active .page-link {
+    background: var(--fvd-azul-profundo);
+    border-color: var(--fvd-azul-profundo);
+}
+
+/* Hub informes */
+.fvd-informes-hub {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.fvd-informes-hub a {
+    display: block;
+    padding: 1rem;
+    background: var(--fvd-azul-elevado);
+    border: 1px solid var(--fvd-linea-sutil);
+    border-radius: 8px;
+    color: var(--fvd-texto-claro);
+    text-decoration: none;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.fvd-informes-hub a:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--fvd-oro);
+    color: var(--fvd-oro);
+}
+
+.fvd-informes-hub a i {
+    font-size: 1.5rem;
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--fvd-oro);
+}
+
+@media print {
+    .fvd-afiliacion-wrap {
+        background: #fff;
+        margin: 0;
+    }
+    .fvd-afiliacion-wrap .afiliacion-actions,
+    .fvd-afiliacion-wrap .ag-inf-carnet-toolbar,
+    .fvd-afiliacion-wrap .fvd-reporte-pager {
+        display: none !important;
+    }
+}

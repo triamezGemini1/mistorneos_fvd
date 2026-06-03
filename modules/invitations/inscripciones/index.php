@@ -1,6 +1,6 @@
 <?php
 /**
- * Panel de Inscripci�n de Jugadores
+ * Panel de Inscripción de Jugadores
  */
 
 session_start();
@@ -15,12 +15,12 @@ try {
     $torneo_id = $_SESSION['torneo_id'];
     $club_id = $_SESSION['club_id'];
     
-    // Obtener informaci�n del torneo
+    // Obtener información del torneo
     $stmt = $pdo->prepare("SELECT * FROM tournaments WHERE id = ?");
     $stmt->execute([$torneo_id]);
     $torneo = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Obtener informaci�n del club
+    // Obtener información del club
     $stmt = $pdo->prepare("SELECT * FROM clubes WHERE id = ?");
     $stmt->execute([$club_id]);
     $club = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -34,7 +34,7 @@ try {
     $stmt->execute([$torneo_id, $club_id]);
     $inscritos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Estad�sticas por g�nero
+    // Estadísticas por género
     // En la tabla registrants: 1 = Masculino, 2 = Femenino
     $total_inscritos = count($inscritos);
     $hombres = count(array_filter($inscritos, function($r) { 
@@ -53,7 +53,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inscripci�n de Jugadores</title>
+    <title>Inscripción de Jugadores</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .stats-card {
@@ -75,16 +75,16 @@ try {
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3>?? Inscripci�n de Jugadores</h3>
+            <h3>?? Inscripción de Jugadores</h3>
             <p class="mb-0"><strong>Torneo:</strong> <?= htmlspecialchars($_SESSION['torneo_nombre']) ?></p>
             <p class="mb-0"><strong>Club:</strong> <?= htmlspecialchars($_SESSION['club_nombre']) ?></p>
         </div>
         <div>
-            <a href="logout.php" class="btn btn-secondary">?? Cerrar Sesi�n</a>
+            <a href="logout.php" class="btn btn-secondary">?? Cerrar Sesión</a>
         </div>
     </div>
 
-    <!-- Estad�sticas -->
+    <!-- Estadísticas -->
     <div class="row mb-4">
         <div class="col-md-4">
             <div class="stats-card bg-primary">
@@ -109,7 +109,7 @@ try {
     <!-- Mensaje -->
     <div id="mensaje" class="alert d-none"></div>
 
-    <!-- Formulario de Inscripci�n -->
+    <!-- Formulario de Inscripción -->
     <div class="card mb-4">
         <div class="card-header bg-success text-white">
             <h5 class="mb-0">? Inscribir Nuevo Jugador</h5>
@@ -131,10 +131,10 @@ try {
                     </div>
                     <div class="col-md-3">
                         <div class="mb-3">
-                            <label class="form-label">N�mero de C�dula <span class="text-danger">*</span></label>
+                            <label class="form-label">Número de Cédula <span class="text-danger">*</span></label>
                             <input type="text" name="numero_cedula" id="numero_cedula" class="form-control" 
                                    placeholder="Ej: 12345678" required autofocus>
-                            <small class="text-muted">Solo n�meros</small>
+                            <small class="text-muted">Solo números</small>
                             <input type="hidden" name="cedula" id="cedula">
                         </div>
                     </div>
@@ -143,7 +143,7 @@ try {
                             <label class="form-label">Nombre Completo <span class="text-danger">*</span></label>
                             <input type="text" name="nombre" id="nombre" class="form-control" 
                                    placeholder="Nombre completo del jugador" required readonly>
-                            <small class="text-muted">Se cargar� autom�ticamente al buscar</small>
+                            <small class="text-muted">Se cargar• automáticamente al buscar</small>
                         </div>
                     </div>
                 </div>
@@ -162,9 +162,9 @@ try {
                     <input type="hidden" name="fechnac" id="fechnac">
                     <div class="col-md-3">
                         <div class="mb-3">
-                            <label class="form-label">Categor�a</label>
+                            <label class="form-label">Categoría</label>
                             <input type="text" id="categDisplay" class="form-control" readonly 
-                                   placeholder="Se calcular� autom�ticamente" 
+                                   placeholder="Se calculará automáticamente" 
                                    style="background-color: #f8f9fa; cursor: not-allowed;">
                             <input type="hidden" name="categ" id="categ" value="0">
                             <small class="text-muted">Basada en edad</small>
@@ -201,10 +201,10 @@ try {
                     <thead class="table-light">
                         <tr>
                             <th>#</th>
-                            <th>C�dula</th>
+                            <th>Cédula</th>
                             <th>Nombre</th>
                             <th>Sexo</th>
-                            <th>Categor�a</th>
+                            <th>Categoría</th>
                             <th>Celular</th>
                             <th>Acciones</th>
                         </tr>
@@ -218,14 +218,14 @@ try {
                             </tr>
                         <?php else: ?>
                             <?php foreach ($inscritos as $idx => $jugador): 
-                                // Determinar categor�a para mostrar
+                                // Determinar categoría para mostrar
                                 $categNombre = 'N/A';
                                 if ($jugador['categ'] == 1) {
-                                    $categNombre = '?? Junior';
+                                    $categNombre = '• Junior';
                                 } elseif ($jugador['categ'] == 2) {
-                                    $categNombre = '?? Libre';
+                                    $categNombre = '• Libre';
                                 } elseif ($jugador['categ'] == 3) {
-                                    $categNombre = '?? Master';
+                                    $categNombre = '• Master';
                                 }
                                 
                                 // Convertir sexo de num�rico a texto para mostrar
@@ -257,7 +257,7 @@ try {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
 <script>
-// Funci�n para calcular categor�a basada en fecha de nacimiento
+// Función para calcular categoría basada en fecha de nacimiento
 function calcularCategoria(fechaNac) {
     if (!fechaNac) {
         return { valor: 0, nombre: '' };
@@ -268,29 +268,29 @@ function calcularCategoria(fechaNac) {
     let edad = hoy.getFullYear() - nacimiento.getFullYear();
     const mes = hoy.getMonth() - nacimiento.getMonth();
     
-    // Ajustar edad si a�n no ha cumplido a�os este a�o
+    // Ajustar edad si a�n no ha cumplido años este a�o
     if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
         edad--;
     }
     
-    // Determinar categor�a seg�n edad
+    // Determinar categoría según edad
     if (edad < 19) {
-        return { valor: 1, nombre: 'Junior (< 19 a�os)' };
+        return { valor: 1, nombre: 'Junior (< 19 años)' };
     } else if (edad > 60) {
-        return { valor: 3, nombre: 'Master (> 60 a�os)' };
+        return { valor: 3, nombre: 'Master (> 60 años)' };
     } else {
-        return { valor: 2, nombre: 'Libre (19-60 a�os)' };
+        return { valor: 2, nombre: 'Libre (19-60 años)' };
     }
 }
 
-// Calcular categor�a al cambiar fecha de nacimiento
+// Calcular categoría al cambiar fecha de nacimiento
 document.getElementById('fechnac').addEventListener('change', function() {
     const categoria = calcularCategoria(this.value);
     document.getElementById('categ').value = categoria.valor;
     document.getElementById('categDisplay').value = categoria.nombre;
 });
 
-// Funci�n para buscar persona
+// Función para buscar persona
 async function buscarPersona() {
     const nacionalidad = document.getElementById('nacionalidad').value;
     const numeroCedula = document.getElementById('numero_cedula').value.trim();
@@ -311,33 +311,33 @@ async function buscarPersona() {
         return;
     }
     
-    // Validar que el n�mero solo contenga d�gitos (permitir V/E/J/P opcional al inicio)
+    // Validar que el número solo contenga d�gitos (permitir V/E/J/P opcional al inicio)
     const numeroCedulaLimpio = numeroCedula.replace(/^[VEJP]/i, '');
     if (!/^\d+$/.test(numeroCedulaLimpio)) {
-        mensajeBusqueda.innerHTML = '<div class="alert alert-warning">?? El n�mero de c�dula solo debe contener d�gitos</div>';
+        mensajeBusqueda.innerHTML = '<div class="alert alert-warning">?? El número de cédula solo debe contener d�gitos</div>';
         return;
     }
     
-    // Actualizar campo oculto (solo el n�mero, sin nacionalidad)
+    // Actualizar campo oculto (solo el número, sin nacionalidad)
     document.getElementById('cedula').value = numeroCedulaLimpio;
     
     // Mostrar indicador de carga
     const cedulaCompleta = nacionalidad + numeroCedulaLimpio;
     mensajeBusqueda.innerHTML = '<div class="alert alert-info">?? Buscando ' + cedulaCompleta + ' en base de datos persona...</div>';
     
-    console.log('?? Buscando:', { nacionalidad, cedula: numeroCedulaLimpio });
+    console.log('• Buscando:', { nacionalidad, cedula: numeroCedulaLimpio });
     
     try {
         // Enviar nacionalidad y cedula por separado
         const url = 'buscar_persona.php?nacionalidad=' + encodeURIComponent(nacionalidad) + '&cedula=' + encodeURIComponent(numeroCedulaLimpio);
-        console.log('?? URL:', url);
+        console.log('• URL:', url);
         
         const response = await fetch(url);
         const data = await response.json();
         
-        console.log('?? Respuesta:', data);
+        console.log('• Respuesta:', data);
         
-        // Verificar si ya est� inscrito en este torneo
+        // Verificar si ya est• inscrito en este torneo
         if (data.ya_inscrito) {
             mensajeBusqueda.innerHTML = '<div class="alert alert-warning">' + data.error + '</div>';
             btnInscribir.disabled = true;
@@ -345,38 +345,38 @@ async function buscarPersona() {
         }
         
         if (data.encontrado && data.persona) {
-            // Llenar campos autom�ticamente
+            // Llenar campos automáticamente
             document.getElementById('nombre').value = data.persona.nombre || '';
             document.getElementById('sexo').value = data.persona.sexo || '';
             document.getElementById('fechnac').value = data.persona.fechnac || '';
             
-            // Calcular categor�a autom�ticamente
+            // Calcular categoría automáticamente
             if (data.persona.fechnac) {
                 const categoria = calcularCategoria(data.persona.fechnac);
                 document.getElementById('categ').value = categoria.valor;
                 document.getElementById('categDisplay').value = categoria.nombre;
             }
             
-            // Habilitar bot�n de inscripci�n
+            // Habilitar botón de inscripción
             btnInscribir.disabled = false;
             
             const fuente = data.fuente === 'local' ? '(BD Local)' : '(BD Externa)';
             mensajeBusqueda.innerHTML = '<div class="alert alert-success">? Persona encontrada ' + fuente + ': ' + data.persona.nombre + '</div>';
         } else {
-            mensajeBusqueda.innerHTML = '<div class="alert alert-danger">? ' + (data.error || 'No se encontr� la persona con c�dula ' + cedulaCompleta) + '</div>';
+            mensajeBusqueda.innerHTML = '<div class="alert alert-danger">? ' + (data.error || 'No se encontr• la persona con cédula ' + cedulaCompleta) + '</div>';
             btnInscribir.disabled = true;
         }
     } catch (error) {
         console.error('? Error:', error);
-        mensajeBusqueda.innerHTML = '<div class="alert alert-danger">? Error de conexi�n: ' + error.message + '</div>';
+        mensajeBusqueda.innerHTML = '<div class="alert alert-danger">? Error de conexión: ' + error.message + '</div>';
         btnInscribir.disabled = true;
     }
 }
 
-// Buscar persona al perder foco en el campo n�mero de c�dula
+// Buscar persona al perder foco en el campo número de cédula
 document.getElementById('numero_cedula').addEventListener('blur', buscarPersona);
 
-// Buscar al presionar Enter en el campo n�mero de c�dula
+// Buscar al presionar Enter en el campo número de cédula
 document.getElementById('numero_cedula').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
@@ -384,7 +384,7 @@ document.getElementById('numero_cedula').addEventListener('keypress', function(e
     }
 });
 
-// Tambi�n buscar al cambiar la nacionalidad si ya hay un n�mero
+// Tambi�n buscar al cambiar la nacionalidad si ya hay un número
 document.getElementById('nacionalidad').addEventListener('change', function() {
     const numeroCedula = document.getElementById('numero_cedula').value.trim();
     if (numeroCedula) {
@@ -417,13 +417,13 @@ document.getElementById('formInscribir').addEventListener('submit', async functi
             mostrarMensaje(data.message, 'danger');
         }
     } catch (error) {
-        mostrarMensaje('Error de conexi�n: ' + error.message, 'danger');
+        mostrarMensaje('Error de conexión: ' + error.message, 'danger');
     }
 });
 
 // Retirar jugador
 async function retirarJugador(id) {
-    if (!confirm('�Est� seguro de retirar este jugador?')) {
+    if (!confirm('¿Está seguro de retirar este jugador?')) {
         return;
     }
     
@@ -445,7 +445,7 @@ async function retirarJugador(id) {
             mostrarMensaje(data.message, 'danger');
         }
     } catch (error) {
-        mostrarMensaje('Error de conexi�n: ' + error.message, 'danger');
+        mostrarMensaje('Error de conexión: ' + error.message, 'danger');
     }
 }
 

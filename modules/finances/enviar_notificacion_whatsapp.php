@@ -1,6 +1,6 @@
 <?php
 /**
- * Enviar Notificaci�n de Deuda por WhatsApp
+ * Enviar Notificación de Deuda por WhatsApp
  */
 
 
@@ -16,12 +16,12 @@ try {
     $club_id = (int)($_GET['club_id'] ?? 0);
     
     if ($torneo_id <= 0 || $club_id <= 0) {
-        throw new Exception('Par�metros inv�lidos');
+        throw new Exception('Parámetros inválidos');
     }
     
     $pdo = DB::pdo();
     
-    // Obtener informaci�n completa
+    // Obtener información completa
     $stmt = $pdo->prepare("
         SELECT 
             d.*,
@@ -46,7 +46,7 @@ try {
     $pendiente = (float)$deuda['monto_total'] - (float)$deuda['abono'];
     $telefono = preg_replace('/[^0-9]/', '', $deuda['club_telefono'] ?? '');
     
-    // Formatear tel�fono
+    // Formatear teléfono
     if ($telefono && $telefono[0] == '0') {
         $telefono = substr($telefono, 1);
     }
@@ -71,7 +71,7 @@ try {
     $mensaje .= "==================\n\n";
     $mensaje .= "Por favor, realice el pago a la brevedad posible.\n\n";
     $mensaje .= "Para coordinar el pago, contacte al organizador del torneo.\n\n";
-    $mensaje .= "Gracias por su atenci�n.\n\n";
+    $mensaje .= "Gracias por su atención.\n\n";
     $mensaje .= "_Serviclubes LED_";
     
     $mensaje_encoded = urlencode($mensaje);
@@ -90,7 +90,7 @@ try {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Enviar Notificaci�n de Deuda</title>
+    <title>Enviar Notificación de Deuda</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
@@ -130,22 +130,22 @@ try {
 
 <div class="container-card">
     <div class="header">
-        <h2 class="mb-0"><i class="fab fa-whatsapp me-2"></i>Notificaci�n de Deuda</h2>
-        <p class="mb-0">Env�o por WhatsApp</p>
+        <h2 class="mb-0"><i class="fab fa-whatsapp me-2"></i>Notificación de Deuda</h2>
+        <p class="mb-0">Envío por WhatsApp</p>
     </div>
     
     <div class="p-4">
-        <!-- Informaci�n del Club -->
+        <!-- Información del Club -->
         <div class="card mb-4">
             <div class="card-header bg-danger text-white">
-                <i class="fas fa-building me-2"></i>Informaci�n del Club
+                <i class="fas fa-building me-2"></i>Información del Club
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
                         <p><strong>Club:</strong> <?= htmlspecialchars($deuda['club_nombre']) ?></p>
                         <p><strong>Delegado:</strong> <?= htmlspecialchars($deuda['club_delegado'] ?? 'No especificado') ?></p>
-                        <p><strong>Tel�fono:</strong> <?= htmlspecialchars($deuda['club_telefono'] ?? 'No especificado') ?></p>
+                        <p><strong>Teléfono:</strong> <?= htmlspecialchars($deuda['club_telefono'] ?? 'No especificado') ?></p>
                     </div>
                     <div class="col-md-6">
                         <p><strong>Torneo:</strong> <?= htmlspecialchars($deuda['torneo_nombre']) ?></p>
@@ -166,21 +166,21 @@ try {
             </div>
         </div>
         
-        <!-- Opciones de Env�o -->
+        <!-- Opciones de Envío -->
         <div class="card mb-4">
             <div class="card-header bg-success text-white">
-                <i class="fab fa-whatsapp me-2"></i>Enviar Notificaci�n
+                <i class="fab fa-whatsapp me-2"></i>Enviar Notificación
             </div>
             <div class="card-body">
                 <?php if (!empty($telefono)): ?>
                 <div class="alert alert-success">
                     <i class="fas fa-phone me-2"></i>
-                    <strong>Env�o Directo al:</strong> +<?= htmlspecialchars($telefono) ?>
+                    <strong>Envío Directo al:</strong> +<?= htmlspecialchars($telefono) ?>
                 </div>
                 <?php else: ?>
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Sin tel�fono registrado</strong> - Deber� seleccionar el contacto manualmente
+                    <strong>Sin teléfono registrado</strong> - Deber• seleccionar el contacto manualmente
                 </div>
                 <?php endif; ?>
                 
@@ -198,7 +198,7 @@ try {
             </div>
         </div>
         
-        <!-- Botones de Acci�n -->
+        <!-- Botones de Acción -->
         <div class="d-flex gap-2 justify-content-between">
             <a href="../../public/index.php?page=finances&torneo_id=<?= $torneo_id ?>" class="btn btn-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Volver a Finanzas
@@ -214,12 +214,12 @@ function copiarMensaje() {
     const textarea = document.getElementById('mensajeOculto');
     textarea.select();
     document.execCommand('copy');
-    alert('? Mensaje copiado al portapapeles');
+    alert('✓ Mensaje copiado al portapapeles');
 }
 
-// Auto-abrir WhatsApp despu�s de 1 segundo
+// Auto-abrir WhatsApp después de 1 segundo
 setTimeout(() => {
-    if (confirm('�Desea abrir WhatsApp ahora para enviar la notificaci�n?')) {
+    if (confirm('¿Desea abrir WhatsApp ahora para enviar la notificación?')) {
         window.location.href = '<?= $whatsapp_url ?>';
     }
 }, 1000);

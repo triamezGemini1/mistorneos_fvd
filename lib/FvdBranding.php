@@ -30,24 +30,23 @@ final class FvdBranding
 
     public static function logoUrl(): string
     {
-        $row = FvdConfig::getOrganizacionMaestra();
-        if (!empty($row['logo']) && class_exists('AppHelpers', false)) {
-            $url = AppHelpers::imageUrl((string) $row['logo']);
-            if ($url !== '') {
-                return $url;
-            }
+        if (!class_exists('AppHelpers', false)) {
+            return '';
         }
-        $logo4 = dirname(__DIR__) . '/lib/Assets/mislogos/logo4.png';
-        if (is_file($logo4) && class_exists('AppHelpers', false)) {
-            return rtrim(AppHelpers::getPublicUrl(), '/') . '/view_image.php?path=' . rawurlencode('lib/Assets/mislogos/logo4.png');
+
+        return AppHelpers::getAppLogo();
+    }
+
+    /**
+     * Href del logo para layouts con base href en public/.
+     */
+    public static function logoHref(?string $basePrefix = null): string
+    {
+        if (!class_exists('AppHelpers', false)) {
+            return '';
         }
-        $publicLogo = dirname(__DIR__) . '/public/assets/logo.png';
-        if (is_file($publicLogo) && class_exists('AppHelpers', false)) {
-            return rtrim(AppHelpers::getPublicUrl(), '/') . '/assets/logo.png';
-        }
-        return class_exists('AppHelpers', false)
-            ? rtrim(AppHelpers::getPublicUrl(), '/') . '/view_image.php?path=' . rawurlencode('lib/Assets/mislogos/logo4.png')
-            : '';
+
+        return AppHelpers::getAppLogoHref($basePrefix);
     }
 
     public static function appTitle(string $suffix = ''): string

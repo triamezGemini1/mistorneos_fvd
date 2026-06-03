@@ -206,7 +206,7 @@ $total_pages = ceil($total_posiciones / $per_page);
     
     <!-- Open Graph -->
     <meta property="og:type" content="article">
-    <meta property="og:url" content="<?= htmlspecialchars(app_base_url() . '/public/resultados_detalle.php?torneo_id=' . $torneo_id) ?>">
+    <meta property="og:url" content="<?= htmlspecialchars(AppHelpers::url('resultados_detalle.php', ['torneo_id' => $torneo_id])) ?>">
     <meta property="og:title" content="Resultados: <?= htmlspecialchars($torneo_data['nombre']) ?>">
     <meta property="og:description" content="Clasificación y resultados del torneo de dominó <?= htmlspecialchars($torneo_data['nombre']) ?>">
     <meta property="og:image" content="<?= htmlspecialchars(AppHelpers::getAppLogo()) ?>">
@@ -217,7 +217,7 @@ $total_pages = ceil($total_posiciones / $per_page);
     <meta name="twitter:description" content="Clasificación del torneo de dominó <?= htmlspecialchars($torneo_data['nombre']) ?>">
     
     <!-- Canonical -->
-    <link rel="canonical" href="<?= htmlspecialchars(app_base_url() . '/public/resultados_detalle.php?torneo_id=' . $torneo_id) ?>">
+    <link rel="canonical" href="<?= htmlspecialchars(AppHelpers::url('resultados_detalle.php', ['torneo_id' => $torneo_id])) ?>">
     
     <!-- Schema.org Event -->
     <script type="application/ld+json">

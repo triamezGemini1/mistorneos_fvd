@@ -86,7 +86,7 @@ try {
         $club_id = (int)$club['id'];
         $club_nombre = $club['nombre'];
         
-        echo "  • Club #{$club_id}: {$club_nombre}... ";
+        echo "  ?? Club #{$club_id}: {$club_nombre}... ";
         
         try {
             // Verificar si ya existe PDF
@@ -137,7 +137,7 @@ try {
         $torneo_id = (int)$torneo['id'];
         $torneo_nombre = $torneo['nombre'];
         
-        echo "  • Torneo #{$torneo_id}: {$torneo_nombre}... ";
+        echo "  ?? Torneo #{$torneo_id}: {$torneo_nombre}... ";
         
         try {
             // Verificar si ya existe PDF

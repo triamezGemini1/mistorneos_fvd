@@ -59,7 +59,7 @@ foreach ($usuarios as $usuario) {
     
     // Generar link de inscripción pública
     $app_url = $_ENV['APP_URL'] ?? 'http://localhost/mistorneos_fvd';
-    $inscripcion_link = $app_url . "/public/tournament_register.php?torneo_id=" . $torneo_id . "&user_id=" . $usuario['id'];
+    $inscripcion_link = AppHelpers::url("tournament_register.php?torneo_id=") . $torneo_id . "&user_id=" . $usuario['id'];
     
     // Formatear teléfono
     $telefono = preg_replace('/[^0-9]/', '', $usuario['celular']);

@@ -996,7 +996,7 @@ async function confirmarCierreTorneo(event) {
     function detectEncodingAndDecode(buffer) {
         var bytes = new Uint8Array(buffer);
         var utf8 = new TextDecoder('utf-8').decode(bytes);
-        var mojibakePattern = /Ã[Âª©®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ]/;
+        var mojibakePattern = /Ã[ª©®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ]/;
         if (mojibakePattern.test(utf8) || (utf8.indexOf('Ã') !== -1 && utf8.indexOf('©') !== -1)) {
             try {
                 return new TextDecoder('windows-1252').decode(bytes);

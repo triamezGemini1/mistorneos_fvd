@@ -65,7 +65,7 @@ try {
         $mensaje .= "✅ Crear clubes asociados\n\n";
         $mensaje .= "━━━━━━━━━━━━━━━━━━\n\n";
         $mensaje .= "🌐 *Ingresa al sistema:*\n";
-        $mensaje .= (($_ENV['APP_URL'] ?? 'http://localhost/mistorneos_fvd') . "/public/login.php") . "\n\n";
+        $mensaje .= AppHelpers::url('login.php') . "\n\n";
         $mensaje .= "━━━━━━━━━━━━━━━━━━\n";
         $mensaje .= "📖 *MANUAL DE USUARIO*\n";
         $mensaje .= "━━━━━━━━━━━━━━━━━━\n\n";

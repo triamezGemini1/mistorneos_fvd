@@ -130,10 +130,10 @@ if ($torneo_id > 0) {
             $logo_path = trim($row['logo_path'] ?? '');
             if ($logo_path !== '') {
                 $base = function_exists('app_base_url') ? app_base_url() : ($_ENV['APP_URL'] ?? 'http://localhost/mistorneos_fvd');
-                $url_logo = rtrim($base, '/') . '/public/view_image.php?path=' . rawurlencode($logo_path);
+                $url_logo = AppHelpers::imageUrl($logo_path);
             }
             $base = function_exists('app_base_url') ? app_base_url() : ($_ENV['APP_URL'] ?? 'http://localhost/mistorneos_fvd');
-            $url_inscripcion = rtrim($base, '/') . '/public/tournament_register.php?torneo_id=' . $torneo_id;
+            $url_inscripcion = AppHelpers::url('tournament_register.php', ['torneo_id' => $torneo_id]);
         }
     } catch (Exception $e) {}
 }

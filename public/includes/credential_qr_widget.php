@@ -4,7 +4,7 @@
  * Widget de Consulta de Credencial con QR Code
  * 
  * Este widget muestra un enlace directo al formulario de consulta de credenciales
- * junto con un c�digo QR para facilitar el acceso desde dispositivos m�viles.
+ * junto con un código QR para facilitar el acceso desde dispositivos móviles.
  */
 
 // Determinar la URL base del sitio
@@ -13,9 +13,9 @@ $host = $_SERVER['HTTP_HOST'];
 $base_url = $protocol . '://' . $host;
 
 // Construir la URL completa al formulario de consulta
-$consulta_url = $base_url . '/public/consulta_credencial.php';
+$consulta_url = AppHelpers::url('consulta_credencial.php');
 
-// URL de la API de QR Code (usando QR Server API - no requiere instalaci�n)
+// URL de la API de QR Code (usando QR Server API - no requiere instalación)
 $qr_code_url = 'https://api.qrserver.com/v1/create-qr-code/?' . http_build_query([
     'size' => '200x200',
     'data' => $consulta_url,
@@ -38,7 +38,7 @@ $qr_code_url = 'https://api.qrserver.com/v1/create-qr-code/?' . http_build_query
                     <i class="fas fa-id-card text-primary me-2"></i>Portal P�blico para Jugadores
                 </h6>
                 <p class="text-muted small mb-3">
-                    Los jugadores pueden consultar y descargar su credencial usando solo su n�mero de c�dula:
+                    Los jugadores pueden consultar y descargar su credencial usando solo su número de cédula:
                 </p>
                 
                 <div class="d-grid gap-2 mb-3">
@@ -67,7 +67,7 @@ $qr_code_url = 'https://api.qrserver.com/v1/create-qr-code/?' . http_build_query
                          class="img-fluid mb-2"
                          style="max-width: 180px;">
                     <p class="text-muted small mb-2">
-                        <i class="fas fa-mobile-alt me-1"></i>Escanea con tu m�vil
+                        <i class="fas fa-mobile-alt me-1"></i>Escanea con tu móvil
                     </p>
                     <button type="button" 
                             class="btn btn-sm btn-outline-info" 
@@ -84,7 +84,7 @@ $qr_code_url = 'https://api.qrserver.com/v1/create-qr-code/?' . http_build_query
             <div class="col-md-4">
                 <div class="text-center p-2 bg-light rounded">
                     <i class="fas fa-search text-primary fs-4"></i>
-                    <p class="small mb-0 mt-1"><strong>1. Buscar</strong><br>Por c�dula</p>
+                    <p class="small mb-0 mt-1"><strong>1. Buscar</strong><br>Por cédula</p>
                 </div>
             </div>
             <div class="col-md-4">
@@ -107,7 +107,7 @@ $qr_code_url = 'https://api.qrserver.com/v1/create-qr-code/?' . http_build_query
 function copyConsultaUrl() {
     const urlText = document.getElementById('consultaUrl').textContent;
     
-    // Usar la API moderna de Clipboard si est� disponible
+    // Usar la API moderna de Clipboard si est• disponible
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(urlText).then(() => {
             showCopyNotification('Enlace copiado al portapapeles');
@@ -139,7 +139,7 @@ function fallbackCopyTextToClipboard(text) {
 }
 
 function showCopyNotification(message, type = 'success') {
-    // Crear notificaci�n temporal
+    // Crear notificación temporal
     const alert = document.createElement('div');
     alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
     alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
@@ -149,7 +149,7 @@ function showCopyNotification(message, type = 'success') {
     `;
     document.body.appendChild(alert);
     
-    // Auto-remover despu�s de 3 segundos
+    // Auto-remover después de 3 segundos
     setTimeout(() => {
         alert.remove();
     }, 3000);
@@ -163,7 +163,7 @@ function downloadQR() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showCopyNotification('Descargando c�digo QR...');
+    showCopyNotification('Descargando código QR...');
 }
 </script>
 

@@ -27,6 +27,12 @@ if ($base_public_abs === '' && !empty($_SERVER['HTTP_HOST'])) {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $base_public_abs = $scheme . '://' . $_SERVER['HTTP_HOST'] . rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/');
 }
+$api_toggle_url = class_exists('AppHelpers')
+    ? AppHelpers::url('tournament_admin_toggle_inscripcion.php')
+    : rtrim($base_public_abs, '/') . '/tournament_admin_toggle_inscripcion.php';
+$buscar_api_url = class_exists('AppHelpers')
+    ? AppHelpers::api('inscribir_sitio_buscar.php')
+    : rtrim($base_public_abs, '/') . '/api/inscribir_sitio_buscar.php';
 ?>
 <link rel="stylesheet" href="<?= htmlspecialchars($base_public_abs ? $base_public_abs . '/assets/css/design-system.css' : 'assets/css/design-system.css') ?>">
 <link rel="stylesheet" href="<?= htmlspecialchars($base_public_abs ? $base_public_abs . '/assets/css/inscripcion.css' : 'assets/css/inscripcion.css') ?>">
@@ -213,8 +219,8 @@ if ($base_public_abs === '' && !empty($_SERVER['HTTP_HOST'])) {
     var BASE_PUBLIC = <?= json_encode($base_public_abs ? $base_public_abs . '/' : '') ?>;
     var TORNEOS_ID = <?= (int)$torneo['id'] ?>;
     var CSRF_TOKEN = '<?= htmlspecialchars(CSRF::token(), ENT_QUOTES) ?>';
-    var API_URL = BASE_PUBLIC + 'tournament_admin_toggle_inscripcion.php';
-    var BUSCAR_API = BASE_PUBLIC + 'api/search_persona.php';
+    var API_URL = <?= json_encode($api_toggle_url, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    var BUSCAR_API = <?= json_encode($buscar_api_url, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     var isSearching = false;
     var usuarioEncontrado = null;
 

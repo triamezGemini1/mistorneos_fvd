@@ -188,6 +188,11 @@ class DashboardData
                 $result['torneos_linea_ag'] = self::flattenTorneosLinea($result['torneos_por_entidad_ag']);
             }
 
+            if ($user_role === 'admin_torneo') {
+                $tournament_filter = Auth::getTournamentFilterForRole('t');
+                $result['torneos_linea_acl'] = self::classifyTorneos(self::loadTorneosActivosFlat($tournament_filter));
+            }
+
             if (in_array($user_role, ['admin_club', 'admin_general'], true)) {
                 try {
                     require_once __DIR__ . '/ActasPendientesHelper.php';
@@ -465,6 +470,117 @@ class DashboardData
             }
         }
         return $out;
+    }
+
+    /**
+     * Clasificación de torneos para el home según rol.
+     *
+     * @return array{por_realizar: list<array>, en_proceso: list<array>, realizados: list<array>}
+     */
+    public static function torneosLineaParaHome(string $user_role, array $current_user): array
+    {
+        if ($user_role === 'admin_general') {
+            $entidad_map = self::loadEntidadMap();
+
+            return self::flattenTorneosLinea(self::loadTorneosPorEntidad($entidad_map));
+        }
+        if ($user_role === 'admin_club') {
+            require_once __DIR__ . '/StatisticsHelper.php';
+            $admin_club_stats = StatisticsHelper::generateStatistics();
+            $torneos_list = $admin_club_stats['torneos'] ?? [];
+
+            return self::classifyTorneos(is_array($torneos_list) ? $torneos_list : []);
+        }
+        if ($user_role === 'admin_torneo') {
+            $tournament_filter = Auth::getTournamentFilterForRole('t');
+
+            return self::classifyTorneos(self::loadTorneosActivosFlat($tournament_filter));
+        }
+
+        return ['por_realizar' => [], 'en_proceso' => [], 'realizados' => []];
+    }
+
+    /**
+     * Torneos activos/en curso y próximos (ventana de días) para la tarjeta del home.
+     *
+     * @param list<array<string, mixed>> $en_proceso
+     * @param list<array<string, mixed>> $por_realizar
+     * @return list<array<string, mixed>>
+     */
+    public static function filtrarTorneosHomeDashboard(array $en_proceso, array $por_realizar, int $diasVentana = 15): array
+    {
+        $hoy = strtotime(date('Y-m-d'));
+        $limite = strtotime('+' . max(1, $diasVentana) . ' days', $hoy);
+        $out = [];
+
+        foreach ($en_proceso as $t) {
+            $t['_dashboard_estado'] = 'en_proceso';
+            $out[] = $t;
+        }
+
+        foreach ($por_realizar as $t) {
+            $ft = trim((string) ($t['fechator'] ?? ''));
+            if ($ft === '') {
+                continue;
+            }
+            $fecha = strtotime(date('Y-m-d', strtotime($ft)));
+            if ($fecha === false || $fecha < $hoy || $fecha > $limite) {
+                continue;
+            }
+            $t['_dashboard_estado'] = 'por_realizar';
+            $out[] = $t;
+        }
+
+        usort($out, static function (array $a, array $b): int {
+            $fa = strtotime((string) ($a['fechator'] ?? '')) ?: PHP_INT_MAX;
+            $fb = strtotime((string) ($b['fechator'] ?? '')) ?: PHP_INT_MAX;
+            if ($fa === $fb) {
+                return strcmp((string) ($a['nombre'] ?? ''), (string) ($b['nombre'] ?? ''));
+            }
+
+            return $fa <=> $fb;
+        });
+
+        return $out;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private static function loadTorneosActivosFlat(array $tournament_filter): array
+    {
+        try {
+            $pdo = DB::pdo();
+            $has_cod_org = false;
+            try {
+                $has_cod_org = (bool) $pdo->query("SHOW COLUMNS FROM organizaciones LIKE 'cod_org'")->fetch(PDO::FETCH_ASSOC);
+            } catch (Throwable $ignored) {
+                $has_cod_org = false;
+            }
+            $org_join = $has_cod_org
+                ? 'LEFT JOIN organizaciones o ON (t.club_responsable = o.id OR t.club_responsable = o.cod_org)'
+                : 'LEFT JOIN organizaciones o ON t.club_responsable = o.id';
+            $where_t = !empty($tournament_filter['where']) ? ' AND ' . $tournament_filter['where'] : '';
+            $params_t = $tournament_filter['params'] ?? [];
+            $sql = "
+                SELECT t.id, t.nombre, t.fechator, t.estatus, t.locked, t.rondas, t.club_responsable,
+                       o.nombre as organizacion_nombre,
+                       (SELECT COUNT(*) FROM inscritos WHERE torneo_id = t.id) as total_inscritos,
+                       (SELECT COUNT(*) FROM inscritos WHERE torneo_id = t.id AND estatus = 1) as inscritos_confirmados
+                FROM tournaments t
+                {$org_join}
+                WHERE t.estatus = 1 {$where_t}
+                ORDER BY t.fechator ASC, t.id DESC
+            ";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params_t);
+
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Exception $e) {
+            error_log('DashboardData loadTorneosActivosFlat: ' . $e->getMessage());
+
+            return [];
+        }
     }
 
     private static function loadAthletesByClub(array $current_user, $user_club_id): array

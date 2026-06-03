@@ -29,12 +29,12 @@ $id = $_GET['id'] ?? null;
 $success_message = $_GET['success'] ?? null;
 $error_message = $_GET['error'] ?? $error_message ?? null;
 
-// Procesar eliminaci�n si se solicita
+// Procesar eliminación si se solicita
 if ($action === 'delete' && $id) {
     try {
         $invitation_id = (int)$id;
         
-        // Obtener datos de la invitaci�n antes de eliminarla
+        // Obtener datos de la invitación antes de eliminarla
         $stmt = DB::pdo()->prepare("
             SELECT i.*, t.nombre as torneo_nombre, t.club_responsable, c.nombre as club_nombre
             FROM " . TABLE_INVITATIONS . " i
@@ -46,7 +46,7 @@ if ($action === 'delete' && $id) {
         $invitation = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$invitation) {
-            throw new Exception('Invitaci�n no encontrada');
+            throw new Exception('Invitación no encontrada');
         }
         
         // Verificar permisos y que el torneo no haya pasado
@@ -54,7 +54,7 @@ if ($action === 'delete' && $id) {
             throw new Exception('No tiene permisos para eliminar invitaciones de este torneo. Solo puede eliminar invitaciones de torneos futuros de su club.');
         }
         
-        // Eliminar la invitaci�n
+        // Eliminar la invitación
         $stmt = DB::pdo()->prepare("DELETE FROM " . TABLE_INVITATIONS . " WHERE id = ?");
         $result = $stmt->execute([$invitation_id]);
         
@@ -222,7 +222,7 @@ if ($action === 'edit_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Obtener datos para edici�n
+// Obtener datos para edición
 $invitation = null;
 if ($action === 'edit' && $id) {
     try {
@@ -237,7 +237,7 @@ if ($action === 'edit' && $id) {
         $invitation = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$invitation) {
-            $error_message = "Invitaci�n no encontrada";
+            $error_message = "Invitación no encontrada";
             $action = 'list';
         } else {
             // Verificar permisos para editar
@@ -253,7 +253,7 @@ if ($action === 'edit' && $id) {
             }
         }
     } catch (Exception $e) {
-        $error_message = "Error al cargar la invitaci�n: " . $e->getMessage();
+        $error_message = "Error al cargar la invitación: " . $e->getMessage();
         $action = 'list';
     }
 }
@@ -308,7 +308,7 @@ if (in_array($action, ['new', 'edit'])) {
     }
 }
 
-// Obtener lista para vista de lista con paginaci�n. Torneo obligatorio desde panel (sin selector).
+// Obtener lista para vista de lista con paginación. Torneo obligatorio desde panel (sin selector).
 $invitations_list = [];
 $pagination = null;
 $filter_torneo = $_GET['filter_torneo'] ?? $_GET['torneo_id'] ?? '';
@@ -317,7 +317,7 @@ $stats = ['total' => 0, 'activas' => 0, 'expiradas' => 0, 'canceladas' => 0];
 // Acceso solo por panel de control: index.php redirige ANTES del layout. Fallback por si se llega aquí.
 if ($action === 'list' && empty($filter_torneo)) {
     $script_path = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : 'index.php';
-    $target = $script_path . '?page=home&error=' . urlencode('Acceda a Invitaciones desde el Panel de Control de un torneo.');
+    $target = $script_path . '?page=torneo_gestion&action=index&error=' . urlencode('Acceda a Invitaciones desde el Panel de Control de un torneo.');
     if (!headers_sent()) {
         header('Location: ' . $target);
         exit;
@@ -329,7 +329,7 @@ if ($action === 'new') {
     $torneo_id_new = (int)($_GET['torneo_id'] ?? $_GET['filter_torneo'] ?? 0);
     if ($torneo_id_new <= 0 || !Auth::canAccessTournament($torneo_id_new)) {
         $script_path = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : 'index.php';
-        $target = $script_path . '?page=home&error=' . urlencode('Indique el torneo desde el Panel de Control.');
+        $target = $script_path . '?page=torneo_gestion&action=index&error=' . urlencode('Indique el torneo desde el Panel de Control.');
         if (!headers_sent()) {
             header('Location: ' . $target);
             exit;
@@ -422,7 +422,7 @@ try {
 
 if ($action === 'list' && !empty($filter_torneo)) {
     try {
-        // Configurar paginaci�n
+        // Configurar paginación
         $current_page = isset($_GET['p']) ? max(1, (int)$_GET['p']) : 1;
         $per_page = isset($_GET['per_page']) ? max(10, min(100, (int)$_GET['per_page'])) : 25;
         
@@ -435,10 +435,10 @@ if ($action === 'list' && !empty($filter_torneo)) {
         $stmt->execute($params);
         $total_records = (int)$stmt->fetchColumn();
         
-        // Crear objeto de paginaci�n
+        // Crear objeto de paginación
         $pagination = new Pagination($total_records, $current_page, $per_page);
         
-        // Obtener registros de la p�gina actual
+        // Obtener registros de la página actual
         $cols_t = DB::pdo()->query("SHOW COLUMNS FROM tournaments")->fetchAll(PDO::FETCH_COLUMN);
         $cols_inv = DB::pdo()->query("SHOW COLUMNS FROM " . TABLE_INVITATIONS)->fetchAll(PDO::FETCH_COLUMN);
         $has_id_usuario_vinculado = in_array('id_usuario_vinculado', $cols_inv);
@@ -466,7 +466,7 @@ if ($action === 'list' && !empty($filter_torneo)) {
         $stmt->execute($params);
         $invitations_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Estad�sticas del torneo filtrado
+        // Estadísticas del torneo filtrado
         $stmt = DB::pdo()->prepare("
             SELECT 
                 COUNT(*) as total,
@@ -503,7 +503,7 @@ if ($action === 'list' && !empty($filter_torneo)) {
                     <h1 class="h3 mb-0">
                         <i class="fas fa-envelope me-2"></i>Invitaciones
                     </h1>
-                    <p class="text-muted mb-0">Gesti�n de invitaciones a torneos</p>
+                    <p class="text-muted mb-0">Gestión de invitaciones a torneos</p>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
                     <a href="<?= htmlspecialchars($url_retorno_origen) ?>" class="btn btn-outline-secondary">
@@ -511,7 +511,7 @@ if ($action === 'list' && !empty($filter_torneo)) {
                     </a>
                     <?php if ($action === 'list'): ?>
                         <a href="index.php?page=invitations&action=new&torneo_id=<?= (int)$filter_torneo ?>" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>Nueva Invitaci�n
+                            <i class="fas fa-plus me-2"></i>Nueva Invitación
                         </a>
                     <?php endif; ?>
                 </div>
@@ -618,7 +618,7 @@ if ($action === 'list' && !empty($filter_torneo)) {
     </div>
     
     <?php if (!empty($filter_torneo)): ?>
-    <!-- Estad�sticas -->
+    <!-- Estadísticas -->
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="card bg-primary text-white">
@@ -660,7 +660,7 @@ if ($action === 'list' && !empty($filter_torneo)) {
             <?php if (empty($invitations_list)): ?>
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>No hay invitaciones registradas.
-                    <a href="index.php?page=invitations&action=new&torneo_id=<?= (int)$filter_torneo ?>" class="alert-link">Crear la primera invitaci�n</a>
+                    <a href="index.php?page=invitations&action=new&torneo_id=<?= (int)$filter_torneo ?>" class="alert-link">Crear la primera invitación</a>
                 </div>
             <?php else: ?>
                 <div class="table-responsive">
@@ -779,7 +779,7 @@ if ($action === 'list' && !empty($filter_torneo)) {
                                             </button>
                                             <a href="index.php?page=invitations&action=delete&id=<?= $item['id'] ?>&filter_torneo=<?= $filter_torneo ?>" 
                                                class="btn btn-sm btn-outline-danger" title="Eliminar"
-                                               onclick="return confirm('�Est� seguro de eliminar esta invitaci�n para <?= htmlspecialchars($item['club_nombre']) ?>?')">
+                                               onclick="return confirm('¿Está seguro de eliminar esta invitación para <?= htmlspecialchars($item['club_nombre']) ?>?')">
                                                 <i class="fas fa-trash"></i>
                                             </a>
                                         </div>
@@ -790,7 +790,7 @@ if ($action === 'list' && !empty($filter_torneo)) {
                     </table>
                 </div>
                 
-                <!-- Paginaci�n -->
+                <!-- Paginación -->
                 <?php if ($pagination): ?>
                     <?= $pagination->render() ?>
                 <?php endif; ?>
@@ -805,7 +805,7 @@ if ($action === 'list' && !empty($filter_torneo)) {
         <div class="card-header bg-<?= $action === 'edit' ? 'warning' : 'success' ?> text-white">
             <h5 class="card-title mb-0">
                 <i class="fas fa-<?= $action === 'edit' ? 'edit' : 'plus-circle' ?> me-2"></i>
-                <?= $action === 'edit' ? 'Editar' : 'Nueva' ?> Invitaci�n
+                <?= $action === 'edit' ? 'Editar' : 'Nueva' ?> Invitación
             </h5>
         </div>
         <div class="card-body">
@@ -921,7 +921,7 @@ if ($action === 'list' && !empty($filter_torneo)) {
                 
                 <div class="alert alert-info mt-3">
                     <i class="fas fa-info-circle me-2"></i>
-                    <strong>Nota importante:</strong> El club invitado podr� registrar jugadores hasta la <strong>fecha del torneo</strong>, 
+                    <strong>Nota importante:</strong> El club invitado podrá registrar jugadores hasta la <strong>fecha del torneo</strong>, 
                     aunque el per�odo de acceso (acceso2) sea posterior.
                 </div>
                 
@@ -940,7 +940,7 @@ if ($action === 'list' && !empty($filter_torneo)) {
                         <i class="fas fa-times me-2"></i>Cancelar
                     </a>
                     <button type="submit" class="btn btn-<?= $action === 'edit' ? 'warning' : 'success' ?>">
-                        <i class="fas fa-save me-2"></i><?= $action === 'edit' ? 'Actualizar Invitaci�n' : 'Crear Invitaci�n' ?>
+                        <i class="fas fa-save me-2"></i><?= $action === 'edit' ? 'Actualizar Invitación' : 'Crear Invitación' ?>
                     </button>
                 </div>
             </form>

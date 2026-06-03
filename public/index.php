@@ -64,7 +64,12 @@ if (!defined('APP_ROOT')) {
     define('APP_ROOT', dirname(__DIR__));
 }
 
-// Normalizar REQUEST_URI cuando la app está bajo un subpath (ej. /mistorneos_beta/public o /pruebas/public)
+require_once APP_ROOT . '/lib/IntegralUrl.php';
+if (IntegralUrl::isEnabled()) {
+    IntegralUrl::redirectHubTorneosRequestsIfNeeded();
+}
+
+// Normalizar REQUEST_URI cuando la app está bajo un subpath
 // Así el Router recibe /join o /auth/login y no "Ruta no encontrada" (path con subcarpeta no coincide con rutas registradas)
 $currentUri = $_SERVER['REQUEST_URI'] ?? '/';
 $basePath = '';
@@ -168,7 +173,7 @@ if ($useModernRouter) {
 $user = Auth::user();
 if (getenv('SESSION_DEBUG')) error_log('[SESSION_DEBUG] index.php | usuario OK | id=' . ($user['id'] ?? '') . ' | role=' . ($user['role'] ?? ''));
 
-// Restringir dashboard a roles válidos del sistema
+// Restringir panel admin a roles válidos del sistema
 $allowed_roles = ['admin_general', 'admin_torneo', 'admin_club', 'usuario', 'operador'];
 if (!in_array($user['role'] ?? '', $allowed_roles, true)) {
     Auth::logout();
@@ -540,6 +545,7 @@ if ($page === 'torneo_gestion' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET
         || ($tg_get === 'inscripciones_reporte_detallado_xls' && $tg_tid > 0)
         || ($tg_get === 'retirados_export_pdf' && $tg_tid > 0)
         || ($tg_get === 'retirados_export_xls' && $tg_tid > 0)
+        || ($tg_get === 'export_access_excel' && $tg_tid > 0)
         || in_array($tg_get, ['panel_equipos', 'dashboard'], true);
     if ($tg_early) {
         if (Auth::isOperativoSoloAsociacion() && !defined('TORNEO_GESTION_OPERATIVO_VALIDATED')) {

@@ -262,53 +262,50 @@ try {
         exit;
     }
 
-    // 3. Buscar en la base de datos externa 'persona'
-    // La BD externa almacena IDUsuario solo con dígitos (sin prefijo V/E/J/P)
+    // 3. Buscar en la base de datos externa 'persona' (solo si está configurada)
     if (file_exists(__DIR__ . '/../../config/persona_database.php')) {
         require_once __DIR__ . '/../../config/persona_database.php';
-        
-        try {
-            $database = new PersonaDatabase();
-            $nacPrimera = strtoupper($nacionalidad);
-            $nacionalidadesIntento = [$nacPrimera];
-            // Si la primera búsqueda es como venezolano (V) y no hay fila, reintentar como extranjero (E), p. ej. E-9488701
-            if ($nacPrimera === 'V') {
-                $nacionalidadesIntento[] = 'E';
-            }
-            $nacionalidadesIntento = array_values(array_unique($nacionalidadesIntento));
 
-            foreach ($nacionalidadesIntento as $nacTry) {
-                $result = $database->searchPersonaById($nacTry, $cedula_externa);
-                if (!isset($result['encontrado']) || !$result['encontrado'] || !isset($result['persona'])) {
-                    continue;
+        if (PersonaDatabase::isConfigured()) {
+            try {
+                $nacPrimera = strtoupper($nacionalidad);
+                $nacionalidadesIntento = [$nacPrimera];
+                if ($nacPrimera === 'V') {
+                    $nacionalidadesIntento[] = 'E';
                 }
-                $persona = $result['persona'];
-                // Cédula solo numérica; nacionalidad en campo específico (no concatenar)
-                $cedulaNum = isset($persona['cedula']) ? preg_replace('/\D/', '', $persona['cedula']) : $cedula_externa;
-                $nac = $persona['nacionalidad'] ?? $nacTry;
-                if (!in_array(strtoupper($nac), ['V', 'E', 'J', 'P'], true)) {
-                    $nac = $nacTry;
+                $nacionalidadesIntento = array_values(array_unique($nacionalidadesIntento));
+
+                foreach ($nacionalidadesIntento as $nacTry) {
+                    $persona = PersonaDatabase::buscarPorCedula($nacTry, $cedula_externa);
+                    if ($persona === null) {
+                        continue;
+                    }
+                    $cedulaNum = isset($persona['cedula']) ? preg_replace('/\D/', '', $persona['cedula']) : $cedula_externa;
+                    $nac = $persona['nacionalidad'] ?? $nacTry;
+                    if (!in_array(strtoupper($nac), ['V', 'E', 'J', 'P'], true)) {
+                        $nac = $nacTry;
+                    }
+                    echo json_encode([
+                        'success' => true,
+                        'data' => [
+                            'encontrado' => true,
+                            'existe_usuario' => false,
+                            'persona' => [
+                                'cedula' => $cedulaNum,
+                                'nacionalidad' => strtoupper($nac),
+                                'nombre' => $persona['nombre'] ?? '',
+                                'fechnac' => $persona['fechnac'] ?? '',
+                                'sexo' => $persona['sexo'] ?? '',
+                                'celular' => $persona['celular'] ?? '',
+                                'email' => $persona['email'] ?? '',
+                            ],
+                        ],
+                    ]);
+                    exit;
                 }
-                echo json_encode([
-                    'success' => true,
-                    'data' => [
-                        'encontrado' => true,
-                        'existe_usuario' => false,
-                        'persona' => [
-                            'cedula' => $cedulaNum,
-                            'nacionalidad' => strtoupper($nac),
-                            'nombre' => $persona['nombre'] ?? '',
-                            'fechnac' => $persona['fechnac'] ?? '',
-                            'sexo' => $persona['sexo'] ?? '',
-                            'celular' => $persona['celular'] ?? '',
-                            'email' => $persona['email'] ?? ''
-                        ]
-                    ]
-                ]);
-                exit;
+            } catch (Exception $e) {
+                error_log('search_user_persona.php (public) - Error en PersonaDatabase: ' . $e->getMessage());
             }
-        } catch (Exception $e) {
-            error_log("search_user_persona.php (public) - Error en PersonaDatabase: " . $e->getMessage());
         }
     }
     

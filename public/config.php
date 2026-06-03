@@ -23,5 +23,7 @@ $META_AUTHOR = $fvdNombre;
 $META_OG_TITLE = $fvdNombre . ' - Sistema de Gestión de Torneos';
 $META_OG_DESCRIPTION = 'Plataforma oficial de ' . $fvdSiglas . ' para torneos de dominó en Venezuela.';
 $SITE_EMAIL = 'info@fvd.com.ve';
-$SITE_URL = rtrim(app_base_url(), '/') . '/public/landing-spa.php';
+$SITE_URL = class_exists('AppHelpers', false)
+    ? AppHelpers::url('landing-spa.php')
+    : (rtrim(app_base_url(), '/') . '/public/landing-spa.php');
 $OG_IMAGE = class_exists('AppHelpers') ? AppHelpers::getAppLogo() : FvdBranding::logoUrl();

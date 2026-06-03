@@ -10,7 +10,7 @@ $pdo = DB::pdo();
 $base_url = app_base_url();
 
 // URL base para la información del torneo
-$torneo_info_url = $base_url . '/public/torneo_info.php?torneo_id=' . $torneo_id;
+$torneo_info_url = AppHelpers::url('torneo_info.php', ['torneo_id' => $torneo_id]);
 
 // URLs específicas para cada sección
 $urls = [

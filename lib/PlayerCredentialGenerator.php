@@ -10,7 +10,7 @@ require_once __DIR__ . '/../config/db.php';
 class PlayerCredentialGenerator {
     
     /**
-     * Genera credencial PDF para un jugador espec�fico
+     * Genera credencial PDF para un jugador específico
      */
     public static function generateCredential(int $registrant_id): array {
         try {
@@ -25,7 +25,7 @@ class PlayerCredentialGenerator {
             if (false && (empty($identificador) || $identificador == 0)) {
                 return [
                     'success' => false,
-                    'error' => 'IDENTIFICADOR INV�LIDO. El jugador no tiene un n�mero asignado. Por favor, genere los identificadores del torneo antes de crear las credenciales. Puede hacerlo desde el bot�n "Numerar por Club" en el m�dulo de inscritos.'
+                    'error' => 'IDENTIFICADOR INV�LIDO. El jugador no tiene un número asignado. Por favor, genere los identificadores del torneo antes de crear las credenciales. Puede hacerlo desde el botón "Numerar por Club" en el módulo de inscritos.'
                 ];
             }
             
@@ -48,7 +48,7 @@ class PlayerCredentialGenerator {
     }
     
     /**
-     * Genera credenciales para m�ltiples jugadores de un torneo
+     * Genera credenciales para múltiples jugadores de un torneo
      */
     public static function generateBulkCredentials(int $tournament_id, ?int $club_id = null): array {
         try {
@@ -147,7 +147,7 @@ class PlayerCredentialGenerator {
         $tournament_name = htmlspecialchars((string)$player_data['tournament_name']);
         $club_name = htmlspecialchars((string)$player_data['club_name']);
         
-        // Manejar identificador: si es 0 o vac�o, mostrar "N/A"
+        // Manejar identificador: si es 0 o vacío, mostrar "N/A"
         $identificador_value = $player_data['identificador'] ?? 0;
         if (empty($identificador_value) || $identificador_value == 0) {
             $identificador = 'N/A';
@@ -244,13 +244,13 @@ class PlayerCredentialGenerator {
      * Crea el PDF de la credencial
      */
     private static function createCredentialPDF(string $html_content, array $player_data): string {
-        // Verificar si Dompdf est� disponible
+        // Verificar si Dompdf est• disponible
         if (!class_exists('Dompdf\Dompdf')) {
             $dompdf_path = __DIR__ . '/../vendor/autoload.php';
             if (file_exists($dompdf_path)) {
                 require_once $dompdf_path;
             } else {
-                throw new Exception('Dompdf no est� disponible. Instale Dompdf para generar PDFs.');
+                throw new Exception('Dompdf no est• disponible. Instale Dompdf para generar PDFs.');
             }
         }
         
@@ -316,7 +316,7 @@ class PlayerCredentialGenerator {
     }
     
     /**
-     * Obtiene la ruta del logo de La Estaci�n del Domin�
+     * Obtiene la ruta del logo de La Estación del Domin�
      */
     private static function getEstacionLogoPath(): ?string {
         // Buscar el logo en varias ubicaciones posibles

@@ -1,7 +1,7 @@
 <?php
 /**
- * M�dulo de Finanzas - Serviclubes LED
- * Gesti�n completa de deudas y pagos de clubs
+ * Módulo de Finanzas - Serviclubes LED
+ * Gestión completa de deudas y pagos de clubs
  */
 
 
@@ -15,7 +15,7 @@ require_once __DIR__ . '/../lib/Pagination.php';
 // Verificar permisos
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 
-// Obtener informaci�n del usuario actual
+// Obtener información del usuario actual
 $current_user = Auth::user();
 $user_role = $current_user['role'] ?? '';
 $user_club_id = Auth::getUserClubId();
@@ -30,14 +30,14 @@ if ($is_admin_torneo && !$user_club_id) {
     $error_message = "Error: Su usuario no tiene una organización asignada. Contacte al administrador general.";
 }
 
-// Obtener acci�n
+// Obtener acción
 $action = $_GET['action'] ?? 'dashboard';
 $torneo_id = isset($_GET['torneo_id']) ? (int)$_GET['torneo_id'] : 0;
 $success_message = $_GET['success'] ?? null;
 $error_message = $_GET['error'] ?? $error_message ?? null;
 $auto_update = isset($_GET['auto_update']) ? (int)$_GET['auto_update'] : 0;
 
-// Obtener lista de torneos para filtro (filtrada seg�n el rol)
+// Obtener lista de torneos para filtro (filtrada según el rol)
 $torneos_list = [];
 try {
     $tournament_filter = Auth::getTournamentFilterForRole('t');
@@ -60,7 +60,7 @@ try {
     $error_message = "Error al cargar torneos: " . $e->getMessage();
 }
 
-// Solo calcular estad�sticas y cargar datos si hay un torneo seleccionado
+// Solo calcular estadísticas y cargar datos si hay un torneo seleccionado
 $stats = [
     'total_deuda' => 0,
     'total_pagado' => 0,
@@ -80,17 +80,17 @@ if ($torneo_id > 0) {
         exit;
     }
     
-    // Verificar si el torneo ya pas� (solo mostrar advertencia, no bloquear)
+    // Verificar si el torneo ya pasó (solo mostrar advertencia, no bloquear)
     $torneo_pasado = Auth::isTournamentPast($torneo_id);
     if ($torneo_pasado && $is_admin_torneo) {
-        $warning_message = "?? Este torneo ya finaliz�. Los datos son de solo lectura.";
+        $warning_message = "• Este torneo ya finalizó. Los datos son de solo lectura.";
     }
     
     $mostrar_datos = true;
     $pdo = DB::pdo();
     
     try {
-        // Calcular estad�sticas del torneo seleccionado
+        // Calcular estadísticas del torneo seleccionado
         $stmt = $pdo->prepare("
             SELECT 
                 COALESCE(SUM(d.monto_total), 0) as total_deuda,
@@ -117,9 +117,9 @@ if ($torneo_id > 0) {
         // Silencio
     }
     
-    // Obtener listado de deudas por club con paginaci�n
+    // Obtener listado de deudas por club con paginación
     try {
-        // Configurar paginaci�n
+        // Configurar paginación
         $current_page = isset($_GET['p']) ? max(1, (int)$_GET['p']) : 1;
         $per_page = isset($_GET['per_page']) ? max(10, min(100, (int)$_GET['per_page'])) : 25;
         
@@ -132,10 +132,10 @@ if ($torneo_id > 0) {
         $stmt->execute([$torneo_id]);
         $total_records = (int)$stmt->fetchColumn();
         
-        // Crear objeto de paginaci�n
+        // Crear objeto de paginación
         $pagination = new Pagination($total_records, $current_page, $per_page);
         
-        // Obtener registros de la p�gina actual
+        // Obtener registros de la página actual
         $stmt = $pdo->prepare("
             SELECT 
                 d.*,
@@ -167,7 +167,7 @@ if ($torneo_id > 0) {
                     <h1 class="h3 mb-0">
                         <i class="fas fa-dollar-sign me-2"></i>Finanzas
                     </h1>
-                    <p class="text-muted mb-0">Gesti�n de deudas y pagos de clubs</p>
+                    <p class="text-muted mb-0">Gestión de deudas y pagos de clubs</p>
                 </div>
                 <div>
                     <div class="btn-group" role="group">
@@ -252,7 +252,7 @@ if ($torneo_id > 0) {
                                 <?php endforeach; ?>
                             </select>
                             <small class="text-muted">
-                                La informaci�n se cargar� autom�ticamente al seleccionar un torneo.
+                                La información se cargar• automáticamente al seleccionar un torneo.
                             </small>
                         </div>
                         <div class="col-md-4 d-flex align-items-end">
@@ -282,8 +282,8 @@ if ($torneo_id > 0) {
                     <i class="fas fa-info-circle fa-4x text-info mb-3"></i>
                     <h4 class="text-muted">Seleccione un Torneo</h4>
                     <p class="text-muted mb-0">
-                        Para ver los estados de cuenta y gestionar pagos, por favor seleccione un torneo del men� superior.<br>
-                        <small>Las deudas se actualizar�n autom�ticamente al seleccionar el torneo.</small>
+                        Para ver los estados de cuenta y gestionar pagos, por favor seleccione un torneo del men• superior.<br>
+                        <small>Las deudas se actualizarán automáticamente al seleccionar el torneo.</small>
                     </p>
                 </div>
             </div>
@@ -291,7 +291,7 @@ if ($torneo_id > 0) {
     </div>
     <?php else: ?>
     
-    <!-- Dashboard de Estad�sticas -->
+    <!-- Dashboard de Estadísticas -->
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="card text-center">
@@ -355,7 +355,7 @@ if ($torneo_id > 0) {
                     <i class="fas fa-info-circle me-2"></i>
                     No hay deudas registradas.
                     <?php if ($torneo_id): ?>
-                        <br><small>Puede actualizar las deudas desde el bot�n "Actualizar Deudas"</small>
+                        <br><small>Puede actualizar las deudas desde el botón "Actualizar Deudas"</small>
                     <?php else: ?>
                         <br><small>Seleccione un torneo para ver las deudas</small>
                     <?php endif; ?>
@@ -420,7 +420,7 @@ if ($torneo_id > 0) {
                                             </button>
                                             <button type="button" 
                                                     class="btn btn-sm btn-outline-primary" 
-                                                    title="Enviar Notificaci�n WhatsApp"
+                                                    title="Enviar Notificación WhatsApp"
                                                     onclick="enviarNotificacionWhatsApp(<?= $deuda['torneo_id'] ?>, <?= $deuda['club_id'] ?>)"
                                                     <?= !$puede_pagar ? 'disabled' : '' ?>>
                                                 <i class="fab fa-whatsapp"></i>
@@ -433,7 +433,7 @@ if ($torneo_id > 0) {
                     </table>
                 </div>
                 
-                <!-- Paginaci�n -->
+                <!-- Paginación -->
                 <?php if ($pagination): ?>
                     <?= $pagination->render() ?>
                 <?php endif; ?>
@@ -458,7 +458,7 @@ if ($torneo_id > 0) {
                 <!-- Estado de Cuenta - SIEMPRE VISIBLE (NO HACE SCROLL) -->
                 <div style="flex-shrink: 0; padding: 1rem; background-color: #d1ecf1; border-bottom: 2px solid #0d6efd; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     <div id="infoPagoClub" style="color: #0c5460;">
-                        <!-- Se llenar� con JavaScript -->
+                        <!-- Se llenar• con JavaScript -->
                     </div>
                 </div>
                 
@@ -477,8 +477,8 @@ if ($torneo_id > 0) {
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Moneda</label>
                                 <select name="moneda" id="pago_moneda" class="form-select" required onchange="calcularMontos()">
-                                    <option value="USD">D�lares (USD)</option>
-                                    <option value="BS">Bol�vares (BS)</option>
+                                    <option value="USD">Dólares (USD)</option>
+                                    <option value="BS">Bolívares (BS)</option>
                                 </select>
                             </div>
                             
@@ -495,22 +495,22 @@ if ($torneo_id > 0) {
                             </div>
                             
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Monto a Pagar en D�lares (USD)</label>
+                                <label class="form-label fw-bold">Monto a Pagar en Dólares (USD)</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
                                     <input type="number" class="form-control" name="monto" 
                                            step="0.01" min="0.01" required id="pago_monto" onkeyup="calcularMontos()" onchange="calcularMontos()">
                                 </div>
-                                <small class="text-muted">Este monto se descontar� de la deuda en d�lares</small>
+                                <small class="text-muted">Este monto se descontará de la deuda en dólares</small>
                             </div>
                             
                             <div class="mb-3" id="div_monto_bs" style="display: none;">
-                                <label class="form-label fw-bold">Monto Total en Bol�vares</label>
+                                <label class="form-label fw-bold">Monto Total en Bolívares</label>
                                 <div class="input-group">
                                     <span class="input-group-text">Bs.</span>
                                     <input type="text" class="form-control" id="display_monto_bs" readonly>
                                 </div>
-                                <small class="text-success">Este es el monto que el club pag� en bol�vares</small>
+                                <small class="text-success">Este es el monto que el club pagó en bolívares</small>
                             </div>
                             
                             <div class="mb-3">
@@ -526,14 +526,14 @@ if ($torneo_id > 0) {
                                 <select name="tipo_pago" id="pago_tipo_pago" class="form-select" required>
                                     <option value="efectivo">Efectivo</option>
                                     <option value="transferencia">Transferencia Bancaria</option>
-                                    <option value="pago_movil">Pago M�vil</option>
+                                    <option value="pago_movil">Pago Móvil</option>
                                     <option value="zelle">Zelle</option>
                                     <option value="otro">Otro</option>
                                 </select>
                             </div>
                             
                             <div class="mb-3">
-                                <label class="form-label">Referencia/N� de Transacci�n</label>
+                                <label class="form-label">Referencia/N• de Transacción</label>
                                 <input type="text" class="form-control" name="referencia" 
                                        placeholder="Ej: 123456789">
                             </div>
@@ -553,7 +553,7 @@ if ($torneo_id > 0) {
                     </div>
                     </form>
                 </div>
-                <!-- Fin �rea con scroll -->
+                <!-- Fin Área con scroll -->
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btnCancelarPago">
@@ -596,7 +596,7 @@ if ($torneo_id > 0) {
 <?php
 $finances_actualizar_deudas_url = class_exists('AppHelpers')
     ? rtrim(AppHelpers::getPublicUrl(), '/') . '/api/finances_actualizar_deudas.php'
-    : '/public/api/finances_actualizar_deudas.php';
+    : AppHelpers::url('api/finances_actualizar_deudas.php');
 ?>
 <script>
 const FINANCES_ACTUALIZAR_DEUDAS_URL = <?= json_encode($finances_actualizar_deudas_url, JSON_UNESCAPED_UNICODE) ?>;
@@ -617,7 +617,7 @@ function parseFinancesJsonResponse(response) {
         }
     });
 }
-console.log('M�dulo de finanzas cargado');
+console.log('Módulo de finanzas cargado');
 
 // ============================================
 // SISTEMA DE TASA DE CAMBIO BCV
@@ -626,9 +626,9 @@ console.log('M�dulo de finanzas cargado');
 // Variable global para almacenar la tasa de cambio
 let tasaBCVActual = 0;
 
-// Funci�n para consultar la API del BCV
+// Función para consultar la API del BCV
 async function cargarTasaBCV() {
-    console.log('?? Consultando tasa BCV...');
+    console.log('• Consultando tasa BCV...');
     
     const btnSync = event ? event.target.closest('button') : null;
     const originalHTML = btnSync ? btnSync.innerHTML : '';
@@ -647,7 +647,7 @@ async function cargarTasaBCV() {
         }
         
         const data = await response.json();
-        console.log('?? Respuesta API BCV:', data);
+        console.log('• Respuesta API BCV:', data);
         
         // La API devuelve: { success: true, tasa: 36.50, fuente: "BCV", fecha: "..." }
         if (data && data.success && data.tasa) {
@@ -664,13 +664,13 @@ async function cargarTasaBCV() {
             // Calcular montos
             calcularMontos();
             
-            alert('? Tasa BCV cargada: Bs. ' + tasaBCVActual.toFixed(2) + ' (' + data.fuente + ')');
+            alert('✓ Tasa BCV cargada: Bs. ' + tasaBCVActual.toFixed(2) + ' (' + data.fuente + ')');
         } else {
             throw new Error(data.error || 'Formato de respuesta inesperado');
         }
     } catch (error) {
         console.error('? Error al cargar tasa BCV:', error);
-        alert('? No se pudo obtener la tasa del BCV. Por favor, intente nuevamente o ingrese la tasa manualmente.');
+        alert('✓ No se pudo obtener la tasa del BCV. Por favor, intente nuevamente o ingrese la tasa manualmente.');
         
         // Permitir ingreso manual
         const tasaManual = prompt('Ingrese la tasa de cambio BCV manualmente (Bs.):');
@@ -689,14 +689,14 @@ async function cargarTasaBCV() {
     }
 }
 
-// Funci�n para calcular montos seg�n la moneda
+// Función para calcular montos según la moneda
 function calcularMontos() {
     const moneda = document.getElementById('pago_moneda').value;
     const montoDolares = parseFloat(document.getElementById('pago_monto').value) || 0;
     const tasaCambio = parseFloat(document.getElementById('pago_tasa_cambio').value) || 0;
     const maxPendiente = parseFloat(document.getElementById('pago_monto').max) || 0;
     
-    console.log('?? Calculando:', { moneda, montoDolares, tasaCambio, maxPendiente });
+    console.log('• Calculando:', { moneda, montoDolares, tasaCambio, maxPendiente });
     
     // Validar que el monto no exceda el pendiente
     const campoMonto = document.getElementById('pago_monto');
@@ -726,29 +726,29 @@ function calcularMontos() {
         }
     }
     
-    // Mostrar/ocultar campos seg�n la moneda
+    // Mostrar/ocultar campos según la moneda
     if (moneda === 'BS') {
         document.getElementById('div_tasa_cambio').style.display = 'block';
         document.getElementById('div_monto_bs').style.display = 'block';
         
-        // Si no hay tasa, cargarla autom�ticamente
+        // Si no hay tasa, cargarla automáticamente
         if (tasaCambio === 0) {
             cargarTasaBCV();
         } else {
-            // Calcular monto en bol�vares
+            // Calcular monto en bolívares
             const montoBS = montoDolares * tasaCambio;
             document.getElementById('display_monto_bs').value = montoBS.toFixed(2);
             document.getElementById('pago_monto_total').value = montoBS.toFixed(2);
         }
     } else {
-        // Si es USD, ocultar campos de bol�vares
+        // Si es USD, ocultar campos de bolívares
         document.getElementById('div_tasa_cambio').style.display = 'none';
         document.getElementById('div_monto_bs').style.display = 'none';
         document.getElementById('pago_tasa_cambio').value = 0;
         document.getElementById('pago_monto_total').value = montoDolares.toFixed(2);
     }
     
-    // El monto en d�lares siempre es el monto que se descuenta
+    // El monto en dólares siempre es el monto que se descuenta
     document.getElementById('pago_monto_dolares').value = montoDolares.toFixed(2);
 }
 
@@ -756,20 +756,20 @@ function calcularMontos() {
 // FIN SISTEMA DE TASA DE CAMBIO
 // ============================================
 
-// Funci�n para cargar torneo con actualizaci�n autom�tica de deudas
+// Función para cargar torneo con actualización automática de deudas
 async function cargarTorneoConActualizacion(event) {
     const selectTorneo = document.getElementById('selectTorneo');
     const torneoId = parseInt(selectTorneo.value);
     
     if (torneoId <= 0) {
-        // Solo mostrar alerta si se dispar� desde el bot�n, no desde el select
+        // Solo mostrar alerta si se dispar• desde el botón, no desde el select
         if (event && event.target && event.target.tagName === 'BUTTON') {
-            alert('?? Por favor seleccione un torneo');
+            alert('• Por favor seleccione un torneo');
         }
         return;
     }
     
-    // Determinar el bot�n para mostrar indicador (puede ser el bot�n o crear uno temporal)
+    // Determinar el botón para mostrar indicador (puede ser el botón o crear uno temporal)
     let btn = null;
     let originalHTML = '';
     let isButton = false;
@@ -781,9 +781,9 @@ async function cargarTorneoConActualizacion(event) {
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Actualizando deudas...';
         isButton = true;
     } else {
-        // Si se dispar� desde el select, mostrar indicador en el select
+        // Si se dispar• desde el select, mostrar indicador en el select
         selectTorneo.disabled = true;
-        console.log('?? Cargando torneo autom�ticamente...');
+        console.log('• Cargando torneo automáticamente...');
     }
     
     try {
@@ -801,13 +801,13 @@ async function cargarTorneoConActualizacion(event) {
         });
 
         const data = await parseFinancesJsonResponse(response);
-        console.log('Resultado actualizaci�n:', data);
+        console.log('Resultado actualización:', data);
         
         if (data.success) {
             // Redirigir con el torneo seleccionado
             window.location.href = window.location.pathname + '?page=finances&torneo_id=' + torneoId + '&success=' + encodeURIComponent('Deudas actualizadas. ' + data.message);
         } else {
-            alert('?? Error al actualizar deudas: ' + (data.message || 'Error desconocido'));
+            alert('• Error al actualizar deudas: ' + (data.message || 'Error desconocido'));
             if (isButton && btn) {
                 btn.disabled = false;
                 btn.innerHTML = originalHTML;
@@ -817,7 +817,7 @@ async function cargarTorneoConActualizacion(event) {
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('? Error al actualizar deudas: ' + error.message);
+        alert('✓ Error al actualizar deudas: ' + error.message);
         if (isButton && btn) {
             btn.disabled = false;
             btn.innerHTML = originalHTML;
@@ -829,7 +829,7 @@ async function cargarTorneoConActualizacion(event) {
 
 // Abrir modal de pago
 function abrirModalPago(torneoId, clubId, clubNombre, pendiente, totalInscritos, deudaTotal, abonoTotal) {
-    console.log('?? Abriendo modal de pago', {torneoId, clubId, clubNombre, pendiente, totalInscritos, deudaTotal, abonoTotal});
+    console.log('• Abriendo modal de pago', {torneoId, clubId, clubNombre, pendiente, totalInscritos, deudaTotal, abonoTotal});
     
     // Obtener el modal
     const modalElement = document.getElementById('modalPago');
@@ -859,14 +859,14 @@ function abrirModalPago(torneoId, clubId, clubNombre, pendiente, totalInscritos,
         errorDiv.remove();
     }
     
-    // CR�TICO: Clonar bot�n para eliminar event listeners problem�ticos
+    // CRÍTICO: Clonar botón para eliminar event listeners problemáticos
     const btnGuardar = document.getElementById('btnGuardarPago');
     if (btnGuardar) {
         const nuevoBtn = btnGuardar.cloneNode(true);
         btnGuardar.parentNode.replaceChild(nuevoBtn, btnGuardar);
     }
     
-    // Rehabilitar despu�s del reemplazo
+    // Rehabilitar después del reemplazo
     setTimeout(() => {
         rehabilitarBotonPago();
     }, 50);
@@ -877,7 +877,7 @@ function abrirModalPago(torneoId, clubId, clubNombre, pendiente, totalInscritos,
     document.getElementById('pago_monto').max = pendiente;
     document.getElementById('pago_monto').value = ''; // Limpiar monto
     
-    // Convertir a n�meros
+    // Convertir a números
     totalInscritos = parseInt(totalInscritos) || 0;
     deudaTotal = parseFloat(deudaTotal) || 0;
     abonoTotal = parseFloat(abonoTotal) || 0;
@@ -886,7 +886,7 @@ function abrirModalPago(torneoId, clubId, clubNombre, pendiente, totalInscritos,
     // Calcular costo por inscrito (para mostrar)
     const costoPorInscrito = totalInscritos > 0 ? (deudaTotal / totalInscritos) : 0;
     
-    // Guardar valores para usar despu�s de abrir el modal
+    // Guardar valores para usar después de abrir el modal
     const estadoCuentaHTML = `
         <div class="row align-items-center">
             <div class="col-12 mb-3">
@@ -908,7 +908,7 @@ function abrirModalPago(torneoId, clubId, clubNombre, pendiente, totalInscritos,
                 <div class="text-center p-2 bg-primary bg-opacity-10 rounded border border-primary">
                     <div class="text-primary small fw-bold">Deuda Total</div>
                     <div class="text-primary fs-4 fw-bold">$${deudaTotal.toFixed(2)}</div>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">${totalInscritos} � $${costoPorInscrito.toFixed(2)}</small>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">${totalInscritos} • $${costoPorInscrito.toFixed(2)}</small>
                 </div>
             </div>
             <div class="col-3">
@@ -952,18 +952,18 @@ function abrirModalPago(torneoId, clubId, clubNombre, pendiente, totalInscritos,
         });
         modal.show();
         
-        // Rehabilitar m�ltiples veces despu�s de abrir
+        // Rehabilitar múltiples veces después de abrir
         setTimeout(rehabilitarBotonPago, 100);
         setTimeout(rehabilitarBotonPago, 300);
         setTimeout(rehabilitarBotonPago, 500);
     }, 150);
     
-    // CR�TICO: Establecer estado de cuenta DESPU�S de que el modal se muestre
+    // CRÍTICO: Establecer estado de cuenta DESPUÉS de que el modal se muestre
     modalElement.addEventListener('shown.bs.modal', function mostrarEstadoCuenta() {
-        console.log('?? Estableciendo estado de cuenta');
+        console.log('• Estableciendo estado de cuenta');
         document.getElementById('infoPagoClub').innerHTML = estadoCuentaHTML;
         
-        // Deshabilitar bot�n de guardar si no hay deuda pendiente
+        // Deshabilitar botón de guardar si no hay deuda pendiente
         const btnGuardar = document.getElementById('btnGuardarPago');
         if (btnGuardar && parseFloat(pendiente) <= 0) {
             btnGuardar.disabled = true;
@@ -982,36 +982,36 @@ let modalPagoInstance = null;
 let btnGuardarPagoElement = null;
 const BTN_GUARDAR_ORIGINAL = '<i class="fas fa-save me-2"></i>Guardar Pago';
 
-// Funci�n para rehabilitar el bot�n (usar en todos los casos)
+// Función para rehabilitar el botón (usar en todos los casos)
 function rehabilitarBotonPago() {
-    // Usar el ID para encontrar el bot�n directamente
+    // Usar el ID para encontrar el botón directamente
     const btn = document.getElementById('btnGuardarPago');
     
     if (btn) {
-        // Forzar rehabilitaci�n de forma agresiva
+        // Forzar rehabilitación de forma agresiva
         btn.disabled = false;
         btn.removeAttribute('disabled');
         btn.innerHTML = BTN_GUARDAR_ORIGINAL;
         btn.style.pointerEvents = 'auto'; // Asegurar que sea clickeable
         btn.classList.remove('disabled');
-        console.log('? Bot�n de pago rehabilitado (ID: btnGuardarPago)');
+        console.log('? Botón de pago rehabilitado (ID: btnGuardarPago)');
         return true;
     } else {
-        console.warn('?? No se encontr� el bot�n de guardar pago (ID: btnGuardarPago)');
+        console.warn('• No se encontr• el botón de guardar pago (ID: btnGuardarPago)');
         return false;
     }
 }
 
-// Funci�n para limpiar completamente el modal
+// Función para limpiar completamente el modal
 function limpiarModalPago() {
-    console.log('?? Limpiando modal de pago');
+    console.log('• Limpiando modal de pago');
     
     const form = document.getElementById('formPago');
     if (form) {
         form.reset();
     }
     
-    // Limpiar validaci�n visual del monto
+    // Limpiar validación visual del monto
     const campoMonto = document.getElementById('pago_monto');
     if (campoMonto) {
         campoMonto.classList.remove('is-invalid');
@@ -1025,30 +1025,30 @@ function limpiarModalPago() {
     rehabilitarBotonPago();
 }
 
-// Sistema de gesti�n del modal de pago - SIMPLIFICADO Y MEJORADO
+// Sistema de gestión del modal de pago - SIMPLIFICADO Y MEJORADO
 document.addEventListener('DOMContentLoaded', function() {
     const modalPago = document.getElementById('modalPago');
     const btnCancelar = document.getElementById('btnCancelarPago');
     const btnCerrar = modalPago ? modalPago.querySelector('.btn-close') : null;
     
     if (!modalPago) {
-        console.error('?? Modal de pago no encontrado');
+        console.error('• Modal de pago no encontrado');
         return;
     }
     
-    // Guardar referencia al bot�n
+    // Guardar referencia al botón
     btnGuardarPagoElement = document.getElementById('btnGuardarPago');
     
-    // Rehabilitaci�n inicial
+    // Rehabilitación inicial
     rehabilitarBotonPago();
-    console.log('?? Sistema de pago inicializado');
+    console.log('• Sistema de pago inicializado');
     
-    // EVENTO CR�TICO: Cuando el modal se cierra (por cualquier motivo)
+    // EVENTO CRÍTICO: Cuando el modal se cierra (por cualquier motivo)
     modalPago.addEventListener('hidden.bs.modal', function() {
-        console.log('?? Modal cerrado - rehabilitando bot�n');
+        console.log('• Modal cerrado - rehabilitando botón');
         limpiarModalPago();
         
-        // Rehabilitar m�ltiples veces para asegurar
+        // Rehabilitar múltiples veces para asegurar
         rehabilitarBotonPago();
         setTimeout(rehabilitarBotonPago, 100);
         setTimeout(rehabilitarBotonPago, 300);
@@ -1057,16 +1057,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // EVENTO: Cuando el modal se abre
     modalPago.addEventListener('show.bs.modal', function() {
-        console.log('?? Modal abri�ndose - preparando');
+        console.log('• Modal abriéndose - preparando');
         rehabilitarBotonPago();
     });
     
     modalPago.addEventListener('shown.bs.modal', function() {
-        console.log('?? Modal abierto - verificando');
+        console.log('• Modal abierto - verificando');
         setTimeout(rehabilitarBotonPago, 100);
     });
     
-    // EVENTO DIRECTO: Click en bot�n Cancelar
+    // EVENTO DIRECTO: Click en botón Cancelar
     if (btnCancelar) {
         btnCancelar.addEventListener('click', function(e) {
             console.log('? CANCELAR presionado');
@@ -1074,27 +1074,27 @@ document.addEventListener('DOMContentLoaded', function() {
             // Rehabilitar inmediatamente (antes de que se cierre el modal)
             setTimeout(function() {
                 rehabilitarBotonPago();
-                console.log('?? Rehabilitado despu�s de cancelar (100ms)');
+                console.log('• Rehabilitado después de cancelar (100ms)');
             }, 100);
             
             setTimeout(function() {
                 rehabilitarBotonPago();
-                console.log('?? Rehabilitado despu�s de cancelar (300ms)');
+                console.log('• Rehabilitado después de cancelar (300ms)');
             }, 300);
             
             setTimeout(function() {
                 rehabilitarBotonPago();
-                console.log('?? Rehabilitado despu�s de cancelar (600ms)');
+                console.log('• Rehabilitado después de cancelar (600ms)');
             }, 600);
             
             setTimeout(function() {
                 rehabilitarBotonPago();
-                console.log('?? Rehabilitado despu�s de cancelar (1000ms)');
+                console.log('• Rehabilitado después de cancelar (1000ms)');
             }, 1000);
         });
     }
     
-    // EVENTO DIRECTO: Click en bot�n Cerrar (X)
+    // EVENTO DIRECTO: Click en botón Cerrar (X)
     if (btnCerrar) {
         btnCerrar.addEventListener('click', function(e) {
             console.log('? CERRAR (X) presionado');
@@ -1104,46 +1104,46 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // VIGILANTE: Revisar cada segundo si el bot�n necesita rehabilitarse
+    // VIGILANTE: Revisar cada segundo si el botón necesita rehabilitarse
     setInterval(function() {
         const modalElement = document.getElementById('modalPago');
         const btn = document.getElementById('btnGuardarPago');
         
         if (!btn) return;
         
-        // Si el modal no est� visible Y el bot�n est� deshabilitado, rehabilitar
+        // Si el modal no est• visible Y el botón est• deshabilitado, rehabilitar
         const modalVisible = modalElement && modalElement.classList.contains('show');
         
         if (!modalVisible && btn.disabled) {
-            console.log('?? VIGILANTE: Modal cerrado, bot�n deshabilitado - rehabilitando');
+            console.log('• VIGILANTE: Modal cerrado, botón deshabilitado - rehabilitando');
             rehabilitarBotonPago();
         }
         
-        // Si el modal est� visible pero el bot�n est� deshabilitado sin spinner
+        // Si el modal est• visible pero el botón est• deshabilitado sin spinner
         if (modalVisible && btn.disabled && !btn.innerHTML.includes('spinner-border')) {
-            console.log('?? VIGILANTE: Bot�n deshabilitado sin raz�n - rehabilitando');
+            console.log('• VIGILANTE: Botón deshabilitado sin razón - rehabilitando');
             rehabilitarBotonPago();
         }
-    }, 500); // Cada medio segundo para ser m�s r�pido
+    }, 500); // Cada medio segundo para ser más rápido
 });
 
 // Guardar pago
 async function guardarPago() {
-    console.log('?? Intentando guardar pago');
+    console.log('• Intentando guardar pago');
     
     const form = document.getElementById('formPago');
     const btn = document.getElementById('btnGuardarPago');
     
     if (!btn) {
-        console.error('? No se encontr� el bot�n de guardar');
+        console.error('? No se encontr• el botón de guardar');
         return;
     }
     
     // Validar formulario
     if (!form.checkValidity()) {
-        console.log('?? Formulario no v�lido');
+        console.log('• Formulario no válido');
         form.reportValidity();
-        // Asegurar que el bot�n est� habilitado para reintentar
+        // Asegurar que el botón est• habilitado para reintentar
         rehabilitarBotonPago();
         return;
     }
@@ -1153,27 +1153,27 @@ async function guardarPago() {
     const maxPendiente = parseFloat(document.getElementById('pago_monto').max) || 0;
     
     if (montoDolares > maxPendiente && maxPendiente > 0) {
-        alert('? Error: El monto a pagar ($' + montoDolares.toFixed(2) + ') excede el saldo pendiente ($' + maxPendiente.toFixed(2) + ')');
+        alert('✓ Error: El monto a pagar ($' + montoDolares.toFixed(2) + ') excede el saldo pendiente ($' + maxPendiente.toFixed(2) + ')');
         rehabilitarBotonPago();
         return;
     }
     
     if (montoDolares <= 0) {
-        alert('? Error: El monto debe ser mayor que cero');
+        alert('✓ Error: El monto debe ser mayor que cero');
         rehabilitarBotonPago();
         return;
     }
     
     if (maxPendiente <= 0) {
-        alert('?? Este club no tiene deuda pendiente');
+        alert('• Este club no tiene deuda pendiente');
         rehabilitarBotonPago();
         return;
     }
     
-    // Deshabilitar bot�n y mostrar spinner (solo durante el guardado)
+    // Deshabilitar botón y mostrar spinner (solo durante el guardado)
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
-    console.log('? Bot�n deshabilitado temporalmente para guardar');
+    console.log('? Botón deshabilitado temporalmente para guardar');
     
     try {
         const formData = new FormData(form);
@@ -1181,8 +1181,8 @@ async function guardarPago() {
         // Usar la misma URL que el action del formulario
         const saveUrl = 'modules/finances/save_payment.php';
         
-        console.log('?? Guardando pago en:', saveUrl);
-        console.log('?? Datos del formulario:', {
+        console.log('• Guardando pago en:', saveUrl);
+        console.log('• Datos del formulario:', {
             torneo_id: formData.get('torneo_id'),
             club_id: formData.get('club_id'),
             monto: formData.get('monto'),
@@ -1200,12 +1200,12 @@ async function guardarPago() {
         }
         
         const data = await response.json();
-        console.log('?? Respuesta del servidor:', data);
+        console.log('• Respuesta del servidor:', data);
         
         if (data.success) {
             console.log('? Pago guardado exitosamente');
             
-            // Rehabilitar ANTES de cerrar (cr�tico)
+            // Rehabilitar ANTES de cerrar (crítico)
             rehabilitarBotonPago();
             
             // Cerrar modal
@@ -1218,19 +1218,19 @@ async function guardarPago() {
             // Limpiar formulario
             limpiarModalPago();
             
-            // Recargar p�gina para actualizar datos
+            // Recargar página para actualizar datos
             const torneoId = document.getElementById('pago_torneo_id').value;
             window.location.href = window.location.pathname + '?page=finances&torneo_id=' + torneoId + '&success=' + encodeURIComponent('Pago registrado exitosamente');
         } else {
             console.error('? Error del servidor:', data.error);
-            alert('? Error: ' + (data.error || 'No se pudo guardar el pago'));
-            // Rehabilitar bot�n usando la funci�n centralizada
+            alert('✓ Error: ' + (data.error || 'No se pudo guardar el pago'));
+            // Rehabilitar botón usando la función centralizada
             rehabilitarBotonPago();
         }
     } catch (error) {
         console.error('? Error al guardar pago:', error);
-        alert('? Error al guardar el pago: ' + error.message);
-        // Rehabilitar bot�n usando la funci�n centralizada
+        alert('✓ Error al guardar el pago: ' + error.message);
+        // Rehabilitar botón usando la función centralizada
         rehabilitarBotonPago();
     }
 }
@@ -1297,11 +1297,11 @@ async function verPagos(torneoId, clubId, clubNombre) {
         }
     } catch (error) {
         console.error('Error:', error);
-        body.innerHTML = '<div class="alert alert-danger">Error de conexi�n</div>';
+        body.innerHTML = '<div class="alert alert-danger">Error de conexión</div>';
     }
 }
 
-// Enviar notificaci�n de deuda por WhatsApp
+// Enviar notificación de deuda por WhatsApp
 function enviarNotificacionWhatsApp(torneoId, clubId) {
     console.log('enviarNotificacionWhatsApp', torneoId, clubId);
     const baseUrl = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));

@@ -37,65 +37,167 @@ class PersonaDatabase {
     private const UNAVAILABLE_RESET_TIME = 60; // Reintentar después de 60 segundos
     
     public function __construct() {
-        // Obtener configuración desde $GLOBALS['APP_CONFIG']['persona_db']
-        $config = $GLOBALS['APP_CONFIG']['persona_db'] ?? null;
-        $env = class_exists('Environment') ? Environment::get() : 'development';
-        
-        // Credenciales base por entorno (evitar fallos de base inexistente en dev)
-        $defaultHost = 'localhost';
-        $defaultDb = Environment::isProduction() ? 'laestaci1_fvdadmin' : 'personas';
-        $defaultUser = Environment::isProduction() ? 'laestaci1_admin' : 'root';
-        $defaultPass = Environment::isProduction() ? '' : ''; // Usar .env en producción
-        // Tabla: dbo_persona (desarrollo y producción)
-        $defaultTable = Environment::isProduction() ? 'dbo.persona' : 'dbo_persona';
-        $tableRaw = $defaultTable;
-        
-        if (!$config) {
-            // Usar credenciales por defecto (producción)
-            $this->host = $defaultHost;
-            $this->dbname = $defaultDb;
-            $this->username = $defaultUser;
-            $this->password = $defaultPass;
-            $this->port = 3306;
-            $this->tableName = "`{$defaultTable}`";
-        } else {
-            $this->host = $config['host'] ?? $defaultHost;
-            // Usar base de datos según entorno
-            if ($env === 'production') {
-                $this->dbname = $config['name'] ?? $defaultDb;
-            } else {
-                // Permitir sobreescritura específica para desarrollo
-                $this->dbname = $config['name_dev'] ?? $config['name'] ?? $defaultDb;
-            }
-            $this->username = $config['user'] ?? $defaultUser;
-            $this->password = $config['pass'] ?? $defaultPass;
-            $this->port = $config['port'] ?? 3306;
-            // Seleccionar tabla según entorno
-            if ($env === 'production') {
-                $tableRaw = $config['table'] ?? $defaultTable;
-            } else {
-                $tableRaw = $config['table_dev'] ?? $config['table'] ?? $defaultTable;
-            }
-            $this->tableName = "`{$tableRaw}`";
+        $settings = self::resolveSettings();
+        if ($settings === null) {
+            $this->enabled = false;
+
+            return;
         }
 
-        // Preparar lista de tablas candidatas (dbo_personas, dbo.persona, persona, dbo_persona)
-        $candidates = [];
-        if (!empty($tableRaw)) {
-            $candidates[] = $tableRaw;
-        }
-        $candidates[] = 'dbo_persona';
-        $candidates[] = 'dbo.persona';
-        $candidates[] = 'persona';
-        $candidates[] = 'dbo_persona';
-        if ($env !== 'production') {
-            $candidates[] = 'dbo_persona';
-        }
-        $this->tableCandidates = array_values(array_unique(array_filter($candidates)));
+        $this->host = $settings['host'];
+        $this->dbname = $settings['dbname'];
+        $this->username = $settings['user'];
+        $this->password = $settings['pass'];
+        $this->port = $settings['port'];
+        $this->tableCandidates = $settings['table_candidates'];
         $this->tableIndex = 0;
-        if (!empty($this->tableCandidates)) {
-            $this->tableName = "`{$this->tableCandidates[0]}`";
+        $this->tableName = '`' . $settings['table_candidates'][0] . '`';
+    }
+
+    /**
+     * ¿Hay credenciales para la BD de personas? (no abre conexión)
+     */
+    public static function isConfigured(): bool
+    {
+        return self::resolveSettings() !== null;
+    }
+
+    /**
+     * Credenciales resueltas (sin abrir conexión). Usado por DB::pdoSecondary().
+     *
+     * @return array{host:string, dbname:string, user:string, pass:string, port:int, table_candidates:list<string>}|null
+     */
+    public static function connectionSettings(): ?array
+    {
+        return self::resolveSettings();
+    }
+
+    /**
+     * Consulta puntual por cédula. Conecta solo si está configurada y se invoca esta búsqueda.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function buscarPorCedula(string $nacionalidad, string $cedulaDigitos): ?array
+    {
+        $cedula = preg_replace('/\D/', '', trim($cedulaDigitos));
+        if ($cedula === '' || !self::isConfigured()) {
+            return null;
         }
+
+        try {
+            $db = new self();
+            if (!$db->isEnabled()) {
+                return null;
+            }
+            $nac = strtoupper(trim($nacionalidad));
+            if (!in_array($nac, ['V', 'E', 'J', 'P'], true)) {
+                $nac = 'V';
+            }
+            $result = $db->searchPersonaById($nac, $cedula);
+            if (!empty($result['encontrado']) && !empty($result['persona']) && is_array($result['persona'])) {
+                return $result['persona'];
+            }
+            if (!empty($result['success']) && !empty($result['data']) && is_array($result['data'])) {
+                return $result['data'];
+            }
+        } catch (Throwable $e) {
+            // La app principal no depende de esta BD; fallo silencioso.
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{host:string, dbname:string, user:string, pass:string, port:int, table_candidates:list<string>}|null
+     */
+    private static function resolveSettings(): ?array
+    {
+        if (!isset($GLOBALS['APP_CONFIG']) && file_exists(__DIR__ . '/environment.php')) {
+            require_once __DIR__ . '/environment.php';
+            if (!isset($GLOBALS['APP_CONFIG'])) {
+                $GLOBALS['APP_CONFIG'] = Environment::getConfig();
+            }
+        }
+
+        $config = $GLOBALS['APP_CONFIG']['persona_db'] ?? null;
+        $env = class_exists('Environment') ? Environment::get() : 'development';
+        $hostProd = self::esHostProduccion();
+        $localDev = self::esDesarrolloLocal();
+
+        $defaultHost = 'localhost';
+        $defaultDb = ($hostProd || Environment::isProduction()) ? 'laestaci1_fvdadmin' : 'personas';
+        $defaultTable = ($hostProd || Environment::isProduction()) ? 'dbo.persona' : 'dbo_persona';
+
+        $user = '';
+        $pass = '';
+        if (is_array($config)) {
+            $user = trim((string) ($config['user'] ?? ''));
+            $pass = (string) ($config['pass'] ?? '');
+        }
+        if ($user === '') {
+            $dbSec = $GLOBALS['APP_CONFIG']['db'] ?? [];
+            $user = trim((string) ($dbSec['secondary_user'] ?? ''));
+            if ($pass === '' && array_key_exists('secondary_pass', $dbSec)) {
+                $pass = (string) $dbSec['secondary_pass'];
+            }
+        }
+        if ($user === '' && class_exists('Env', false)) {
+            $user = trim((string) (Env::get('DB_SECONDARY_USERNAME') ?? ''));
+            if ($pass === '') {
+                $pass = (string) (Env::get('DB_SECONDARY_PASSWORD') ?? '');
+            }
+        }
+
+        if ($user === '') {
+            if (!$localDev) {
+                return null;
+            }
+            $user = 'root';
+            $pass = '';
+        }
+
+        $host = is_array($config) ? (string) ($config['host'] ?? $defaultHost) : $defaultHost;
+        if ($env === 'production' || $hostProd) {
+            $dbname = is_array($config) ? (string) ($config['name'] ?? $defaultDb) : $defaultDb;
+            $tableRaw = is_array($config) ? (string) ($config['table'] ?? $defaultTable) : $defaultTable;
+        } else {
+            $dbname = is_array($config) ? (string) ($config['name_dev'] ?? $config['name'] ?? $defaultDb) : $defaultDb;
+            $tableRaw = is_array($config) ? (string) ($config['table_dev'] ?? $config['table'] ?? $defaultTable) : $defaultTable;
+        }
+        $port = is_array($config) ? (int) ($config['port'] ?? 3306) : 3306;
+
+        $candidates = array_values(array_unique(array_filter([
+            $tableRaw,
+            'dbo_persona',
+            'dbo.persona',
+            'persona',
+        ])));
+
+        return [
+            'host' => $host !== '' ? $host : $defaultHost,
+            'dbname' => $dbname,
+            'user' => $user,
+            'pass' => $pass,
+            'port' => $port,
+            'table_candidates' => $candidates,
+        ];
+    }
+
+    private static function esHostProduccion(): bool
+    {
+        $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? ''));
+
+        return str_contains($host, 'laestacion')
+            || str_contains($host, 'mistorneos.com');
+    }
+
+    private static function esDesarrolloLocal(): bool
+    {
+        $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost'));
+        $isLocal = ($host === 'localhost' || $host === '127.0.0.1'
+            || str_starts_with($host, 'localhost:') || str_starts_with($host, '127.0.0.1:'));
+
+        return $isLocal && (!class_exists('Environment') || Environment::isDevelopment());
     }
     
     /**
@@ -126,6 +228,10 @@ class PersonaDatabase {
      * Implementa timeout para evitar esperas largas
      */
     public function getConnection() {
+        if (!$this->enabled || !self::isConfigured()) {
+            return null;
+        }
+
         $cacheKey = $this->host . '_' . $this->port . '_' . $this->dbname;
         $now = time();
         

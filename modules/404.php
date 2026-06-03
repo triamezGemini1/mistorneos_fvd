@@ -1,7 +1,7 @@
 <?php
 // Si aún no se ha enviado salida, redirigir a la página 404 personalizada
 if (!headers_sent()) {
-    header('Location: ' . app_base_url() . '/public/404.php', true, 302);
+    header('Location: ' . AppHelpers::url('404.php'), true, 302);
     exit;
 }
 // Si ya hay salida (p. ej. incluido desde layout), mostrar 404 dentro del contenido

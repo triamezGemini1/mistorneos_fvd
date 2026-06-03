@@ -6,7 +6,7 @@ require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../lib/image_helper.php';
 require_once __DIR__ . '/simple_image_config.php';
 
-// Funci�n helper para manejar valores que pueden ser enteros o NULL
+// Función helper para manejar valores que pueden ser enteros o NULL
 function safe_htmlspecialchars($value) {
     if ($value === null) {
         return '';
@@ -14,7 +14,7 @@ function safe_htmlspecialchars($value) {
     return htmlspecialchars((string)$value);
 }
 
-// Obtener par�metros de la URL
+// Obtener parámetros de la URL
 $token = $_GET['token'] ?? '';
 $torneo_id = $_GET['torneo'] ?? '';
 $club_id = $_GET['club'] ?? '';
@@ -22,19 +22,19 @@ $club_id = $_GET['club'] ?? '';
 // Procesar logout del usuario (debe ir antes de cualquier salida)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'user_logout') {
     Auth::logout();
-    $login_url = app_base_url() . "/public/invitation_login.php?token=" . urlencode($token) . "&torneo=" . urlencode($torneo_id) . "&club=" . urlencode($club_id);
+    $login_url = AppHelpers::url("invitation_login.php?token=") . urlencode($token) . "&torneo=" . urlencode($torneo_id) . "&club=" . urlencode($club_id);
     header('Location: ' . $login_url);
     exit;
 }
 
-// Verificar si el usuario est� autenticado (viene del login de invitaci�n)
+// Verificar si el usuario est• autenticado (viene del login de invitación)
 $user_authenticated = isset($_SESSION['user']) && $_SESSION['user']['role'] === 'admin_club';
 
-// Si no est� autenticado, redirigir al login de invitaci�n (antes de cualquier salida)
+// Si no est• autenticado, redirigir al login de invitación (antes de cualquier salida)
 if (!$user_authenticated) {
-    // Limpiar sesi�n previa y redirigir a login con mensaje
+    // Limpiar sesión previa y redirigir a login con mensaje
     Auth::logout();
-    $login_url = app_base_url() . "/public/invitation_login.php?token=" . urlencode($token) . "&torneo=" . urlencode($torneo_id) . "&club=" . urlencode($club_id) . "&error=requiere_autenticacion";
+    $login_url = AppHelpers::url("invitation_login.php?token=") . urlencode($token) . "&torneo=" . urlencode($torneo_id) . "&club=" . urlencode($club_id) . "&error=requiere_autenticacion";
     header('Location: ' . $login_url);
     exit;
 }
@@ -46,12 +46,12 @@ $tournament_data = null;
 $club_data = null;
 $organizer_club_data = null;
 
-// Validar invitaci�n
+// Validar invitación
 if (empty($torneo_id) || empty($club_id)) {
-    $error_message = "Par�metros de acceso inv�lidos";
+    $error_message = "Parámetros de acceso inválidos";
 } else {
     try {
-        // Verificar invitaci�n v�lida
+        // Verificar invitación v�lida
         $stmt = DB::pdo()->prepare("
             SELECT i.*, t.nombre as tournament_name, t.fechator, t.clase, t.modalidad, t.club_responsable,
                    c.nombre as club_name, c.direccion, c.delegado, c.telefono, c.email, c.logo as club_logo
@@ -64,7 +64,7 @@ if (empty($torneo_id) || empty($club_id)) {
         $invitation_data = $stmt->fetch();
 
         if (!$invitation_data) {
-            $error_message = "Invitaci�n no v�lida o expirada";
+            $error_message = "Invitación no v�lida o expirada";
         } else {
             $tournament_data = $invitation_data;
             $club_data = $invitation_data;
@@ -77,13 +77,13 @@ if (empty($torneo_id) || empty($club_id)) {
             }
         }
     } catch (Exception $e) {
-        $error_message = "Error al validar invitaci�n: " . $e->getMessage();
+        $error_message = "Error al validar invitación: " . $e->getMessage();
     }
 }
 
-// Procesar formulario de inscripci�n de jugador
+// Procesar formulario de inscripción de jugador
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'register_player') {
-    // Verificar si el usuario est� autenticado
+    // Verificar si el usuario est• autenticado
     $current_user = Auth::user();
     $is_admin_general = $current_user && Auth::isAdminGeneral();
     $is_admin_torneo = $current_user && $current_user['role'] === 'admin_torneo';
@@ -103,12 +103,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $celular = trim($_POST['celular'] ?? '');
         $email = trim($_POST['email'] ?? '');
 
-        // Validaciones b�sicas
+        // Validaciones básicas
         if (empty($nacionalidad) || empty($cedula) || empty($nombre)) {
-            $error_message = "Los campos nacionalidad, c�dula y nombre son obligatorios";
+            $error_message = "Los campos nacionalidad, cédula y nombre son obligatorios";
         } else {
             try {
-                // Verificar si ya existe un jugador con esta c�dula en este torneo
+                // Verificar si ya existe un jugador con esta cédula en este torneo
                 $stmt = DB::pdo()->prepare("
                     SELECT id, nombre FROM inscripciones 
                     WHERE cedula = ? AND torneo_id = ?
@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $existing_player = $stmt->fetch();
                 
                 if ($existing_player) {
-                    $error_message = "La c�dula {$cedula} ya est� registrada para el jugador: " . $existing_player['nombre'];
+                    $error_message = "La cédula {$cedula} ya est• registrada para el jugador: " . $existing_player['nombre'];
                 } else {
                     // Insertar nuevo jugador
                     $stmt = DB::pdo()->prepare("
@@ -130,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     ]);
                     $success_message = "Jugador inscrito exitosamente";
                     
-                    // Limpiar variables del formulario despu�s de �xito
+                    // Limpiar variables del formulario después de éxito
                     $nacionalidad = $cedula = $nombre = $sexo = $fechnac = $celular = $email = '';
                 }
             } catch (Exception $e) {
@@ -140,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Procesar eliminaci�n de jugador
+// Procesar eliminación de jugador
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_player') {
     $player_id = (int)($_POST['player_id'] ?? 0);
     
@@ -158,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $error_message = "Error al eliminar jugador: " . $e->getMessage();
         }
     } else {
-        $error_message = "ID de jugador inv�lido";
+        $error_message = "ID de jugador inválido";
     }
 }
 
@@ -174,11 +174,11 @@ if ($invitation_data && !$error_message) {
         $stmt->execute([$torneo_id, $club_id]);
         $registered_players = $stmt->fetchAll();
     } catch (Exception $e) {
-        // Error silencioso para no interrumpir la visualizaci�n
+        // Error silencioso para no interrumpir la visualización
     }
 }
 
-// Verificar si el usuario est� autenticado
+// Verificar si el usuario est• autenticado
 $current_user = Auth::user();
 $is_admin_general = $current_user && Auth::isAdminGeneral();
 $is_admin_torneo = $current_user && $current_user['role'] === 'admin_torneo';
@@ -192,7 +192,7 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inscripci�n de Jugadores - Club Invitado</title>
+    <title>Inscripción de Jugadores - Club Invitado</title>
     <style>
         * {
             margin: 0;
@@ -717,7 +717,7 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
                 <p class="subtitle" style="font-size: 1.35em;">Servicio exclusivo para clubes afiliados</p>
             </div>
             <div class="header-right">
-                <img src="<?= htmlspecialchars(AppHelpers::getAppLogo()) ?>" alt="Logo de la Estaci�n" class="station-logo">
+                <img src="<?= htmlspecialchars(AppHelpers::getAppLogo()) ?>" alt="Logo de la Estación" class="station-logo">
             </div>
         </div>
 
@@ -730,7 +730,7 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
 
             <?php if ($success_message): ?>
                 <div class="alert alert-success">
-                    <strong>�xito:</strong> <?= htmlspecialchars($success_message) ?>
+                    <strong>éxito:</strong> <?= htmlspecialchars($success_message) ?>
                 </div>
             <?php endif; ?>
 
@@ -758,7 +758,7 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
                                     <span><?= safe_htmlspecialchars($invitation_data['email']) ?></span>
                                 </div>
                                 <div class="info-item">
-                                    <strong>Tel�fono:</strong>
+                                    <strong>Teléfono:</strong>
                                     <span><?= safe_htmlspecialchars($invitation_data['telefono']) ?></span>
                                 </div>
                             </div>
@@ -781,7 +781,7 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
                             <div style="display: flex; align-items: center;">
                                 <form method="POST" style="display: inline;">
                                     <input type="hidden" name="action" value="user_logout">
-                                    <button type="submit" class="logout-btn">Cerrar Sesi�n</button>
+                                    <button type="submit" class="logout-btn">Cerrar Sesión</button>
                                 </form>
                             </div>
                         <?php endif; ?>
@@ -804,7 +804,7 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
                                         </select>
                                     </div>
                                     <div class="form-group-inline">
-                                        <label for="cedula">C�dula *</label>
+                                        <label for="cedula">Cédula *</label>
                                         <input type="text" id="cedula" name="cedula" required onblur="searchPersona()" oninput="checkExistingCedula()">
                                     </div>
                                     <div class="form-group-inline">
@@ -851,7 +851,7 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
                             <thead>
                                 <tr>
                                     <th>Nombre</th>
-                                    <th>C�dula</th>
+                                    <th>Cédula</th>
                                     <th>Sexo</th>
                                     <th>Fecha Nacimiento</th>
                                     <th>Celular</th>
@@ -869,7 +869,7 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
                                         <td><?= htmlspecialchars($player['celular'] ?? '') ?></td>
                                         <td><?= htmlspecialchars($player['email'] ?? '') ?></td>
                                         <td>
-                                            <form method="POST" style="display: inline;" onsubmit="return confirm('�Est� seguro de que desea eliminar este jugador?')">
+                                            <form method="POST" style="display: inline;" onsubmit="return confirm('¿Está seguro de que desea eliminar este jugador?')">
                                                 <input type="hidden" name="action" value="delete_player">
                                                 <input type="hidden" name="player_id" value="<?= $player['id'] ?>">
                                                 <button type="submit" class="btn-delete" title="Eliminar jugador">
@@ -888,7 +888,7 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
     </div>
 
     <script>
-        // Funci�n para buscar persona por c�dula
+        // Función para buscar persona por cédula
         async function searchPersona() {
             const cedula = document.querySelector('input[name="cedula"]').value.trim();
             const nacionalidad = document.querySelector('select[name="nacionalidad"]').value;
@@ -897,7 +897,7 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
                 return;
             }
             
-            // Construir ID de usuario (nacionalidad + c�dula)
+            // Construir ID de usuario (nacionalidad + cédula)
             const idusuario = nacionalidad + cedula;
             
             try {
@@ -906,7 +906,7 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
                 const result = await response.json();
                 
                 if (result.success && result.data) {
-                    // Llenar campos autom�ticamente
+                    // Llenar campos automáticamente
                     document.querySelector('input[name="nombre"]').value = result.data.nombre || '';
                     document.querySelector('select[name="sexo"]').value = result.data.sexo || '';
                     document.querySelector('input[name="fechnac"]').value = result.data.fechnac || '';
@@ -915,33 +915,33 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
                     await checkExistingCedula(cedula);
                     
                 } else {
-                    alert('No se encontraron datos para esta c�dula');
+                    alert('No se encontraron datos para esta cédula');
                 }
                 
             } catch (error) {
-                console.error('Error en la b�squeda:', error);
-                alert('Error al buscar datos de la c�dula');
+                console.error('Error en la búsqueda:', error);
+                alert('Error al buscar datos de la cédula');
             }
         }
 
-        // Funci�n para verificar si la c�dula ya existe
+        // Función para verificar si la cédula ya existe
         async function checkExistingCedula(cedula) {
             try {
                 const response = await fetch(`<?= app_base_url() ?>/public/api/check_cedula.php?cedula=${encodeURIComponent(cedula)}`);
                 const result = await response.json();
                 
                 if (result.success && result.exists) {
-                    alert(`Esta c�dula ya est� registrada en el sistema (${result.data.nombre})`);
+                    alert(`Esta cédula ya est• registrada en el sistema (${result.data.nombre})`);
                     
-                    // Limpiar campos para permitir nueva b�squeda
+                    // Limpiar campos para permitir nueva búsqueda
                     clearFormFields();
                 }
             } catch (error) {
-                console.error('Error verificando c�dula:', error);
+                console.error('Error verificando cédula:', error);
             }
         }
 
-        // Funci�n para limpiar campos del formulario
+        // Función para limpiar campos del formulario
         function clearFormFields() {
             document.querySelector('input[name="nacionalidad"]').value = '';
             document.querySelector('input[name="cedula"]').value = '';
@@ -953,14 +953,14 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
             document.querySelector('input[name="cedula"]').focus();
         }
 
-        // Funci�n para verificar c�dula duplicada
+        // Función para verificar cédula duplicada
         function checkExistingCedula() {
             const cedula = document.querySelector('input[name="cedula"]').value;
             if (cedula.length >= 8) {
                 const existingPlayers = <?= json_encode(array_column($registered_players, 'cedula')) ?>;
                 if (existingPlayers.includes(cedula)) {
                     document.querySelector('input[name="cedula"]').style.borderColor = '#e74c3c';
-                    document.querySelector('input[name="cedula"]').title = 'Esta c�dula ya est� registrada';
+                    document.querySelector('input[name="cedula"]').title = 'Esta cédula ya est• registrada';
                 } else {
                     document.querySelector('input[name="cedula"]').style.borderColor = '#e9ecef';
                     document.querySelector('input[name="cedula"]').title = '';
@@ -968,7 +968,7 @@ $form_enabled = $is_admin_general || $is_admin_torneo || $is_admin_club;
             }
         }
 
-        // Limpiar formulario autom�ticamente despu�s de �xito
+        // Limpiar formulario automáticamente después de éxito
         <?php if (isset($success_message) && !empty($success_message)): ?>
         document.addEventListener('DOMContentLoaded', function() {
             clearFormFields();

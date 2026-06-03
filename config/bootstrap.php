@@ -3,25 +3,56 @@ if (!defined('APP_BOOTSTRAPPED')) {
     define('APP_BOOTSTRAPPED', true);
 }
 
-require_once __DIR__ . '/php_polyfills.php';
+/** Raíz real del proyecto (mistorneos_fvd), independiente del host o monorepo padre. */
+if (!defined('APP_ROOT')) {
+    define('APP_ROOT', dirname(__DIR__));
+}
+if (!defined('APP_CONFIG_DIR')) {
+    define('APP_CONFIG_DIR', __DIR__);
+}
+
+require_once APP_CONFIG_DIR . '/php_polyfills.php';
+
+$utf8Bootstrap = APP_CONFIG_DIR . DIRECTORY_SEPARATOR . 'utf8.php';
+if (is_file($utf8Bootstrap)) {
+    require_once $utf8Bootstrap;
+} else {
+    // Fallback inline: mismo contenido que config/utf8.php (evita fatal si falta en el servidor).
+    if (function_exists('mb_internal_encoding')) {
+        mb_internal_encoding('UTF-8');
+        mb_http_output('UTF-8');
+        mb_regex_encoding('UTF-8');
+        if (function_exists('mb_language')) {
+            mb_language('uni');
+        }
+    }
+    ini_set('default_charset', 'UTF-8');
+    if (PHP_SAPI !== 'cli' && !headers_sent()) {
+        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+        $isHtmlRequest = $accept === '' || stripos($accept, 'text/html') !== false;
+        if ($isHtmlRequest && empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+            header('Content-Type: text/html; charset=UTF-8');
+        }
+    }
+}
 
 // Nota: El autoloader de Composer debe regenerarse con 'composer dump-autoload'
-// if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
-//     require_once __DIR__ . '/../vendor/autoload.php';
+// if (file_exists(APP_ROOT . '/vendor/autoload.php')) {
+//     require_once APP_ROOT . '/vendor/autoload.php';
 // }
 
 // Cargar clase Env para variables de entorno
-require_once __DIR__ . '/../lib/Env.php';
-Env::load(__DIR__ . '/../.env');
+require_once APP_ROOT . '/lib/Env.php';
+Env::load(APP_ROOT . '/.env');
 
 // Load environment configuration
-require_once __DIR__ . '/environment.php';
+require_once APP_CONFIG_DIR . '/environment.php';
 $GLOBALS['APP_CONFIG'] = Environment::getConfig();
 
 // Load centralized app helpers
-require_once __DIR__ . '/../lib/app_helpers.php';
-require_once __DIR__ . '/../lib/FvdConfig.php';
-require_once __DIR__ . '/../lib/FvdBranding.php';
+require_once APP_ROOT . '/lib/app_helpers.php';
+require_once APP_ROOT . '/lib/FvdConfig.php';
+require_once APP_ROOT . '/lib/FvdBranding.php';
 
 if (!defined('ORGANIZACION_ID')) {
     define('ORGANIZACION_ID', FvdConfig::ORGANIZACION_ID);
@@ -31,7 +62,7 @@ if (!defined('ORGANIZACION_NOMBRE')) {
 }
 
 // Load logging helper
-require_once __DIR__ . '/../lib/Log.php';
+require_once APP_ROOT . '/lib/Log.php';
 
 // =================================================================
 // DETECCIÓN DE HTTPS (debe estar antes de configurar sesiones)
@@ -79,25 +110,9 @@ if ($is_web_request && $is_localhost && $is_https && !$is_production && !headers
 // En producción bajo /pruebas/public/ definir BASE_PATH=/pruebas/public/ en .env
 // Todas las redirecciones y enlaces deben usar: header("Location: " . URL_BASE . "index.php?page=...");
 if (!defined('URL_BASE')) {
-    $url_base_path = '';
-    if (class_exists('Env') && (string) Env::get('BASE_PATH', '') !== '') {
-        $url_base_path = trim((string) Env::get('BASE_PATH'), '/');
-        $url_base_path = ($url_base_path === '') ? '' : '/' . $url_base_path . '/';
-    }
-    if ($url_base_path === '' && !empty($_SERVER['SCRIPT_NAME'])) {
-        $dir = dirname($_SERVER['SCRIPT_NAME']);
-        $dir = str_replace('\\', '/', $dir);
-        // Scripts bajo …/public/api/ deben compartir la misma cookie de sesión que …/public/
-        if (preg_match('#^(.+?/public)/api$#', $dir, $m)) {
-            $dir = $m[1];
-        }
-        if ($dir !== '.' && $dir !== '' && $dir !== '/') {
-            $url_base_path = '/' . trim($dir, '/') . '/';
-        }
-    }
-    if ($url_base_path === '') {
-        $url_base_path = FvdConfig::BASE_PATH;
-    }
+    $url_base_path = class_exists('AppHelpers', false) && method_exists('AppHelpers', 'resolveUrlBasePath')
+        ? AppHelpers::resolveUrlBasePath()
+        : FvdConfig::BASE_PATH;
     define('URL_BASE', $url_base_path);
 }
 
@@ -110,7 +125,7 @@ if (session_status() === PHP_SESSION_ACTIVE && (getenv('SESSION_DEBUG') || defin
     error_log('[SESSION_DEBUG] bootstrap.php | sesión ya activa | id=' . session_id());
 }
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
-    require_once __DIR__ . '/session_start_early.php';
+    require_once APP_CONFIG_DIR . '/session_start_early.php';
     if (session_status() === PHP_SESSION_NONE) {
         error_log('[SESSION] bootstrap.php: session_start_early no dejó sesión activa (¿headers enviados antes?).');
     }

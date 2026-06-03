@@ -58,7 +58,7 @@ $id = $_GET['id'] ?? null;
 $success_message = $_GET['success'] ?? null;
 $error_message = $_GET['error'] ?? null;
 
-// Procesar eliminaci�n si se solicita
+// Procesar eliminación si se solicita
 if ($action === 'delete' && $id) {
     try {
         $tournament_id = (int)$id;
@@ -107,20 +107,12 @@ if ($action === 'delete' && $id) {
         $result = $stmt->execute([$tournament_id]);
         
         if ($result && $stmt->rowCount() > 0) {
-            $base = function_exists('app_base_url') ? rtrim(app_base_url(), '/') : '';
-            if ($base === '') {
-                $base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-            }
-            header('Location: ' . $base . '/public/index.php?page=tournaments&success=' . urlencode('Torneo "' . $tournament_to_delete['nombre'] . '" eliminado exitosamente'));
+            header('Location: ' . AppHelpers::dashboard('tournaments', ['success' => 'Torneo "' . $tournament_to_delete['nombre'] . '" eliminado exitosamente']));
         } else {
             throw new Exception('No se pudo eliminar el torneo');
         }
     } catch (Exception $e) {
-        $base = function_exists('app_base_url') ? rtrim(app_base_url(), '/') : '';
-        if ($base === '') {
-            $base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-        }
-        header('Location: ' . $base . '/public/index.php?page=tournaments&error=' . urlencode('Error al eliminar: ' . $e->getMessage()));
+        header('Location: ' . AppHelpers::dashboard('tournaments', ['error' => 'Error al eliminar: ' . $e->getMessage()]));
     }
     exit;
 }
@@ -199,7 +191,7 @@ if (($action === 'edit' || $action === 'view') && $id) {
                 // Admin torneo no puede editar torneos pasados
                 $error_message = "No puede modificar torneos que ya han pasado. Solo puede verlos.";
                 $action = 'view'; // Redirigir a vista en lugar de lista
-                // No eliminar $tournament, solo cambiar acci�n
+                // No eliminar $tournament, solo cambiar acción
             }
         }
     } catch (Exception $e) {
@@ -208,7 +200,7 @@ if (($action === 'edit' || $action === 'view') && $id) {
     }
 }
 
-// Obtener lista para vista de lista con paginaci�n
+// Obtener lista para vista de lista con paginación
 $organizacion_id_param = isset($_GET['organizacion_id']) ? (int)$_GET['organizacion_id'] : null;
 $estado_param = isset($_GET['estado']) ? trim($_GET['estado']) : null;
 if ($estado_param && !in_array($estado_param, ['realizados', 'en_proceso', 'por_realizar'], true)) {
@@ -236,11 +228,11 @@ if ($action === 'list') {
         if (!$can_access) {
             $tournaments_list = [];
         } else {
-            // Configurar paginaci�n
+            // Configurar paginación
             $current_page = isset($_GET['p']) ? max(1, (int)$_GET['p']) : 1;
             $per_page = isset($_GET['per_page']) ? max(10, min(100, (int)$_GET['per_page'])) : 25;
             
-            // Construir filtro WHERE seg�n permisos
+            // Construir filtro WHERE según permisos
             $tournament_filter = Auth::getTournamentFilterForRole('t');
             $where_parts = $tournament_filter['where'] ? [$tournament_filter['where']] : [];
             $params = $tournament_filter['params'];
@@ -297,10 +289,10 @@ if ($action === 'list') {
                 $stmt->execute($params);
                 $total_records = (int)$stmt->fetchColumn();
             
-            // Crear objeto de paginaci�n
+            // Crear objeto de paginación
             $pagination = new Pagination($total_records, $current_page, $per_page);
             
-            // Obtener registros de la p�gina actual
+            // Obtener registros de la página actual
             $stmt = DB::pdo()->prepare("
                 SELECT t.*, o.nombre as organizacion_nombre,
                        {$org_ref_expr_o} as organizacion_ref
@@ -427,7 +419,7 @@ function getModalidadLabel($modalidad) {
                 </div>
             <?php endif; ?>
             
-            <!-- Informaci�n de permisos para admin_torneo -->
+            <!-- Información de permisos para admin_torneo -->
             <?php if (!$is_admin_general && $action === 'list'): ?>
                 <div class="alert alert-info alert-dismissible fade show" role="alert">
                     <i class="fas fa-info-circle me-2"></i>
@@ -1518,14 +1510,15 @@ function getModalidadLabel($modalidad) {
                                 </select>
                                 <small class="form-text text-muted">
                                     <?php 
-                                    $base_cuentas = function_exists('app_base_url') ? rtrim(app_base_url(), '/') : '';
-                                    if ($base_cuentas === '') {
-                                        $base_cuentas = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-                                    }
-                                    $return_torneo_url = $base_cuentas . '/public/index.php?page=cuentas_bancarias&action=new&return_torneo=1&torneo_action=' . ($action === 'edit' ? 'edit' : 'new');
+                                    $returnParams = [
+                                        'action' => 'new',
+                                        'return_torneo' => 1,
+                                        'torneo_action' => $action === 'edit' ? 'edit' : 'new',
+                                    ];
                                     if ($action === 'edit' && !empty($tournament['id'])) {
-                                        $return_torneo_url .= '&torneo_id=' . (int)$tournament['id'];
+                                        $returnParams['torneo_id'] = (int) $tournament['id'];
                                     }
+                                    $return_torneo_url = AppHelpers::dashboard('cuentas_bancarias', $returnParams);
                                     ?>
                                     <a href="<?= htmlspecialchars($return_torneo_url) ?>" class="text-decoration-none">
                                         <i class="fas fa-plus-circle"></i> Crear nueva cuenta
@@ -1576,7 +1569,7 @@ function getModalidadLabel($modalidad) {
                     <div class="col-md-4">
                         <div class="mb-3">
                             <label for="invitacion" class="form-label">
-                                <i class="fas fa-envelope me-1"></i>Invitaci�n Oficial
+                                <i class="fas fa-envelope me-1"></i>Invitación Oficial
                             </label>
                             <?php if ($action === 'edit' && !empty($tournament['invitacion'])): ?>
                                 <div class="alert alert-info py-2 mb-2">
@@ -1630,8 +1623,8 @@ function getModalidadLabel($modalidad) {
                     <div class="col-12">
                         <div class="alert alert-warning">
                             <i class="fas fa-info-circle me-2"></i>
-                            <strong>Nota:</strong> Si selecciona un nuevo archivo, reemplazar� el archivo anterior. 
-                            Deje el campo vac�o si desea mantener el archivo actual.
+                            <strong>Nota:</strong> Si selecciona un nuevo archivo, reemplazar• el archivo anterior. 
+                            Deje el campo vacío si desea mantener el archivo actual.
                         </div>
                     </div>
                 </div>
@@ -1701,7 +1694,7 @@ function getModalidadLabel($modalidad) {
         modal.show();
     }
     document.addEventListener('DOMContentLoaded', function() {
-        // Funci�n para formatear tama�o de archivo
+        // Función para formatear tama�o de archivo
         var clubResp = document.getElementById('club_responsable');
         if (clubResp && window.location.search.indexOf('action=new') !== -1) {
             clubResp.addEventListener('change', function() {
@@ -1719,7 +1712,7 @@ function getModalidadLabel($modalidad) {
             return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
         
-        // Funci�n para obtener icono seg�n tipo de archivo
+        // Función para obtener icono según tipo de archivo
         function getFileIcon(filename) {
             const ext = filename.split('.').pop().toLowerCase();
             const icons = {
@@ -1745,7 +1738,7 @@ function getModalidadLabel($modalidad) {
             const fileInput = document.getElementById(input.id);
             if (!fileInput) return;
             
-            // Crear contenedor de preview despu�s del input
+            // Crear contenedor de preview después del input
             const previewContainer = document.createElement('div');
             previewContainer.id = input.previewId;
             previewContainer.className = 'mt-2';

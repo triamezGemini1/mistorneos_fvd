@@ -1,0 +1,397 @@
+/**
+ * FVD — Tokens de diseño institucional
+ * Regla 60-30-10 · Alta densidad de datos · Inter
+ * Cargar antes de dashboard.css / design-system.css
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Paleta Institucional - Regla 60-30-10 */
+  --color-bg-main: #f8fafc;
+  --color-bg-card: #ffffff;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-brand-accent: #b45309;
+
+  /* Bordes y Líneas de División Neutras */
+  --color-border-neutral: #e2e8f0;
+
+  /* Componentes UI Profesionales */
+  --radius-ui: 6px;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Estados semánticos (uso puntual, sin saturar la UI) */
+  --color-success: #047857;
+  --color-success-bg: #ecfdf5;
+  --color-success-border: #a7f3d0;
+  --color-danger: #b91c1c;
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #fecaca;
+  --color-info: #0369a1;
+  --color-info-bg: #eff6ff;
+  --color-info-border: #bfdbfe;
+  --color-warning: #b45309;
+  --color-warning-bg: #fffbeb;
+  --color-warning-border: #fde68a;
+  --color-accent-bg: #fffbeb;
+  --color-primary-bg: #f1f5f9;
+  --color-primary-muted: #334155;
+
+  /* Cabeceras de sección (panel torneo) */
+  --fvd-section-mesas: #047857;
+  --fvd-section-operaciones: #0f172a;
+  --fvd-section-resultados: #b45309;
+
+  /* Puente con variables legacy del dashboard y Bootstrap */
+  --primary: #0f172a;
+  --primary-dark: #020617;
+  --primary-light: #334155;
+  --fvd-primary: var(--color-text-primary);
+  --fvd-primary-light: #334155;
+  --fvd-accent: var(--color-brand-accent);
+  --fvd-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  --fvd-gradient-header: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  --fvd-swal-confirm: var(--color-text-primary);
+
+  --ds-font-family: var(--font-sans);
+  --ds-primary: var(--color-text-primary);
+  --ds-primary-hover: #020617;
+  --ds-accent: var(--color-brand-accent);
+  --ds-gray-900: var(--color-text-primary);
+  --ds-gray-700: var(--color-text-secondary);
+  --ds-gray-500: #64748b;
+  --ds-gray-200: var(--color-border-neutral);
+  --ds-gray-50: var(--color-bg-main);
+  --ds-white: var(--color-bg-card);
+  --ds-radius: var(--radius-ui);
+  --ds-radius-sm: var(--radius-ui);
+
+  --gray-50: var(--color-bg-main);
+  --gray-100: #f1f5f9;
+  --gray-200: var(--color-border-neutral);
+  --gray-500: #64748b;
+  --gray-700: var(--color-text-secondary);
+  --gray-900: var(--color-text-primary);
+  --light: var(--color-bg-main);
+  --white: var(--color-bg-card);
+}
+
+/* Base tipográfica institucional */
+body.fvd-dashboard-compact,
+body.fvd-login-page,
+body.fvd-report-shell,
+.ds-root {
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+body.fvd-dashboard-compact {
+  background-color: var(--color-bg-main) !important;
+}
+
+/* Regla de Densidad de Datos para Tablas Administrativas */
+.table-fvd-compact th,
+.table-fvd-compact td {
+  padding: 6px 12px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  vertical-align: middle;
+}
+
+.table-fvd-compact thead th {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-main);
+  border-color: var(--color-border-neutral);
+}
+
+.table-fvd-compact tbody td {
+  border-color: var(--color-border-neutral);
+  color: var(--color-text-primary);
+}
+
+.table-fvd-compact.table-hover tbody tr:hover {
+  background-color: #f1f5f9;
+}
+
+/* Superficies y tarjetas */
+.fvd-card,
+.card.fvd-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-neutral);
+  border-radius: var(--radius-ui);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.fvd-card-header {
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--color-text-primary);
+  background: var(--color-bg-main);
+  border-bottom: 1px solid var(--color-border-neutral);
+}
+
+/* Botones institucionales */
+.btn-fvd-primary,
+body.fvd-dashboard-compact .btn-primary {
+  background-color: var(--color-text-primary) !important;
+  border-color: var(--color-text-primary) !important;
+  border-radius: var(--radius-ui);
+  font-weight: 500;
+}
+
+.btn-fvd-primary:hover,
+body.fvd-dashboard-compact .btn-primary:hover {
+  background-color: #020617 !important;
+  border-color: #020617 !important;
+}
+
+.btn-fvd-accent {
+  background-color: var(--color-brand-accent);
+  border-color: var(--color-brand-accent);
+  color: #fff;
+  border-radius: var(--radius-ui);
+  font-weight: 500;
+}
+
+.btn-fvd-accent:hover {
+  background-color: #92400e;
+  border-color: #92400e;
+  color: #fff;
+}
+
+body.fvd-dashboard-compact .btn-outline-primary {
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-text-primary) !important;
+  border-radius: var(--radius-ui);
+}
+
+body.fvd-dashboard-compact .btn-outline-primary:hover {
+  background-color: var(--color-text-primary) !important;
+  color: #fff !important;
+}
+
+/* Formularios */
+body.fvd-dashboard-compact .form-control,
+body.fvd-login-page .form-control,
+.fvd-report-shell .form-control {
+  border-radius: var(--radius-ui);
+  border-color: var(--color-border-neutral);
+  font-size: 0.875rem;
+}
+
+body.fvd-dashboard-compact .form-control:focus,
+body.fvd-login-page .form-control:focus {
+  border-color: var(--color-text-secondary);
+  box-shadow: 0 0 0 0.2rem rgba(15, 23, 42, 0.08);
+}
+
+body.fvd-login-page .btn-primary {
+  background-color: var(--color-text-primary);
+  border-color: var(--color-text-primary);
+  border-radius: var(--radius-ui);
+}
+
+body.fvd-login-page .btn-primary:hover {
+  background-color: #020617;
+  border-color: #020617;
+}
+
+body.fvd-login-page .btn-outline-primary {
+  color: var(--color-text-primary);
+  border-color: var(--color-text-primary);
+  border-radius: var(--radius-ui);
+}
+
+body.fvd-login-page .text-muted {
+  color: var(--color-text-secondary) !important;
+}
+
+/* Encabezados de panel sin gradientes saturados */
+.fvd-panel-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.fvd-panel-subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0.25rem 0 0;
+}
+
+.fvd-accent-text {
+  color: var(--color-brand-accent);
+}
+
+/* Login institucional */
+body.fvd-login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  background: var(--color-bg-main);
+}
+
+.fvd-login-card {
+  border-radius: var(--radius-ui);
+  border: 1px solid var(--color-border-neutral);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+  background: var(--color-bg-card);
+}
+
+.fvd-login-header {
+  background: var(--color-text-primary);
+  color: #fff;
+  padding: 1.75rem 1.5rem;
+  text-align: center;
+}
+
+.fvd-login-header .fvd-login-accent {
+  color: var(--color-brand-accent);
+}
+
+.fvd-login-body {
+  padding: 1.75rem;
+}
+
+/* Shell de reportes institucionales */
+body.fvd-report-shell,
+.fvd-report-shell {
+  background: var(--color-bg-main);
+  color: var(--color-text-primary);
+  min-height: 100vh;
+}
+
+.fvd-report-shell .fvd-report-hero {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-neutral);
+  border-radius: var(--radius-ui);
+  padding: 1.25rem 1.5rem;
+}
+
+.fvd-report-shell .fvd-report-block {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-neutral);
+  border-radius: var(--radius-ui);
+  padding: 1rem 1.25rem;
+  transition: border-color 0.15s ease;
+}
+
+.fvd-report-shell .fvd-report-block:hover {
+  border-color: #cbd5e1;
+}
+
+.fvd-report-shell .fvd-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: var(--radius-ui);
+  border: 1px solid var(--color-border-neutral);
+  text-decoration: none;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-card);
+}
+
+.fvd-report-shell .fvd-filter-pill.is-active {
+  background: var(--color-text-primary);
+  border-color: var(--color-text-primary);
+  color: #fff;
+}
+
+.fvd-report-shell .fvd-filter-pill:hover:not(.is-active) {
+  border-color: var(--color-text-secondary);
+  color: var(--color-text-primary);
+}
+
+/* Badges y utilidades */
+.badge-fvd-accent {
+  background-color: #fffbeb;
+  color: var(--color-brand-accent);
+  border: 1px solid #fde68a;
+  font-weight: 600;
+}
+
+.text-fvd-secondary {
+  color: var(--color-text-secondary) !important;
+}
+
+.text-fvd-primary {
+  color: var(--color-text-primary) !important;
+}
+
+/* Tablas Bootstrap en dashboard: densidad por defecto en contenedores admin */
+body.fvd-dashboard-compact .table:not(.table-fvd-compact) {
+  font-size: 0.875rem;
+}
+
+body.fvd-dashboard-compact .card {
+  border-radius: var(--radius-ui);
+  border-color: var(--color-border-neutral);
+}
+
+body.fvd-dashboard-compact .card-header.bg-primary,
+body.fvd-dashboard-compact .card-header.bg-primary.text-white {
+  background-color: var(--color-text-primary) !important;
+  border-color: var(--color-text-primary);
+}
+
+body.fvd-dashboard-compact .text-muted {
+  color: var(--color-text-secondary) !important;
+}
+
+/* Crédito soporte tecnológico (dashboard) */
+.fvd-support-credit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border-neutral);
+  text-align: right;
+}
+
+.fvd-support-credit__text {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  margin: 0;
+  max-width: 22rem;
+}
+
+.fvd-support-credit__logo {
+  height: 8rem;
+  width: auto;
+  max-width: 36rem;
+  object-fit: contain;
+  object-position: center right;
+  flex-shrink: 0;
+}
+
+@media (max-width: 576px) {
+  .fvd-support-credit {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .fvd-support-credit__logo {
+    height: 7rem;
+    max-width: 32rem;
+    object-position: center;
+  }
+  .fvd-login-body {
+    padding: 1.25rem;
+  }
+  .fvd-login-header {
+    padding: 1.25rem;
+  }
+}

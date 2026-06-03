@@ -1367,7 +1367,7 @@ $tiene_telegram = !empty($telegram_chat_id_actual);
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
     <!-- jsPDF: carga lazy al hacer clic en "Descargar PDF" (notifications-toast.js) -->
     <script src="assets/image-preview.js" defer></script>
-    <script>window.notifAjaxUrl = '<?= htmlspecialchars(rtrim($base_url, "/") . "/public/notificaciones_ajax.php") ?>'; window.APP_BASE_URL = '<?= htmlspecialchars(rtrim($base_url, "/")) ?>';</script>
+    <script>window.notifAjaxUrl = '<?= htmlspecialchars(AppHelpers::url('notificaciones_ajax.php')) ?>'; window.APP_BASE_URL = '<?= htmlspecialchars(rtrim(AppHelpers::getBaseUrl(), "/")) ?>';</script>
     <script src="assets/notifications-toast.js" defer></script>
     <script>
     function copyUUID() {

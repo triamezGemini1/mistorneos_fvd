@@ -48,31 +48,29 @@ try {
         ]);
     }
     
-    // 2. Buscar en base de datos externa
+    // 2. Buscar en base de datos externa (solo si está configurada; conexión bajo demanda)
     if (file_exists(__DIR__ . '/../config/persona_database.php')) {
         require_once __DIR__ . '/../config/persona_database.php';
-        
-        try {
-            $database = new PersonaDatabase();
-            $result = $database->searchPersonaById($nacionalidad, $cedula);
-            
-            // Verificar el formato correcto de respuesta
-            if (isset($result['encontrado']) && $result['encontrado'] && isset($result['persona'])) {
-                JsonResponse::success([
-                    'encontrado' => true,
-                    'fuente' => 'externa',
-                    'persona' => [
-                        'nombre' => $result['persona']['nombre'] ?? '',
-                        'sexo' => $result['persona']['sexo'] ?? '',
-                        'fechnac' => $result['persona']['fechnac'] ?? '',
-                        'celular' => $result['persona']['celular'] ?? ''
-                    ]
-                ]);
-            }
-        } catch (Exception $e) {
-            // Continuar sin error, simplemente no encontrado
-            if (Env::bool('APP_DEBUG')) {
-                error_log("search_persona.php - Error en PersonaDatabase: " . $e->getMessage());
+
+        if (PersonaDatabase::isConfigured()) {
+            try {
+                $persona = PersonaDatabase::buscarPorCedula($nacionalidad, $cedula);
+                if ($persona !== null) {
+                    JsonResponse::success([
+                        'encontrado' => true,
+                        'fuente' => 'externa',
+                        'persona' => [
+                            'nombre' => $persona['nombre'] ?? '',
+                            'sexo' => $persona['sexo'] ?? '',
+                            'fechnac' => $persona['fechnac'] ?? '',
+                            'celular' => $persona['celular'] ?? '',
+                        ],
+                    ]);
+                }
+            } catch (Exception $e) {
+                if (Env::bool('APP_DEBUG')) {
+                    error_log('search_persona.php - Error en PersonaDatabase: ' . $e->getMessage());
+                }
             }
         }
     }

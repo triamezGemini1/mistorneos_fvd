@@ -1,7 +1,7 @@
 <?php
 /**
- * Env�o Directo por WhatsApp - Sin P�gina Intermedia
- * Genera JSON con el mensaje y URL para env�o autom�tico
+ * Envío Directo por WhatsApp - Sin Página Intermedia
+ * Genera JSON con el mensaje y URL para envío automático
  * Adaptado del sistema invitorfvd para mistorneos
  */
 
@@ -14,7 +14,7 @@ require_once __DIR__ . '/../../config/auth.php';
 // Solo aceptar peticiones AJAX
 header('Content-Type: application/json; charset=utf-8');
 
-// Verificar autenticaci�n
+// Verificar autenticación
 Auth::requireRole(['admin_general','admin_torneo']);
 
 if (!isset($_GET['id'])) {
@@ -27,7 +27,7 @@ $id = (int)$_GET['id'];
 try {
     $pdo = DB::pdo();
     
-    // Obtener datos completos de la invitaci�n
+    // Obtener datos completos de la invitación
     $stmt = $pdo->prepare("
         SELECT 
             i.*,
@@ -52,14 +52,14 @@ try {
     $inv = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$inv) {
-        echo json_encode(['error' => 'Invitaci�n no encontrada']);
+        echo json_encode(['error' => 'Invitación no encontrada']);
         exit;
     }
     
-    // Verificar que el club tenga tel�fono
+    // Verificar que el club tenga teléfono
     if (empty($inv['club_telefono'])) {
         echo json_encode([
-            'error' => 'El club no tiene tel�fono configurado',
+            'error' => 'El club no tiene teléfono configurado',
             'club_id' => $inv['club_id'],
             'club_nombre' => $inv['club_nombre']
         ]);
@@ -73,7 +73,7 @@ try {
     // Datos
     $delegado = !empty($inv['club_delegado']) ? $inv['club_delegado'] : $inv['club_nombre'];
     $telefono = $inv['club_telefono'];
-    $organizacion = !empty($inv['organizacion_nombre']) ? $inv['organizacion_nombre'] : 'Organizaci�n';
+    $organizacion = !empty($inv['organizacion_nombre']) ? $inv['organizacion_nombre'] : 'Organización';
     
     // Formatear fechas
     $fecha_torneo = date('d/m/Y', strtotime($inv['torneo_fecha']));
@@ -82,77 +82,77 @@ try {
     // Construir mensaje de WhatsApp
     $separador = "??????????????????????";
     
-    $mensaje = "?? *INVITACI�N A TORNEO - " . strtoupper($organizacion) . "*\n\n";
+    $mensaje = "• *INVITACIÓN A TORNEO - " . strtoupper($organizacion) . "*\n\n";
     $mensaje .= $separador . "\n\n";
     
-    // INFORMACI�N DEL TORNEO
-    $mensaje .= "?? *INFORMACI�N DEL TORNEO*\n\n";
-    $mensaje .= "� *Organizaci�n Responsable:* " . $organizacion . "\n";
-    $mensaje .= "� *Nombre del Torneo:* " . $inv['torneo_nombre'] . "\n";
-    $mensaje .= "� *Fecha del Torneo:* " . $fecha_torneo . "\n";
+    // INFORMACIÓN DEL TORNEO
+    $mensaje .= "• *INFORMACIÓN DEL TORNEO*\n\n";
+    $mensaje .= "• *Organización Responsable:* " . $organizacion . "\n";
+    $mensaje .= "• *Nombre del Torneo:* " . $inv['torneo_nombre'] . "\n";
+    $mensaje .= "• *Fecha del Torneo:* " . $fecha_torneo . "\n";
     
     if (!empty($inv['torneo_lugar'])) {
-        $mensaje .= "� *Lugar:* " . $inv['torneo_lugar'] . "\n";
+        $mensaje .= "• *Lugar:* " . $inv['torneo_lugar'] . "\n";
     }
     
     $mensaje .= "\n" . $separador . "\n\n";
     
     // CLUB INVITADO
-    $mensaje .= "?? *CLUB INVITADO*\n\n";
-    $mensaje .= "� *Nombre Club:* " . $inv['club_nombre'] . "\n";
-    $mensaje .= "� *Delegado:* " . $delegado . "\n";
-    $mensaje .= "� *Tel�fono:* " . $telefono . "\n";
+    $mensaje .= "• *CLUB INVITADO*\n\n";
+    $mensaje .= "• *Nombre Club:* " . $inv['club_nombre'] . "\n";
+    $mensaje .= "• *Delegado:* " . $delegado . "\n";
+    $mensaje .= "• *Teléfono:* " . $telefono . "\n";
     
     if (!empty($inv['club_email'])) {
-        $mensaje .= "� *Email:* " . $inv['club_email'] . "\n";
+        $mensaje .= "• *Email:* " . $inv['club_email'] . "\n";
     }
     
     if (!empty($inv['club_direccion'])) {
-        $mensaje .= "� *Direcci�n:* " . $inv['club_direccion'] . "\n";
+        $mensaje .= "• *Dirección:* " . $inv['club_direccion'] . "\n";
     }
     
     $mensaje .= "\n" . $separador . "\n\n";
     
-    // VIGENCIA DE LA INVITACI�N
-    $mensaje .= "?? *VIGENCIA DE LA INVITACI�N*\n\n";
-    $mensaje .= "� *Periodo de Acceso:* " . $vigencia . "\n";
-    $mensaje .= "� *Estado:* " . strtoupper($inv['estado']) . "\n";
+    // VIGENCIA DE LA INVITACIÓN
+    $mensaje .= "• *VIGENCIA DE LA INVITACIÓN*\n\n";
+    $mensaje .= "• *Periodo de Acceso:* " . $vigencia . "\n";
+    $mensaje .= "• *Estado:* " . strtoupper($inv['estado']) . "\n";
     
     $mensaje .= "\n" . $separador . "\n\n";
     
     // ***** CREDENCIALES DE ACCESO *****
-    $mensaje .= "?? *CREDENCIALES PARA INSCRIPCI�N DE JUGADORES*\n\n";
-    $mensaje .= "?? ?? ?? *�INFORMACI�N IMPORTANTE!* ?? ?? ??\n\n";
+    $mensaje .= "• *CREDENCIALES PARA INSCRIPCIÓN DE JUGADORES*\n\n";
+    $mensaje .= "• ?? ?? *¡INFORMACIÓN IMPORTANTE!* ⚠ ⚠ ⚠\n\n";
     $mensaje .= "Para inscribir a sus jugadores, utilice:\n\n";
     
-    $mensaje .= "?? *URL DE ACCESO:*\n";
+    $mensaje .= "• *URL DE ACCESO:*\n";
     $mensaje .= $url_login . "\n\n";
     
-    $mensaje .= "?? *TOKEN DE ACCESO (Su Clave Personal):*\n";
+    $mensaje .= "• *TOKEN DE ACCESO (Su Clave Personal):*\n";
     $mensaje .= "*" . $inv['token'] . "*\n\n";
     
-    $mensaje .= "?? *INSTRUCCIONES:*\n";
+    $mensaje .= "• *INSTRUCCIONES:*\n";
     $mensaje .= "1?? Copie el TOKEN completo (arriba)\n";
     $mensaje .= "2?? Entre a la URL de acceso\n";
     $mensaje .= "3?? Pegue su TOKEN en el formulario\n";
-    $mensaje .= "4?? Inscriba a sus jugadores por c�dula\n\n";
+    $mensaje .= "4?? Inscriba a sus jugadores por cédula\n\n";
     
-    $mensaje .= "?? *GUARDE ESTE TOKEN - Lo necesitar� cada vez que acceda*\n";
+    $mensaje .= "• *GUARDE ESTE TOKEN - Lo necesitará cada vez que acceda*\n";
     
     $mensaje .= "\n" . $separador . "\n\n";
     
     // CONTACTO
-    $mensaje .= "?? *CONTACTO " . strtoupper($organizacion) . "*\n\n";
-    $mensaje .= "�Esperamos contar con su participaci�n!\n\n";
+    $mensaje .= "• *CONTACTO " . strtoupper($organizacion) . "*\n\n";
+    $mensaje .= "¡Esperamos contar con su participación!\n\n";
     $mensaje .= "_" . $organizacion . "_";
     
     // Codificar mensaje para URL
     $mensaje_encoded = urlencode($mensaje);
     
-    // Limpiar n�mero de tel�fono (solo n�meros)
+    // Limpiar número de teléfono (solo números)
     $telefono_limpio = preg_replace('/[^0-9]/', '', $telefono);
     
-    // Agregar c�digo de pa�s si no lo tiene (Venezuela +58)
+    // Agregar código de país si no lo tiene (Venezuela +58)
     if (!str_starts_with($telefono_limpio, '58')) {
         $telefono_limpio = '58' . $telefono_limpio;
     }
@@ -160,7 +160,7 @@ try {
     // Generar URL de WhatsApp
     $whatsapp_url = "https://api.whatsapp.com/send?phone={$telefono_limpio}&text={$mensaje_encoded}";
     
-    // Registrar env�o en log
+    // Registrar envío en log
     $log_entry = [
         'timestamp' => date('Y-m-d H:i:s'),
         'invitation_id' => $id,
@@ -174,7 +174,7 @@ try {
     $log_line = json_encode($log_entry, JSON_UNESCAPED_UNICODE) . "\n";
     @file_put_contents($log_file, $log_line, FILE_APPEND | LOCK_EX);
     
-    // Retornar JSON con toda la informaci�n
+    // Retornar JSON con toda la información
     echo json_encode([
         'success' => true,
         'mensaje' => $mensaje,

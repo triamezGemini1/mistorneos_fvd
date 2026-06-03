@@ -53,7 +53,7 @@ try {
     $stmt->execute($params);
     $invitations = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Obtener estad�sticas
+    // Obtener estadísticas
     $stats_where = $tournament_filter ? "WHERE torneo_id = {$tournament_filter}" : "";
     $stmt = $pdo->query("
         SELECT 
@@ -92,7 +92,7 @@ try {
     
     $content .= $report->addReportHeader($subtitle);
     
-    // Estad�sticas
+    // Estadísticas
     $content .= $report->generateStatsBoxes([
         ['number' => $stats['total'], 'label' => 'Total Invitaciones'],
         ['number' => $stats['activas'], 'label' => 'Activas'],
@@ -148,13 +148,13 @@ try {
         $content .= '<h2>Detalle de Invitaciones</h2>';
         
         foreach ($invitations as $invitation) {
-            // Informaci�n b�sica
+            // Información básica
             $info_data = [
                 'Torneo' => htmlspecialchars($invitation['torneo_nombre']),
                 'Fecha del Torneo' => ReportGenerator::formatDate($invitation['torneo_fecha']),
                 'Club Invitado' => htmlspecialchars($invitation['club_nombre']),
                 'Delegado' => htmlspecialchars($invitation['club_delegado'] ?? 'No especificado'),
-                'Tel�fono' => htmlspecialchars($invitation['club_telefono'] ?? 'No especificado'),
+                'Teléfono' => htmlspecialchars($invitation['club_telefono'] ?? 'No especificado'),
                 'Periodo de Acceso' => ReportGenerator::formatDate($invitation['acceso1']) . ' al ' . 
                                       ReportGenerator::formatDate($invitation['acceso2']),
                 'Token de Acceso' => '<small>' . htmlspecialchars($invitation['token']) . '</small>',
@@ -164,7 +164,7 @@ try {
                     : ($invitation['estado'] === 'expirada' 
                         ? ReportGenerator::badge('Expirada', 'warning')
                         : ReportGenerator::badge('Cancelada', 'danger')),
-                'Fecha de Creaci�n' => ReportGenerator::formatDateTime($invitation['fecha_creacion'])
+                'Fecha de Creación' => ReportGenerator::formatDateTime($invitation['fecha_creacion'])
             ];
             
             // Verificar si tiene jugadores inscritos
@@ -179,7 +179,7 @@ try {
             $info_data['Jugadores Inscritos'] = $inscritos['total'];
             
             $content .= $report->generateInfoSection(
-                'Invitaci�n #' . $invitation['id'] . ': ' . $invitation['club_nombre'],
+                'Invitación #' . $invitation['id'] . ': ' . $invitation['club_nombre'],
                 $info_data
             );
             
@@ -201,7 +201,7 @@ try {
                 $content .= '<h3 style="margin-left: 20px;">Jugadores Inscritos</h3>';
                 $content .= '<table style="width: 95%; margin: 10px auto;">';
                 $content .= '<thead><tr>';
-                $content .= '<th>C�dula</th><th>Nombre</th><th>Sexo</th><th>Fecha Nac.</th>';
+                $content .= '<th>Cédula</th><th>Nombre</th><th>Sexo</th><th>Fecha Nac.</th>';
                 $content .= '</tr></thead><tbody>';
                 
                 foreach ($players as $player) {

@@ -227,14 +227,14 @@ class TournamentHelpers {
         
         // Validar tipo
         if (isset($data['tipo']) && !in_array($data['tipo'], array_values(self::TIPO_VALUES))) {
-            $errors[] = 'Tipo de torneo inv�lido';
+            $errors[] = 'Tipo de torneo inválido';
         }
         
         // Validar clase
         if (isset($data['clase']) && !empty($data['clase'])) {
             $clase = (int)$data['clase'];
             if (!in_array($clase, array_keys(self::CLASE_VALUES))) {
-                $errors[] = 'Clase de torneo inv�lida';
+                $errors[] = 'Clase de torneo inválida';
             }
         }
         
@@ -242,7 +242,7 @@ class TournamentHelpers {
         if (isset($data['modalidad']) && !empty($data['modalidad'])) {
             $modalidad = (int)$data['modalidad'];
             if (!in_array($modalidad, array_keys(self::MODALIDAD_VALUES))) {
-                $errors[] = 'Modalidad de torneo inv�lida';
+                $errors[] = 'Modalidad de torneo inválida';
             }
         }
         
@@ -250,7 +250,7 @@ class TournamentHelpers {
         if (isset($data['fechator']) && !empty($data['fechator'])) {
             $date = DateTime::createFromFormat('Y-m-d', $data['fechator']);
             if (!$date || $date->format('Y-m-d') !== $data['fechator']) {
-                $errors[] = 'Formato de fecha inv�lido';
+                $errors[] = 'Formato de fecha inválido';
             }
         }
         
@@ -303,9 +303,9 @@ class TournamentHelpers {
     }
     
     /**
-     * Obtiene la informaci�n de la organizaci�n de un torneo
+     * Obtiene la información de la organización de un torneo
      * @param int $torneo_id ID del torneo
-     * @return array|null Array con datos de la organizaci�n o null
+     * @return array|null Array con datos de la organización o null
      */
     public static function getOrganizacionTorneo(int $torneo_id): ?array {
         try {
@@ -336,18 +336,18 @@ class TournamentHelpers {
     }
     
     /**
-     * Obtiene el nombre de la organizaci�n de un torneo
+     * Obtiene el nombre de la organización de un torneo
      * @param int $torneo_id ID del torneo
-     * @return string Nombre de la organizaci�n o 'Sin organizaci�n'
+     * @return string Nombre de la organización o 'Sin organización'
      */
     public static function getOrganizacionNombre(int $torneo_id): string {
         $org = self::getOrganizacionTorneo($torneo_id);
-        return $org['nombre'] ?? 'Sin organizaci�n';
+        return $org['nombre'] ?? 'Sin organización';
     }
     
     /**
      * Verifica si un usuario puede modificar un torneo
-     * Solo el admin de la organizaci�n y admin_general pueden modificar
+     * Solo el admin de la organización y admin_general pueden modificar
      * @param int $torneo_id ID del torneo
      * @param array $user Usuario actual
      * @return bool
@@ -358,7 +358,7 @@ class TournamentHelpers {
             return true;
         }
         
-        // admin_club solo puede modificar torneos de su organizaci�n
+        // admin_club solo puede modificar torneos de su organización
         if (($user['role'] ?? '') === 'admin_club') {
             $org = self::getOrganizacionTorneo($torneo_id);
             if ($org && (int)$org['admin_user_id'] === Auth::id()) {

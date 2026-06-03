@@ -7,10 +7,10 @@ namespace Lib\Database;
 use PDO;
 
 /**
- * Repository Base - Patr�n Repository para abstracci�n de acceso a datos
+ * Repository Base - Patr�n Repository para abstracción de acceso a datos
  * 
  * Caracter�sticas:
- * - Abstracci�n completa de la capa de datos
+ * - Abstracción completa de la capa de datos
  * - CRUD operations gen�ricos
  * - Query Builder integration
  * - Cache integration ready
@@ -66,7 +66,7 @@ abstract class Repository
     }
 
     /**
-     * Encuentra registro o lanza excepci�n
+     * Encuentra registro o lanza excepción
      * 
      * @param int|string $id
      * @return array
@@ -210,10 +210,10 @@ abstract class Repository
     }
 
     /**
-     * Paginaci�n
+     * Paginación
      * 
-     * @param int $page P�gina actual (1-based)
-     * @param int $perPage Items por p�gina
+     * @param int $page Página actual (1-based)
+     * @param int $perPage Items por página
      * @return array ['data' => [...], 'pagination' => [...]]
      */
     public function paginate(int $page = 1, int $perPage = 15): array
@@ -279,7 +279,7 @@ abstract class Repository
     }
 
     /**
-     * Castea campos seg�n definici�n
+     * Castea campos según definición
      * 
      * @param array $record
      * @return array
@@ -321,7 +321,7 @@ abstract class Repository
     }
 
     /**
-     * Ejecuta en transacci�n
+     * Ejecuta en transacción
      * 
      * @param callable $callback
      * @return mixed
@@ -345,7 +345,7 @@ abstract class Repository
      * Bulk insert (mass insert)
      * 
      * @param array $records Array de arrays con datos
-     * @return int N�mero de registros insertados
+     * @return int Número de registros insertados
      */
     public function bulkInsert(array $records): int
     {

@@ -6,6 +6,7 @@ require_once __DIR__ . '/InscripcionPagoService.php';
 require_once __DIR__ . '/InscripcionTorneoNotifier.php';
 require_once __DIR__ . '/InscritosHelper.php';
 require_once __DIR__ . '/NotificationManager.php';
+require_once __DIR__ . '/ReciboPagoQrHelper.php';
 require_once __DIR__ . '/../config/auth.php';
 
 /**
@@ -241,6 +242,7 @@ final class ReportePagoUsuarioService
 
         return [
             'reporte_id' => (int) ($reporte['id'] ?? 0),
+            'torneo_id' => (int) ($reporte['torneo_id'] ?? 0),
             'inscripcion_id' => (int) ($reporte['inscrito_id'] ?? 0),
             'torneo_nombre' => (string) ($reporte['torneo_nombre'] ?? ''),
             'fecha_torneo' => $fechaTor,
@@ -278,6 +280,10 @@ final class ReportePagoUsuarioService
         $lugar = $recibo['lugar'] !== '' ? $esc($recibo['lugar']) : '—';
         $ref = $recibo['referencia'] !== '' ? $esc($recibo['referencia']) : '—';
         $banco = $recibo['banco'] !== '' ? $esc($recibo['banco']) : '—';
+        $qrPersonal = ReciboPagoQrHelper::bloqueHtmlQrPersonal(
+            (int) ($recibo['torneo_id'] ?? 0),
+            (int) ($recibo['user_id'] ?? 0)
+        );
 
         return <<<HTML
 <div class="recibo-pago-tarjeta border border-success rounded-3 overflow-hidden bg-white" id="recibo-pago-print">
@@ -304,6 +310,7 @@ final class ReportePagoUsuarioService
     <p class="mb-1"><strong>Tipo:</strong> {$esc($recibo['tipo_pago'])} · <strong>Banco:</strong> {$banco}</p>
     <p class="mb-1"><strong>Referencia:</strong> {$ref}</p>
     <p class="mb-0"><strong>Fecha pago:</strong> {$esc($recibo['fecha_pago'])} {$esc($recibo['hora_pago'])}</p>
+    {$qrPersonal}
   </div>
   <div class="bg-light text-center py-2 small text-muted">
     Comprobante para validación · FVD

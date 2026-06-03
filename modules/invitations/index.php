@@ -385,7 +385,7 @@ function verToken(token, id) {
 function copiarToken() {
     const token = document.getElementById('tokenCompleto').textContent;
     navigator.clipboard.writeText(token).then(() => {
-        alert('? Token copiado al portapapeles');
+        alert('✓ Token copiado al portapapeles');
     }).catch(() => {
         // Fallback para navegadores antiguos
         const textarea = document.createElement('textarea');
@@ -394,7 +394,7 @@ function copiarToken() {
         textarea.select();
         document.execCommand('copy');
         document.body.removeChild(textarea);
-        alert('? Token copiado al portapapeles');
+        alert('✓ Token copiado al portapapeles');
     });
 }
 </script>

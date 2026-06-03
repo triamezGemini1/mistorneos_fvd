@@ -50,14 +50,14 @@ function enviarNotificacionAfiliacion($email, $nombre, $username, $aprobado = tr
                             <p style='margin: 0; font-size: 14px; color: #4a5568;'><strong>Nota:</strong> El manual solo está disponible para usuarios registrados. Debes iniciar sesión para acceder. El manual incluye guías paso a paso para crear torneos, invitar jugadores, gestionar inscripciones, administrar resultados y mucho más.</p>
                         </div>
                         <p style='text-align: center; margin-top: 30px;'>
-                            <a href='" . $app_url . "/public/login.php' style='background: #48bb78; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px;'>Iniciar Sesión</a>
+                            <a href='" . AppHelpers::url("login.php' style='background: #48bb78; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px;'>Iniciar Sesión</a>
                         </p>
                     </div>
                     <div style='background: #2d3748; color: white; padding: 15px; text-align: center; font-size: 12px;'>
                         La Estación del Dominó - Sistema de Gestión de Torneos
                     </div>
                 </div>
-            ";
+            ");
         $result = NotificationSender::sendEmailHtml($email, $asunto, $body, $nombre);
     } else {
         $asunto = 'Actualización sobre tu solicitud de afiliación';
@@ -588,7 +588,7 @@ $status_badges = [
                         $mensaje .= "✅ Crear clubes asociados\n\n";
                         $mensaje .= "━━━━━━━━━━━━━━━━━━\n\n";
                         $mensaje .= "🌐 *Ingresa al sistema:*\n";
-                        $mensaje .= (($_ENV['APP_URL'] ?? 'http://localhost/mistorneos_fvd') . "/public/login.php") . "\n\n";
+                        $mensaje .= AppHelpers::url('login.php') . "\n\n";
                         $mensaje .= "━━━━━━━━━━━━━━━━━━\n";
                         $mensaje .= "📖 *MANUAL DE USUARIO*\n";
                         $mensaje .= "━━━━━━━━━━━━━━━━━━\n\n";

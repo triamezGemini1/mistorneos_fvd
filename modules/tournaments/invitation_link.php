@@ -96,7 +96,7 @@ $admin_nombre = $current_user['nombre'] ?? $current_user['username'] ?? 'Adminis
 
 if ($torneo_selected) {
     $app_url = $_ENV['APP_URL'] ?? (function_exists('app_base_url') ? app_base_url() : FvdConfig::resolveAppUrl());
-    $invitation_link = $app_url . "/public/tournament_register.php?torneo_id=" . $torneo_selected['id'];
+    $invitation_link = AppHelpers::url("tournament_register.php?torneo_id=") . $torneo_selected['id'];
     
     // Obtener ruta del PDF de invitación
     $pdf_path = null;

@@ -7,7 +7,7 @@ class WhatsAppSender {
     private static $log_file = __DIR__ . '/../logs/whatsapp_log.txt';
 
     /**
-     * Genera el mensaje de WhatsApp para invitaci�n usando plantillas configurables
+     * Genera el mensaje de WhatsApp para invitación usando plantillas configurables
      */
     public static function generateInvitationMessage(array $data): string {
         // MENSAJE CON TOKEN (Sistema nuevo)
@@ -16,11 +16,11 @@ class WhatsAppSender {
         $url_sistema = $base_url;
         $url_login = $url_sistema . "modules/invitations/inscripciones/login.php";
         
-        // Obtener TOKEN de la invitaci�n
+        // Obtener TOKEN de la invitación
         $token = $data['token'] ?? '';
         
         // Obtener datos
-        $organizacion = $data['organizer_club_name'] ?? 'Organizaci�n';
+        $organizacion = $data['organizer_club_name'] ?? 'Organización';
         $torneo_nombre = $data['tournament_name'] ?? '';
         $fecha_torneo = isset($data['tournament_date']) ? date('d/m/Y', strtotime($data['tournament_date'])) : '';
         $lugar_torneo = $data['torneo_lugar'] ?? '';
@@ -38,73 +38,73 @@ class WhatsAppSender {
         // Construir mensaje con TOKEN
         $separador = "??????????????????????";
         
-        $mensaje = "?? *INVITACI�N A TORNEO - " . strtoupper($organizacion) . "*\n\n";
+        $mensaje = "• *INVITACIÓN A TORNEO - " . strtoupper($organizacion) . "*\n\n";
         $mensaje .= $separador . "\n\n";
         
-        // INFORMACI�N DEL TORNEO
-        $mensaje .= "?? *INFORMACI�N DEL TORNEO*\n\n";
-        $mensaje .= "� *Organizaci�n Responsable:* " . $organizacion . "\n";
-        $mensaje .= "� *Nombre del Torneo:* " . $torneo_nombre . "\n";
-        $mensaje .= "� *Fecha del Torneo:* " . $fecha_torneo . "\n";
+        // INFORMACIÓN DEL TORNEO
+        $mensaje .= "• *INFORMACIÓN DEL TORNEO*\n\n";
+        $mensaje .= "• *Organización Responsable:* " . $organizacion . "\n";
+        $mensaje .= "• *Nombre del Torneo:* " . $torneo_nombre . "\n";
+        $mensaje .= "• *Fecha del Torneo:* " . $fecha_torneo . "\n";
         if (!empty($lugar_torneo)) {
-            $mensaje .= "� *Lugar:* " . $lugar_torneo . "\n";
+            $mensaje .= "• *Lugar:* " . $lugar_torneo . "\n";
         }
         $mensaje .= "\n" . $separador . "\n\n";
         
         // CLUB INVITADO
-        $mensaje .= "?? *CLUB INVITADO*\n\n";
-        $mensaje .= "� *Nombre Club:* " . $club_nombre . "\n";
-        $mensaje .= "� *Delegado:* " . $delegado . "\n";
+        $mensaje .= "• *CLUB INVITADO*\n\n";
+        $mensaje .= "• *Nombre Club:* " . $club_nombre . "\n";
+        $mensaje .= "• *Delegado:* " . $delegado . "\n";
         if (!empty($telefono_club)) {
-            $mensaje .= "� *Tel�fono:* " . $telefono_club . "\n";
+            $mensaje .= "• *Teléfono:* " . $telefono_club . "\n";
         }
         if (!empty($club_direccion)) {
-            $mensaje .= "� *Direcci�n:* " . $club_direccion . "\n";
+            $mensaje .= "• *Dirección:* " . $club_direccion . "\n";
         }
         $mensaje .= "\n" . $separador . "\n\n";
         
         // VIGENCIA
-        $mensaje .= "?? *VIGENCIA DE LA INVITACI�N*\n\n";
-        $mensaje .= "� *Periodo de Acceso:* " . $vigencia . "\n";
-        $mensaje .= "� *Estado:* " . $estado . "\n";
+        $mensaje .= "• *VIGENCIA DE LA INVITACIÓN*\n\n";
+        $mensaje .= "• *Periodo de Acceso:* " . $vigencia . "\n";
+        $mensaje .= "• *Estado:* " . $estado . "\n";
         $mensaje .= "\n" . $separador . "\n\n";
         
         // ***** CREDENCIALES DE ACCESO CON TOKEN *****
-        $mensaje .= "?? *CREDENCIALES PARA INSCRIPCI�N DE JUGADORES*\n\n";
-        $mensaje .= "?? ?? ?? *�INFORMACI�N IMPORTANTE!* ?? ?? ??\n\n";
+        $mensaje .= "• *CREDENCIALES PARA INSCRIPCIÓN DE JUGADORES*\n\n";
+        $mensaje .= "• ?? ?? *¡INFORMACIÓN IMPORTANTE!* ⚠ ⚠ ⚠\n\n";
         $mensaje .= "Para inscribir a sus jugadores, utilice:\n\n";
         
-        $mensaje .= "?? *URL DE ACCESO:*\n";
+        $mensaje .= "• *URL DE ACCESO:*\n";
         $mensaje .= $url_login . "\n\n";
         
-        $mensaje .= "?? *TOKEN DE ACCESO (Su Clave Personal):*\n";
+        $mensaje .= "• *TOKEN DE ACCESO (Su Clave Personal):*\n";
         $mensaje .= "*" . $token . "*\n\n";
         
-        $mensaje .= "?? *INSTRUCCIONES:*\n";
+        $mensaje .= "• *INSTRUCCIONES:*\n";
         $mensaje .= "1?? Copie el TOKEN completo (arriba)\n";
         $mensaje .= "2?? Entre a la URL de acceso\n";
         $mensaje .= "3?? Pegue su TOKEN en el formulario\n";
-        $mensaje .= "4?? Inscriba a sus jugadores por c�dula\n\n";
+        $mensaje .= "4?? Inscriba a sus jugadores por cédula\n\n";
         
-        $mensaje .= "?? *GUARDE ESTE TOKEN - Lo necesitar� cada vez que acceda*\n";
+        $mensaje .= "• *GUARDE ESTE TOKEN - Lo necesitará cada vez que acceda*\n";
         $mensaje .= "\n" . $separador . "\n\n";
         
         // CONTACTO
-        $mensaje .= "?? *CONTACTO " . strtoupper($organizacion) . "*\n\n";
-        $mensaje .= "�Esperamos contar con su participaci�n!\n\n";
+        $mensaje .= "• *CONTACTO " . strtoupper($organizacion) . "*\n\n";
+        $mensaje .= "¡Esperamos contar con su participación!\n\n";
         $mensaje .= "_" . $organizacion . "_";
         
         return $mensaje;
     }
 
     /**
-     * Genera mensaje de WhatsApp con PDF para invitaci�n
+     * Genera mensaje de WhatsApp con PDF para invitación
      */
     public static function generateInvitationWithPDF(array $data): array {
         require_once __DIR__ . '/pdf_generator.php';
         
         try {
-            // Generar PDF de invitaci�n
+            // Generar PDF de invitación
             $pdf_result = PDFGenerator::generateInvitationPDF((int)$data['id']);
             
             if (!$pdf_result['success']) {
@@ -117,12 +117,12 @@ class WhatsAppSender {
             // Generar mensaje de WhatsApp
             $message = self::generateInvitationMessage($data);
             
-            // Agregar informaci�n del PDF al mensaje
+            // Agregar información del PDF al mensaje
             $pdf_url = self::getBaseUrl() . '/' . $pdf_result['pdf_path'];
             $message .= "\n\n?? *DOCUMENTO ADJUNTO:*\n";
-            $message .= "?? Descargar invitaci�n completa: {$pdf_url}";
+            $message .= "• Descargar invitación completa: {$pdf_url}";
             
-            // Obtener tel�fonos
+            // Obtener teléfonos
             $sender_phone = self::getSenderPhone($data['club_responsable']);
             $receiver_phone = self::getReceiverPhone($data['club_id']);
             
@@ -148,10 +148,10 @@ class WhatsAppSender {
      * Genera el enlace de WhatsApp Web
      */
     public static function generateWhatsAppLink(string $phone, string $message): string {
-        // Limpiar n�mero de tel�fono (solo n�meros)
+        // Limpiar número de teléfono (solo números)
         $clean_phone = preg_replace('/[^0-9]/', '', $phone);
         
-        // Agregar c�digo de pa�s si no lo tiene (Venezuela +58)
+        // Agregar código de país si no lo tiene (Venezuela +58)
         if (!str_starts_with($clean_phone, '58')) {
             $clean_phone = '58' . $clean_phone;
         }
@@ -163,7 +163,7 @@ class WhatsAppSender {
     }
 
     /**
-     * Simula el env�o de WhatsApp (registra en log)
+     * Simula el envío de WhatsApp (registra en log)
      */
     public static function sendInvitationWhatsApp(array $invitation_data, string $phone): array {
         try {
@@ -198,7 +198,7 @@ class WhatsAppSender {
     }
 
     /**
-     * Obtiene los datos completos de una invitaci�n
+     * Obtiene los datos completos de una invitación
      */
     public static function getInvitationDataForWhatsApp(int $invitation_id): ?array {
         try {
@@ -227,7 +227,7 @@ class WhatsAppSender {
             
             return $data ?: null;
         } catch (Exception $e) {
-            error_log("Error obteniendo datos de invitaci�n: " . $e->getMessage());
+            error_log("Error obteniendo datos de invitación: " . $e->getMessage());
             return null;
         }
     }
@@ -250,11 +250,11 @@ class WhatsAppSender {
             }
         }
         
-        return array_reverse($messages); // M�s recientes primero
+        return array_reverse($messages); // Más recientes primero
     }
 
     /**
-     * Valida n�mero de tel�fono
+     * Valida número de teléfono
      */
     public static function validatePhone(string $phone): bool {
         $clean_phone = preg_replace('/[^0-9]/', '', $phone);
@@ -262,7 +262,7 @@ class WhatsAppSender {
     }
 
     /**
-     * Formatea n�mero de tel�fono para mostrar
+     * Formatea número de teléfono para mostrar
      */
     public static function formatPhone(string $phone): string {
         $clean_phone = preg_replace('/[^0-9]/', '', $phone);
@@ -291,7 +291,7 @@ class WhatsAppSender {
             if ($exact_user) {
                 return [
                     'username' => $exact_user['username'],
-                    'password' => 'invitado123' // Contrase�a real para invitados
+                    'password' => 'invitado123' // Contraseña real para invitados
                 ];
             }
             
@@ -308,7 +308,7 @@ class WhatsAppSender {
                 ];
             }
             
-            // Si tampoco existe "invitado{id}", crearlo autom�ticamente
+            // Si tampoco existe "invitado{id}", crearlo automáticamente
             self::createInvitedUser($invitado_username, $club_id);
             
             return [
@@ -326,7 +326,7 @@ class WhatsAppSender {
     }
     
     /**
-     * Crea autom�ticamente un usuario invitado faltante
+     * Crea automáticamente un usuario invitado faltante
      */
     private static function createInvitedUser(string $username, int $club_id): bool {
         try {
@@ -358,7 +358,7 @@ class WhatsAppSender {
     }
 
     /**
-     * Obtiene el tel�fono del remitente (club organizador)
+     * Obtiene el teléfono del remitente (club organizador)
      */
     private static function getSenderPhone(int $club_responsable_id): ?string {
         try {
@@ -372,13 +372,13 @@ class WhatsAppSender {
             
             return $club['telefono'] ?? null;
         } catch (Exception $e) {
-            error_log("Error obteniendo tel�fono del remitente: " . $e->getMessage());
+            error_log("Error obteniendo teléfono del remitente: " . $e->getMessage());
             return null;
         }
     }
 
     /**
-     * Obtiene el tel�fono del receptor (club invitado)
+     * Obtiene el teléfono del receptor (club invitado)
      */
     private static function getReceiverPhone(int $club_id): ?string {
         try {
@@ -392,7 +392,7 @@ class WhatsAppSender {
             
             return $club['telefono'] ?? null;
         } catch (Exception $e) {
-            error_log("Error obteniendo tel�fono del receptor: " . $e->getMessage());
+            error_log("Error obteniendo teléfono del receptor: " . $e->getMessage());
             return null;
         }
     }

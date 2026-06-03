@@ -6,7 +6,7 @@ require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../config/csrf.php';
 
-// Obtener par�metros de la URL
+// Obtener parámetros de la URL
 $token = $_GET['token'] ?? '';
 $torneo_id = $_GET['torneo'] ?? '';
 $club_id = $_GET['club'] ?? '';
@@ -18,12 +18,12 @@ $tournament_data = null;
 $club_data = null;
 $organizer_club_data = null;
 
-// Validar invitaci�n
+// Validar invitación
 if (empty($token) || empty($torneo_id) || empty($club_id)) {
-    $error_message = "Par�metros de acceso inv�lidos";
+    $error_message = "Parámetros de acceso inválidos";
 } else {
     try {
-        // Verificar invitaci�n v�lida
+        // Verificar invitación v�lida
         $stmt = DB::pdo()->prepare("
             SELECT i.*, t.nombre as tournament_name, t.fechator, t.clase, t.modalidad, t.club_responsable,
                    c.nombre as club_name, c.direccion, c.delegado, c.telefono, c.email, c.logo as club_logo
@@ -36,7 +36,7 @@ if (empty($token) || empty($torneo_id) || empty($club_id)) {
         $invitation_data = $stmt->fetch();
         
         if (!$invitation_data) {
-            $error_message = "Invitaci�n no v�lida";
+            $error_message = "Invitación no v�lida";
         } else {
             // Verificar fechas de acceso
             $now = new DateTime();
@@ -44,9 +44,9 @@ if (empty($token) || empty($torneo_id) || empty($club_id)) {
             $end_date = new DateTime($invitation_data['acceso2']);
             
             if ($now < $start_date) {
-                $error_message = "El per�odo de inscripci�n a�n no ha comenzado";
+                $error_message = "El per�odo de inscripción a�n no ha comenzado";
             } elseif ($now > $end_date) {
-                $error_message = "El per�odo de inscripci�n ha expirado";
+                $error_message = "El per�odo de inscripción ha expirado";
             } else {
                 // Obtener datos del club organizador
                 $stmt_organizer = DB::pdo()->prepare("
@@ -77,17 +77,17 @@ if (empty($token) || empty($torneo_id) || empty($club_id)) {
             }
         }
     } catch (Exception $e) {
-        $error_message = "Error al validar invitaci�n: " . $e->getMessage();
+        $error_message = "Error al validar invitación: " . $e->getMessage();
     }
 }
 
-// Procesar autenticaci�n del club
+// Procesar autenticación del club
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'club_login') {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
     
     if (empty($username) || empty($password)) {
-        $error_message = "Usuario y contrase�a son requeridos";
+        $error_message = "Usuario y contraseña son requeridos";
     } else {
         try {
             // Verificar credenciales del usuario invitado
@@ -102,19 +102,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             
             require_once __DIR__ . '/../lib/security.php';
             
-            // Usar autenticaci�n centralizada para admin_club
+            // Usar autenticación centralizada para admin_club
             $authenticatedUser = Security::authenticateClubAdmin($username, $password, $club_data['email']);
             
             if ($authenticatedUser) {
                 $_SESSION['club_authenticated'] = true;
                 $_SESSION['authenticated_club_id'] = $club_data['id'];
                 $_SESSION['authenticated_username'] = $username;
-                $success_message = "Autenticaci�n exitosa";
+                $success_message = "Autenticación exitosa";
             } else {
-                $error_message = "Usuario o contrase�a incorrectos";
+                $error_message = "Usuario o contraseña incorrectos";
             }
         } catch (Exception $e) {
-            $error_message = "Error en la autenticaci�n: " . $e->getMessage();
+            $error_message = "Error en la autenticación: " . $e->getMessage();
         }
     }
 }
@@ -128,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
-// Procesar formulario de inscripci�n de jugador
+// Procesar formulario de inscripción de jugador
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'register_player') {
     require_once __DIR__ . '/../lib/RateLimiter.php';
     if (!RateLimiter::canSubmit('invitation_register', 15)) {
@@ -143,14 +143,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $telefono = trim($_POST['telefono'] ?? '');
         $email = trim($_POST['email'] ?? '');
         
-        // Limpiar c�dula: remover nacionalidad si viene pegada (V12345678 ? 12345678)
+        // Limpiar cédula: remover nacionalidad si viene pegada (V12345678 ? 12345678)
         $cedula = preg_replace('/^[VEJP]/', '', $cedula);
         
         if (empty($cedula) || empty($nombre) || empty($sexo) || empty($telefono)) {
-            throw new Exception('Los campos c�dula, nombre, sexo y tel�fono son requeridos');
+            throw new Exception('Los campos cédula, nombre, sexo y teléfono son requeridos');
         }
         
-        // Verificar si ya existe una inscripci�n para esta c�dula en este torneo
+        // Verificar si ya existe una inscripción para esta cédula en este torneo
         $stmt = DB::pdo()->prepare("
             SELECT id FROM inscripciones 
             WHERE cedula = ? AND torneo_id = ?
@@ -158,10 +158,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $stmt->execute([$cedula, $torneo_id]);
         
         if ($stmt->fetch()) {
-            throw new Exception('Ya existe una inscripci�n para esta c�dula en este torneo');
+            throw new Exception('Ya existe una inscripción para esta cédula en este torneo');
         }
         
-        // Insertar inscripci�n (solo n�meros en c�dula, sin nacionalidad)
+        // Insertar inscripción (solo números en cédula, sin nacionalidad)
         $stmt = DB::pdo()->prepare("
             INSERT INTO inscripciones (
                 torneo_id, cedula, nombre, sexo, fechnac, celular, email, club_id, 
@@ -184,11 +184,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Verificar si el club est� autenticado
+// Verificar si el club est• autenticado
 $club_authenticated = isset($_SESSION['club_authenticated']) && $_SESSION['club_authenticated'] === true;
 $authenticated_club_id = $_SESSION['authenticated_club_id'] ?? null;
 
-// Verificar que el club autenticado coincida con el club de la invitaci�n
+// Verificar que el club autenticado coincida con el club de la invitación
 if ($club_authenticated && $authenticated_club_id != $club_id) {
     $club_authenticated = false;
     unset($_SESSION['club_authenticated']);
@@ -306,7 +306,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                         <div class="card-body text-center py-5">
                             <i class="fas fa-lock text-danger fs-1 mb-3"></i>
                             <h5 class="text-danger"><?= htmlspecialchars($error_message) ?></h5>
-                            <p class="text-muted">Por favor, verifica que tienes acceso v�lido a esta p�gina.</p>
+                            <p class="text-muted">Por favor, verifica que tienes acceso válido a esta página.</p>
                             <a href="javascript:history.back()" class="btn btn-outline-secondary">
                                 <i class="fas fa-arrow-left me-2"></i>Volver
                             </a>
@@ -329,7 +329,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                 </div>
                             </div>
                             
-                            <!-- Informaci�n central -->
+                            <!-- Información central -->
                             <div class="col-md-6 text-center">
                                 <h2 class="h3 text-primary mb-2">
                                     <?= htmlspecialchars($organizer_club_data['nombre'] ?? 'Club Organizador') ?>
@@ -365,12 +365,12 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                             </div>
                         </div>
                         
-                        <!-- Per�odo de inscripci�n -->
+                        <!-- Per�odo de inscripción -->
                         <div class="row mt-4">
                             <div class="col-12">
                                 <div class="alert alert-info text-center">
                                     <i class="fas fa-clock me-2"></i>
-                                    <strong>Per�odo de Inscripci�n:</strong> 
+                                    <strong>Per�odo de Inscripción:</strong> 
                                     Desde <?= date('d/m/Y H:i', strtotime($invitation_data['acceso1'])) ?> 
                                     hasta <?= date('d/m/Y H:i', strtotime($invitation_data['acceso2'])) ?>
                                 </div>
@@ -378,7 +378,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                         </div>
                     </div>
 
-                    <!-- Formulario de Autenticaci�n del Club -->
+                    <!-- Formulario de Autenticación del Club -->
                     <?php if (!$club_authenticated): ?>
                     <div class="card mb-4">
                         <div class="card-header bg-warning text-dark">
@@ -410,13 +410,13 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                     </div>
                                     
                                     <div class="col-md-6">
-                                        <label for="password" class="form-label">Contrase�a</label>
+                                        <label for="password" class="form-label">Contraseña</label>
                                         <div class="input-group">
                                             <input type="password" 
                                                    class="form-control" 
                                                    id="password" 
                                                    name="password" 
-                                                   placeholder="Ingrese la contrase�a"
+                                                   placeholder="Ingrese la contraseña"
                                                    required>
                                             <button type="button" 
                                                     class="btn btn-outline-secondary" 
@@ -424,7 +424,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                                 <i class="fas fa-eye" id="passwordToggleIcon"></i>
                                             </button>
                                         </div>
-                                        <small class="text-muted">Contrase�a: <strong>usuario</strong></small>
+                                        <small class="text-muted">Contraseña: <strong>usuario</strong></small>
                                     </div>
                                 </div>
                                 
@@ -448,7 +448,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                 <form method="POST" style="display: inline;">
                                     <input type="hidden" name="action" value="club_logout">
                                     <button type="submit" class="btn btn-outline-light btn-sm">
-                                        <i class="fas fa-sign-out-alt me-1"></i>Cerrar Sesi�n
+                                        <i class="fas fa-sign-out-alt me-1"></i>Cerrar Sesión
                                     </button>
                                 </form>
                             </div>
@@ -458,13 +458,13 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                 <i class="fas fa-user-check me-2"></i>
                                 <strong>Bienvenido:</strong> <?= htmlspecialchars($club_data['nombre']) ?><br>
                                 <strong>Delegado:</strong> <?= htmlspecialchars($club_data['delegado']) ?><br>
-                                <strong>Tel�fono:</strong> <?= htmlspecialchars($club_data['telefono']) ?>
+                                <strong>Teléfono:</strong> <?= htmlspecialchars($club_data['telefono']) ?>
                             </div>
                         </div>
                     </div>
                     <?php endif; ?>
 
-                    <!-- Formulario de Inscripci�n de Jugadores -->
+                    <!-- Formulario de Inscripción de Jugadores -->
                     <?php if ($club_authenticated): ?>
                     <div class="card mb-4">
                         <div class="card-header">
@@ -505,9 +505,9 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                         </select>
                                     </div>
                                     
-                                    <!-- C�dula -->
+                                    <!-- Cédula -->
                                     <div class="col-md-6">
-                                        <label for="cedula" class="form-label">C�dula <span class="text-danger">*</span></label>
+                                        <label for="cedula" class="form-label">Cédula <span class="text-danger">*</span></label>
                                         <input type="text" 
                                                class="form-control" 
                                                id="cedula" 
@@ -518,7 +518,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                                pattern="[VEJP]?[0-9]+"
                                                onblur="debouncedSearchPersona()"
                                                required>
-                                        <small class="text-muted">Al salir del campo se buscar�n autom�ticamente los datos (acepta V, E, J, P + n�mero)</small>
+                                        <small class="text-muted">Al salir del campo se buscar�n automáticamente los datos (acepta V, E, J, P + número)</small>
                                     </div>
                                     
                                     <!-- Nombre -->
@@ -548,9 +548,9 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                            name="fechnac" 
                                            value="<?= htmlspecialchars($_POST['fechnac'] ?? '') ?>">
                                     
-                                    <!-- Tel�fono -->
+                                    <!-- Teléfono -->
                                     <div class="col-md-6">
-                                        <label for="telefono" class="form-label">N�mero de Tel�fono <span class="text-danger">*</span></label>
+                                        <label for="telefono" class="form-label">Número de Teléfono <span class="text-danger">*</span></label>
                                         <input type="tel" 
                                                class="form-control" 
                                                id="telefono" 
@@ -598,12 +598,12 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                     <table class="table table-hover">
                                         <thead>
                                             <tr>
-                                                <th>C�dula</th>
+                                                <th>Cédula</th>
                                                 <th>Nombre</th>
                                                 <th>Sexo</th>
-                                                <th>Tel�fono</th>
+                                                <th>Teléfono</th>
                                                 <th>Email</th>
-                                                <th>Fecha de Inscripci�n</th>
+                                                <th>Fecha de Inscripción</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -654,12 +654,12 @@ if ($invitation_data && !$error_message && $club_authenticated) {
         }
         
         function clearForm() {
-            if (confirm('�Est�s seguro de que deseas limpiar todos los campos del formulario?')) {
+            if (confirm('¿Estás seguro de que deseas limpiar todos los campos del formulario?')) {
                 document.getElementById('registrationForm').reset();
             }
         }
         
-        // Validar solo n�meros en c�dula
+        // Validar solo números en cédula
         const debouncedSearchPersona = typeof debounce === 'function' ? debounce(searchPersona, 400) : searchPersona;
         document.addEventListener('DOMContentLoaded', function() {
             const regForm = document.getElementById('registrationForm');
@@ -674,7 +674,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
             this.value = this.value.replace(/[^0-9VEJPvejp]/g, '');
         });
         
-        // Validar formato de tel�fono
+        // Validar formato de teléfono
         document.getElementById('telefono').addEventListener('input', function() {
             let value = this.value.replace(/[^0-9-]/g, '');
             // Formato: 0424-1234567
@@ -684,19 +684,19 @@ if ($invitation_data && !$error_message && $club_authenticated) {
             this.value = value;
         });
         
-        // Funci�n para buscar persona por c�dula
+        // Función para buscar persona por cédula
         async function searchPersona() {
             let cedula = document.getElementById('cedula')?.value.trim().toUpperCase();
             let nacionalidad = document.getElementById('nacionalidad')?.value;
             
-            console.log('?? searchPersona() - C�dula ingresada:', cedula, 'Nacionalidad:', nacionalidad);
+            console.log('• searchPersona() - Cédula ingresada:', cedula, 'Nacionalidad:', nacionalidad);
             
             if (!cedula || cedula.length < 5) {
-                console.log('?? C�dula muy corta o vac�a');
+                console.log('• Cédula muy corta o vacía');
                 return;
             }
             
-            // Detectar si la c�dula viene con nacionalidad pegada (V12345678)
+            // Detectar si la cédula viene con nacionalidad pegada (V12345678)
             const match = cedula.match(/^([VEJP])(\d+)$/);
             if (match) {
                 nacionalidad = match[1];
@@ -705,7 +705,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                 // Actualizar campos
                 document.getElementById('nacionalidad').value = nacionalidad;
                 document.getElementById('cedula').value = cedula;
-                console.log('?? Nacionalidad extra�da:', nacionalidad, 'C�dula:', cedula);
+                console.log('• Nacionalidad extraída:', nacionalidad, 'Cédula:', cedula);
             }
             
             if (!nacionalidad) {
@@ -720,10 +720,10 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                 // Buscar en la base de datos (local y externa)
                 const torneoId = '<?= (int)($torneo_id ?? 0) ?>';
                 const url = apiUrl(`search_persona.php?nacionalidad=${nacionalidad}&cedula=${encodeURIComponent(cedula)}&torneo_id=${torneoId}`);
-                console.log('?? URL de b�squeda:', url);
+                console.log('• URL de búsqueda:', url);
                 
                 const response = await fetch(url);
-                console.log('?? Response status:', response.status);
+                console.log('• Response status:', response.status);
                 
                 const result = await response.json();
                 
@@ -738,12 +738,12 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                 
                 if (result.encontrado && result.persona) {
                     
-                    // Llenar campos autom�ticamente
+                    // Llenar campos automáticamente
                     document.getElementById('nombre').value = result.persona.nombre || '';
                     document.getElementById('sexo').value = result.persona.sexo || '';
                     document.getElementById('fechnac').value = result.persona.fechnac || '';
                     
-                    console.log('?? Campos llenados:', {
+                    console.log('• Campos llenados:', {
                         nombre: document.getElementById('nombre').value,
                         sexo: document.getElementById('sexo').value,
                         fechnac: document.getElementById('fechnac').value
@@ -763,13 +763,13 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                     await checkExistingCedula(cedula);
                     
                 } else {
-                    console.log('?? Persona no encontrada');
-                    showMessage('No se encontraron datos para esta c�dula. Complete manualmente', 'info');
+                    console.log('• Persona no encontrada');
+                    showMessage('No se encontraron datos para esta cédula. Complete manualmente', 'info');
                 }
                 
             } catch (error) {
-                console.error('Error en la b�squeda:', error);
-                showMessage('Error al buscar datos de la c�dula', 'danger');
+                console.error('Error en la búsqueda:', error);
+                showMessage('Error al buscar datos de la cédula', 'danger');
             } finally {
                 hideLoadingIndicator();
             }
@@ -809,13 +809,13 @@ if ($invitation_data && !$error_message && $club_authenticated) {
             messageDiv.textContent = message;
             messageDiv.style.display = 'block';
             
-            // Ocultar mensaje despu�s de 5 segundos
+            // Ocultar mensaje después de 5 segundos
             setTimeout(() => {
                 messageDiv.style.display = 'none';
             }, 5000);
         }
         
-        // Funci�n para verificar si la c�dula ya existe
+        // Función para verificar si la cédula ya existe
         async function checkExistingCedula(cedula) {
             try {
                 const response = await fetch(`api/check_cedula.php?cedula=${encodeURIComponent(cedula)}&torneo=<?= $torneo_id ?>`);
@@ -826,11 +826,11 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                     clearFormFields();
                 }
             } catch (error) {
-                console.error('Error verificando c�dula:', error);
+                console.error('Error verificando cédula:', error);
             }
         }
         
-        // Funci�n para limpiar campos del formulario (tras cédula ya registrada)
+        // Función para limpiar campos del formulario (tras cédula ya registrada)
         function clearFormFields() {
             const nac = document.getElementById('nacionalidad');
             if (nac) nac.value = '';

@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../config/csrf.php';
 require_once __DIR__ . '/../config/persona_database.php';
 
-// Obtener par�metros de la URL
+// Obtener parámetros de la URL
 $token = $_GET['token'] ?? '';
 $torneo_id = $_GET['torneo'] ?? '';
 $club_id = $_GET['club'] ?? '';
@@ -15,12 +15,12 @@ $invitation_data = null;
 $tournament_data = null;
 $club_data = null;
 
-// Validar invitaci�n
+// Validar invitación
 if (empty($token) || empty($torneo_id) || empty($club_id)) {
-    $error_message = "Par�metros de acceso inv�lidos";
+    $error_message = "Parámetros de acceso inválidos";
 } else {
     try {
-        // Verificar invitaci�n v�lida (sin restricci�n de estado por ahora)
+        // Verificar invitación v�lida (sin restricción de estado por ahora)
         $stmt = DB::pdo()->prepare("
             SELECT i.*, t.nombre as tournament_name, t.fechator, t.clase, t.modalidad,
                    c.nombre as club_name, c.direccion, c.delegado, c.telefono, c.email
@@ -33,7 +33,7 @@ if (empty($token) || empty($torneo_id) || empty($club_id)) {
         $invitation_data = $stmt->fetch();
         
         if (!$invitation_data) {
-            $error_message = "Invitaci�n no v�lida";
+            $error_message = "Invitación no v�lida";
         } else {
             // Verificar fechas de acceso
             $now = new DateTime();
@@ -41,9 +41,9 @@ if (empty($token) || empty($torneo_id) || empty($club_id)) {
             $end_date = new DateTime($invitation_data['acceso2']);
             
             if ($now < $start_date) {
-                $error_message = "El per�odo de inscripci�n a�n no ha comenzado";
+                $error_message = "El per�odo de inscripción a�n no ha comenzado";
             } elseif ($now > $end_date) {
-                $error_message = "El per�odo de inscripci�n ha expirado";
+                $error_message = "El per�odo de inscripción ha expirado";
             } else {
                 $tournament_data = [
                     'id' => $invitation_data['torneo_id'],
@@ -62,25 +62,25 @@ if (empty($token) || empty($torneo_id) || empty($club_id)) {
                     'email' => $invitation_data['email']
                 ];
                 
-                // Guardar datos de la invitaci�n en sesi�n
+                // Guardar datos de la invitación en sesión
                 $_SESSION['invitation_data'] = $invitation_data;
                 $_SESSION['tournament_data'] = $tournament_data;
                 $_SESSION['club_data'] = $club_data;
             }
         }
     } catch (Exception $e) {
-        $error_message = "Error al validar invitaci�n: " . $e->getMessage();
+        $error_message = "Error al validar invitación: " . $e->getMessage();
     }
 }
 
-// Procesar autenticaci�n del club
+// Procesar autenticación del club
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'club_login') {
     header('Content-Type: application/json');
     
     $club_password = $_POST['club_password'] ?? '';
     
     if (empty($club_password)) {
-        echo json_encode(['success' => false, 'message' => 'Contrase�a requerida']);
+        echo json_encode(['success' => false, 'message' => 'Contraseña requerida']);
         exit;
     }
     
@@ -90,13 +90,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
     
     try {
-        // Verificar contrase�a del club (usando el email del club como contrase�a por ahora)
+        // Verificar contraseña del club (usando el email del club como contraseña por ahora)
         if ($club_password === $club_data['email']) {
             $_SESSION['club_authenticated'] = true;
             $_SESSION['authenticated_club_id'] = $club_data['id'];
-            echo json_encode(['success' => true, 'message' => 'Autenticaci�n exitosa']);
+            echo json_encode(['success' => true, 'message' => 'Autenticación exitosa']);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Contrase�a incorrecta']);
+            echo json_encode(['success' => false, 'message' => 'Contraseña incorrecta']);
         }
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
-// Procesar b�squeda por c�dula (AJAX)
+// Procesar búsqueda por cédula (AJAX)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'search_cedula') {
     header('Content-Type: application/json');
     
@@ -120,11 +120,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $cedula = $_POST['cedula'] ?? '';
         
         if (empty($cedula)) {
-            echo json_encode(['success' => false, 'message' => 'C�dula requerida']);
+            echo json_encode(['success' => false, 'message' => 'Cédula requerida']);
             exit;
         }
         
-        // TODO: Aqu� se implementar� el procedimiento de b�squeda en base de datos externa
+        // TODO: Aqu• se implementar• el procedimiento de búsqueda en base de datos externa
         // Por ahora, simularemos una respuesta
         $external_data = searchExternalDatabase($cedula);
         
@@ -136,20 +136,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         } else {
             echo json_encode([
                 'success' => false, 
-                'message' => 'No se encontraron datos para esta c�dula'
+                'message' => 'No se encontraron datos para esta cédula'
             ]);
         }
         
     } catch (Exception $e) {
         echo json_encode([
             'success' => false, 
-            'message' => 'Error en la b�squeda: ' . $e->getMessage()
+            'message' => 'Error en la búsqueda: ' . $e->getMessage()
         ]);
     }
     exit;
 }
 
-// Procesar formulario de inscripci�n
+// Procesar formulario de inscripción
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message && !isset($_POST['action'])) {
     require_once __DIR__ . '/../lib/RateLimiter.php';
     if (!RateLimiter::canSubmit('register_inscription', 15)) {
@@ -183,10 +183,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message && !isset($_POST['a
         $stmt->execute([$cedula, $torneo_id]);
         
         if ($stmt->fetch()) {
-            throw new Exception('Ya existe una inscripci�n para esta c�dula en este torneo');
+            throw new Exception('Ya existe una inscripción para esta cédula en este torneo');
         }
         
-        // Insertar inscripci�n con los campos exactos solicitados
+        // Insertar inscripción con los campos exactos solicitados
         $stmt = DB::pdo()->prepare("
             INSERT INTO inscripciones (
                 torneo_id, cedula, nombre, celular, email, club_id, 
@@ -206,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message && !isset($_POST['a
         $error_message = '';
         
     } catch (Exception $e) {
-        $error_message = "Error al realizar inscripci�n: " . $e->getMessage();
+        $error_message = "Error al realizar inscripción: " . $e->getMessage();
     }
     }
 }
@@ -238,9 +238,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $stmt = DB::pdo()->prepare("DELETE FROM inscripciones WHERE id = ?");
         $stmt->execute([$jugador_id]);
         
-        $success_message = "Jugador {$jugador['nombre']} (c�dula: {$jugador['cedula']}) retirado exitosamente del torneo";
+        $success_message = "Jugador {$jugador['nombre']} (cédula: {$jugador['cedula']}) retirado exitosamente del torneo";
         
-        // Limpiar mensajes antiguos despu�s del �xito
+        // Limpiar mensajes antiguos después del éxito
         $error_message = '';
         
     } catch (Exception $e) {
@@ -249,7 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Funci�n para buscar en base de datos externa
+// Función para buscar en base de datos externa
 function searchExternalDatabase($cedula) {
     try {
         $database = new PersonaDatabase();
@@ -263,11 +263,11 @@ function searchExternalDatabase($cedula) {
     }
 }
 
-// Verificar si el club est� autenticado
+// Verificar si el club est• autenticado
 $club_authenticated = isset($_SESSION['club_authenticated']) && $_SESSION['club_authenticated'] === true;
 $authenticated_club_id = $_SESSION['authenticated_club_id'] ?? null;
 
-// Verificar que el club autenticado coincida con el club de la invitaci�n
+// Verificar que el club autenticado coincida con el club de la invitación
 if ($club_authenticated && $authenticated_club_id != $club_id) {
     $club_authenticated = false;
     unset($_SESSION['club_authenticated']);
@@ -297,7 +297,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inscripci�n de Jugadores - <?= htmlspecialchars($tournament_data['nombre'] ?? 'Torneo') ?></title>
+    <title>Inscripción de Jugadores - <?= htmlspecialchars($tournament_data['nombre'] ?? 'Torneo') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -355,7 +355,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                         <div class="card-body text-center py-5">
                             <i class="fas fa-lock text-danger fs-1 mb-3"></i>
                             <h5 class="text-danger"><?= htmlspecialchars($error_message) ?></h5>
-                            <p class="text-muted">Por favor, verifica que tienes acceso v�lido a esta p�gina.</p>
+                            <p class="text-muted">Por favor, verifica que tienes acceso válido a esta página.</p>
                             <a href="javascript:history.back()" class="btn btn-outline-secondary">
                                 <i class="fas fa-arrow-left me-2"></i>Volver
                             </a>
@@ -428,7 +428,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                 <div class="col-12">
                                     <div class="alert alert-info">
                                         <i class="fas fa-calendar-alt me-2"></i>
-                                        <strong>Per�odo de Inscripci�n:</strong> 
+                                        <strong>Per�odo de Inscripción:</strong> 
                                         Desde <?= date('d/m/Y H:i', strtotime($invitation_data['acceso1'])) ?> 
                                         hasta <?= date('d/m/Y H:i', strtotime($invitation_data['acceso2'])) ?>
                                     </div>
@@ -437,31 +437,31 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                         </div>
                     </div>
 
-                    <!-- Formulario de Autenticaci�n del Club -->
+                    <!-- Formulario de Autenticación del Club -->
                     <?php if (!$club_authenticated): ?>
                     <div class="card mb-4">
                         <div class="card-header bg-warning text-dark">
                             <h4 class="mb-0">
                                 <i class="fas fa-lock me-2"></i>
-                                Autenticaci�n del Club
+                                Autenticación del Club
                             </h4>
                         </div>
                         <div class="card-body">
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle me-2"></i>
                                 <strong>Club:</strong> <?= htmlspecialchars($club_data['nombre']) ?><br>
-                                <strong>Para acceder al formulario de inscripciones, debe autenticarse con la contrase�a del club.</strong>
+                                <strong>Para acceder al formulario de inscripciones, debe autenticarse con la contraseña del club.</strong>
                             </div>
                             
                             <form id="clubAuthForm">
                                 <div class="row">
                                     <div class="col-md-8">
-                                        <label for="club_password" class="form-label">Contrase�a del Club</label>
+                                        <label for="club_password" class="form-label">Contraseña del Club</label>
                                         <div class="input-group">
                                             <input type="password" 
                                                    class="form-control" 
                                                    id="club_password" 
-                                                   placeholder="Ingrese la contrase�a del club"
+                                                   placeholder="Ingrese la contraseña del club"
                                                    required>
                                             <button type="button" 
                                                     class="btn btn-outline-secondary" 
@@ -469,7 +469,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                                 <i class="fas fa-eye" id="passwordToggleIcon"></i>
                                             </button>
                                         </div>
-                                        <small class="text-muted">Use el email del club como contrase�a: <strong><?= htmlspecialchars($club_data['email']) ?></strong></small>
+                                        <small class="text-muted">Use el email del club como contraseña: <strong><?= htmlspecialchars($club_data['email']) ?></strong></small>
                                     </div>
                                     <div class="col-md-4 d-flex align-items-end">
                                         <button type="submit" class="btn btn-warning w-100">
@@ -494,7 +494,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                 <form method="POST" style="display: inline;">
                                     <input type="hidden" name="action" value="club_logout">
                                     <button type="submit" class="btn btn-outline-light btn-sm">
-                                        <i class="fas fa-sign-out-alt me-1"></i>Cerrar Sesi�n
+                                        <i class="fas fa-sign-out-alt me-1"></i>Cerrar Sesión
                                     </button>
                                 </form>
                             </div>
@@ -504,13 +504,13 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                 <i class="fas fa-user-check me-2"></i>
                                 <strong>Bienvenido:</strong> <?= htmlspecialchars($club_data['nombre']) ?><br>
                                 <strong>Delegado:</strong> <?= htmlspecialchars($club_data['delegado']) ?><br>
-                                <strong>Tel�fono:</strong> <?= htmlspecialchars($club_data['telefono']) ?>
+                                <strong>Teléfono:</strong> <?= htmlspecialchars($club_data['telefono']) ?>
                             </div>
                         </div>
                     </div>
                     <?php endif; ?>
 
-                    <!-- Formulario de Inscripci�n -->
+                    <!-- Formulario de Inscripción -->
                     <?php if ($club_authenticated): ?>
                     <div class="card mb-4">
                         <div class="card-header">
@@ -553,9 +553,9 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                 </select>
                             </div>
                             
-                            <!-- C�dula -->
+                            <!-- Cédula -->
                             <div class="col-auto">
-                                <label for="cedula" class="form-label">C�dula</label>
+                                <label for="cedula" class="form-label">Cédula</label>
                                 <input type="text" 
                                        class="form-control form-control-sm" 
                                        id="cedula" 
@@ -568,7 +568,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                        onblur="debouncedSearchPersona()"
                                        aria-required="true"
                                        style="width: 100px;">
-                                <small class="text-muted">Auto-b�squeda</small>
+                                <small class="text-muted">Auto-búsqueda</small>
                             </div>
                             
                             <!-- Nombre -->
@@ -606,9 +606,9 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                                        style="width: 140px;">
                             </div>
                             
-                            <!-- Tel�fono -->
+                            <!-- Teléfono -->
                             <div class="col-auto">
-                                <label for="celular" class="form-label">Tel�fono</label>
+                                <label for="celular" class="form-label">Teléfono</label>
                                 <input type="tel" 
                                        class="form-control form-control-sm" 
                                        id="celular" 
@@ -672,12 +672,12 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                             <table class="table table-sm table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width: 10%;">C�dula</th>
+                                        <th style="width: 10%;">Cédula</th>
                                         <th style="width: 30%;">Nombre</th>
                                         <th style="width: 15%;">Sexo</th>
                                         <th style="width: 15%;">F. Nac.</th>
-                                        <th style="width: 15%;">Tel�fono</th>
-                                        <th style="width: 10%;">N� Asignado</th>
+                                        <th style="width: 15%;">Teléfono</th>
+                                        <th style="width: 10%;">N• Asignado</th>
                                         <th style="width: 5%;">Acciones</th>
                                     </tr>
                                 </thead>
@@ -731,7 +731,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
     <script src="<?= AppHelpers::getPublicPath() ?>assets/form-utils.js" defer></script>
     
     <script>
-        // Autenticaci�n del Club
+        // Autenticación del Club
         document.getElementById('clubAuthForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -739,7 +739,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
             const messageDiv = document.getElementById('authMessage');
             
             if (!password) {
-                showAuthMessage('Por favor ingrese la contrase�a', 'danger');
+                showAuthMessage('Por favor ingrese la contraseña', 'danger');
                 return;
             }
             
@@ -756,17 +756,17 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                 const result = await response.json();
                 
                 if (result.success) {
-                    showAuthMessage('Autenticaci�n exitosa. Redirigiendo...', 'success');
+                    showAuthMessage('Autenticación exitosa. Redirigiendo...', 'success');
                     setTimeout(() => {
                         window.location.reload();
                     }, 1500);
                 } else {
-                    showAuthMessage(result.message || 'Error en la autenticaci�n', 'danger');
+                    showAuthMessage(result.message || 'Error en la autenticación', 'danger');
                 }
                 
             } catch (error) {
                 console.error('Error:', error);
-                showAuthMessage('Error de conexi�n', 'danger');
+                showAuthMessage('Error de conexión', 'danger');
             }
         });
         
@@ -796,7 +796,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
     </script>
     
     <script>
-        // Funci�n para buscar persona por c�dula
+        // Función para buscar persona por cédula
         async function searchPersona() {
             const cedula = document.getElementById('cedula').value.trim();
             const nacionalidad = document.getElementById('nacionalidad').value;
@@ -805,7 +805,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                 return;
             }
             
-            // Construir ID de usuario (nacionalidad + c�dula)
+            // Construir ID de usuario (nacionalidad + cédula)
             const idusuario = nacionalidad + cedula;
             
             try {
@@ -817,7 +817,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                 const result = await response.json();
                 
                 if (result.success && result.data) {
-                    // Llenar campos autom�ticamente
+                    // Llenar campos automáticamente
                     document.getElementById('nombre').value = result.data.nombre || '';
                     document.getElementById('sexo').value = result.data.sexo || '';
                     document.getElementById('fechnac').value = result.data.fechnac || '';
@@ -826,18 +826,18 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                     await checkExistingCedula(cedula);
                     
                 } else {
-                    showMessage('No se encontraron datos para esta c�dula', 'info');
+                    showMessage('No se encontraron datos para esta cédula', 'info');
                 }
                 
             } catch (error) {
-                console.error('Error en la b�squeda:', error);
-                showMessage('Error al buscar datos de la c�dula', 'danger');
+                console.error('Error en la búsqueda:', error);
+                showMessage('Error al buscar datos de la cédula', 'danger');
             } finally {
                 hideLoadingIndicator();
             }
         }
         
-        // Funci�n para verificar si la c�dula ya existe
+        // Función para verificar si la cédula ya existe
         async function checkExistingCedula(cedula) {
             try {
                 const response = await fetch(apiUrl(`check_cedula.php?cedula=${encodeURIComponent(cedula)}&torneo=<?= $torneo_id ?>`));
@@ -848,11 +848,11 @@ if ($invitation_data && !$error_message && $club_authenticated) {
                     clearFormFields();
                 }
             } catch (error) {
-                console.error('Error verificando c�dula:', error);
+                console.error('Error verificando cédula:', error);
             }
         }
         
-        // Funci�n para limpiar campos del formulario (tras cédula ya registrada)
+        // Función para limpiar campos del formulario (tras cédula ya registrada)
         function clearFormFields() {
             const nac = document.getElementById('nacionalidad');
             if (nac) nac.value = '';
@@ -863,7 +863,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
             if (nac) nac.focus();
         }
         
-        // Funci�n para mostrar indicador de carga
+        // Función para mostrar indicador de carga
         function showLoadingIndicator() {
             const cedulaInput = document.getElementById('cedula');
             cedulaInput.style.backgroundImage = 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' view=\'0 0 12 12\' width=\'12\' height=\'12\' fill=\'none\' stroke=\'%23dc3545\'%3e%3ccircle cx=\'6\' cy=\'6\' r=\'4.5\'/%3e%3cpath d=\'M6 3v6\'/%3e%3cpath d=\'m8.25 4.75-4.5 4.5\'/%3e%3c/svg%3e")';
@@ -872,13 +872,13 @@ if ($invitation_data && !$error_message && $club_authenticated) {
             cedulaInput.style.backgroundSize = '16px 16px';
         }
         
-        // Funci�n para ocultar indicador de carga
+        // Función para ocultar indicador de carga
         function hideLoadingIndicator() {
             const cedulaInput = document.getElementById('cedula');
             cedulaInput.style.backgroundImage = '';
         }
         
-        // Funci�n para mostrar mensajes
+        // Función para mostrar mensajes
         function showMessage(message, type) {
             // Crear alerta temporal
             const alertDiv = document.createElement('div');
@@ -894,7 +894,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
             
             document.body.appendChild(alertDiv);
             
-            // Auto-remover despu�s de 5 segundos
+            // Auto-remover después de 5 segundos
             setTimeout(() => {
                 if (alertDiv.parentNode) {
                     alertDiv.parentNode.removeChild(alertDiv);
@@ -902,9 +902,9 @@ if ($invitation_data && !$error_message && $club_authenticated) {
             }, 5000);
         }
         
-        // Funci�n para limpiar formulario
+        // Función para limpiar formulario
         function clearForm() {
-            if (confirm('�Est�s seguro de que deseas limpiar todos los campos del formulario?')) {
+            if (confirm('¿Estás seguro de que deseas limpiar todos los campos del formulario?')) {
                 document.getElementById('registrationForm').reset();
                 document.getElementById('nacionalidad').value = '';
             }
@@ -912,13 +912,13 @@ if ($invitation_data && !$error_message && $club_authenticated) {
         
         const debouncedSearchPersona = typeof debounce === 'function' ? debounce(searchPersona, 400) : searchPersona;
         
-        // Actualizar prefijo de c�dula seg�n nacionalidad
+        // Actualizar prefijo de cédula según nacionalidad
         document.getElementById('nacionalidad').addEventListener('change', function() {
             const prefix = this.value === 'E' ? 'E-' : 'V-';
             const el = document.getElementById('cedulaPrefix'); if (el) el.textContent = prefix;
         });
         
-        // Validar solo n�meros en c�dula
+        // Validar solo números en cédula
         document.getElementById('cedula').addEventListener('input', function() {
             this.value = this.value.replace(/[^0-9]/g, '');
         });
@@ -933,9 +933,9 @@ if ($invitation_data && !$error_message && $club_authenticated) {
             this.value = value;
         });
         
-        // Funci�n para retirar jugador
+        // Función para retirar jugador
         function retirarJugador(jugadorId, nombreJugador) {
-            if (confirm(`�Est� seguro de que desea retirar a ${nombreJugador} del torneo?`)) {
+            if (confirm(`¿Está seguro de que desea retirar a ${nombreJugador} del torneo?`)) {
                 // Crear formulario para enviar la solicitud de retiro
                 const form = document.createElement('form');
                 form.method = 'POST';
@@ -958,7 +958,7 @@ if ($invitation_data && !$error_message && $club_authenticated) {
             }
         }
         
-        // Limpiar mensajes autom�ticamente despu�s de 5 segundos
+        // Limpiar mensajes automáticamente después de 5 segundos
         document.addEventListener('DOMContentLoaded', function() {
             const regForm = document.getElementById('registrationForm');
             if (regForm && typeof preventDoubleSubmit === 'function') preventDoubleSubmit(regForm);

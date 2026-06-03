@@ -155,7 +155,7 @@ try {
     <table border="0" style="margin-top: 20px; width: 100%;">
         <tr>
             <td style="text-align: center; color: #666; font-size: 9pt;">
-                Serviclubes LED - Sistema de Gesti�n de Torneos
+                Serviclubes LED - Sistema de Gestión de Torneos
             </td>
         </tr>
     </table>

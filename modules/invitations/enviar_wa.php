@@ -1,6 +1,6 @@
 <?php
 /**
- * Env�o ULTRA SIMPLE de WhatsApp - Un solo archivo
+ * Envío ULTRA SIMPLE de WhatsApp - Un solo archivo
  */
 
 
@@ -20,7 +20,7 @@ $id = (int)$_GET['id'];
 try {
     $pdo = DB::pdo();
     
-    // Obtener datos de la invitaci�n
+    // Obtener datos de la invitación
     $stmt = $pdo->prepare("
         SELECT 
             i.*,
@@ -44,11 +44,11 @@ try {
     $inv = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$inv) {
-        die('Invitaci�n no encontrada');
+        die('Invitación no encontrada');
     }
     
     if (empty($inv['club_telefono'])) {
-        die('El club no tiene tel�fono configurado');
+        die('El club no tiene teléfono configurado');
     }
     
     // URLs
@@ -58,7 +58,7 @@ try {
     // Datos
     $delegado = !empty($inv['club_delegado']) ? $inv['club_delegado'] : $inv['club_nombre'];
     $telefono = $inv['club_telefono'];
-    $organizacion = !empty($inv['organizacion_nombre']) ? $inv['organizacion_nombre'] : 'Organizaci�n';
+    $organizacion = !empty($inv['organizacion_nombre']) ? $inv['organizacion_nombre'] : 'Organización';
     
     // Formatear fechas
     $fecha_torneo = date('d/m/Y', strtotime($inv['torneo_fecha']));
@@ -67,41 +67,41 @@ try {
     // Construir mensaje
     $separador = "??????????????????????";
     
-    $mensaje = "?? *INVITACI�N A TORNEO - " . strtoupper($organizacion) . "*\n\n";
+    $mensaje = "• *INVITACIÓN A TORNEO - " . strtoupper($organizacion) . "*\n\n";
     $mensaje .= $separador . "\n\n";
-    $mensaje .= "?? *INFORMACI�N DEL TORNEO*\n\n";
-    $mensaje .= "� *Organizaci�n:* " . $organizacion . "\n";
-    $mensaje .= "� *Torneo:* " . $inv['torneo_nombre'] . "\n";
-    $mensaje .= "� *Fecha:* " . $fecha_torneo . "\n";
+    $mensaje .= "• *INFORMACIÓN DEL TORNEO*\n\n";
+    $mensaje .= "• *Organización:* " . $organizacion . "\n";
+    $mensaje .= "• *Torneo:* " . $inv['torneo_nombre'] . "\n";
+    $mensaje .= "• *Fecha:* " . $fecha_torneo . "\n";
     if (!empty($inv['torneo_lugar'])) {
-        $mensaje .= "� *Lugar:* " . $inv['torneo_lugar'] . "\n";
+        $mensaje .= "• *Lugar:* " . $inv['torneo_lugar'] . "\n";
     }
     $mensaje .= "\n" . $separador . "\n\n";
-    $mensaje .= "?? *CLUB INVITADO*\n\n";
-    $mensaje .= "� *Club:* " . $inv['club_nombre'] . "\n";
-    $mensaje .= "� *Delegado:* " . $delegado . "\n";
-    $mensaje .= "� *Tel�fono:* " . $telefono . "\n";
+    $mensaje .= "• *CLUB INVITADO*\n\n";
+    $mensaje .= "• *Club:* " . $inv['club_nombre'] . "\n";
+    $mensaje .= "• *Delegado:* " . $delegado . "\n";
+    $mensaje .= "• *Teléfono:* " . $telefono . "\n";
     $mensaje .= "\n" . $separador . "\n\n";
-    $mensaje .= "?? *VIGENCIA*\n\n";
-    $mensaje .= "� *Periodo:* " . $vigencia . "\n";
-    $mensaje .= "� *Estado:* " . strtoupper($inv['estado']) . "\n";
+    $mensaje .= "• *VIGENCIA*\n\n";
+    $mensaje .= "• *Periodo:* " . $vigencia . "\n";
+    $mensaje .= "• *Estado:* " . strtoupper($inv['estado']) . "\n";
     $mensaje .= "\n" . $separador . "\n\n";
-    $mensaje .= "?? *CREDENCIALES DE ACCESO*\n\n";
-    $mensaje .= "?? *�INFORMACI�N IMPORTANTE!* ??\n\n";
-    $mensaje .= "?? *URL:*\n" . $url_login . "\n\n";
-    $mensaje .= "?? *TOKEN:*\n*" . $inv['token'] . "*\n\n";
-    $mensaje .= "?? *INSTRUCCIONES:*\n";
+    $mensaje .= "• *CREDENCIALES DE ACCESO*\n\n";
+    $mensaje .= "• *¡INFORMACIÓN IMPORTANTE!* ??\n\n";
+    $mensaje .= "• *URL:*\n" . $url_login . "\n\n";
+    $mensaje .= "• *TOKEN:*\n*" . $inv['token'] . "*\n\n";
+    $mensaje .= "• *INSTRUCCIONES:*\n";
     $mensaje .= "1?? Copie el TOKEN\n";
     $mensaje .= "2?? Entre a la URL\n";
     $mensaje .= "3?? Pegue su TOKEN\n";
     $mensaje .= "4?? Inscriba jugadores\n\n";
-    $mensaje .= "?? *GUARDE ESTE TOKEN*\n";
+    $mensaje .= "• *GUARDE ESTE TOKEN*\n";
     $mensaje .= "\n" . $separador . "\n\n";
-    $mensaje .= "?? *CONTACTO " . strtoupper($organizacion) . "*\n\n";
-    $mensaje .= "�Esperamos su participaci�n!\n\n";
+    $mensaje .= "• *CONTACTO " . strtoupper($organizacion) . "*\n\n";
+    $mensaje .= "¡Esperamos su participación!\n\n";
     $mensaje .= "_" . $organizacion . "_";
     
-    // Limpiar tel�fono
+    // Limpiar teléfono
     $telefono_limpio = preg_replace('/[^0-9]/', '', $telefono);
     if (!str_starts_with($telefono_limpio, '58')) {
         $telefono_limpio = '58' . $telefono_limpio;
@@ -161,7 +161,7 @@ try {
         <div class="success">?</div>
         <h2>�Mensaje Listo!</h2>
         <p><strong>Club:</strong> <?= htmlspecialchars($inv['club_nombre']) ?></p>
-        <p><strong>Tel�fono:</strong> <?= htmlspecialchars($telefono) ?></p>
+        <p><strong>Teléfono:</strong> <?= htmlspecialchars($telefono) ?></p>
         
         <a href="<?= htmlspecialchars($whatsapp_url) ?>" class="btn">
             ?? Abrir WhatsApp
@@ -176,19 +176,19 @@ try {
         <div style="margin-top: 20px; padding: 20px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
             <h4 style="color: #856404; margin-top: 0;">?? IMPORTANTE - �LTIMO PASO:</h4>
             <ol style="color: #856404; text-align: left; margin: 10px 0;">
-                <li>WhatsApp se abri� con el mensaje <strong>PRE-CARGADO</strong></li>
-                <li>Ve a la ventana/pesta�a de WhatsApp</li>
-                <li><strong>Haz clic en el bot�n "Enviar" ? de WhatsApp</strong></li>
+                <li>WhatsApp se abrió con el mensaje <strong>PRE-CARGADO</strong></li>
+                <li>Ve a la ventana/pestaña de WhatsApp</li>
+                <li><strong>Haz clic en el botón "Enviar" ? de WhatsApp</strong></li>
             </ol>
             <p style="color: #856404; margin: 10px 0;">
-                <strong>Nota:</strong> WhatsApp NO permite env�o autom�tico por seguridad.<br>
+                <strong>Nota:</strong> WhatsApp NO permite envío automático por seguridad.<br>
                 <strong>DEBES hacer clic manualmente</strong> en "Enviar" en WhatsApp.
             </p>
         </div>
     </div>
     
     <script>
-        // Abrir WhatsApp autom�ticamente despu�s de 1 segundo
+        // Abrir WhatsApp automáticamente después de 1 segundo
         setTimeout(function() {
             window.location.href = '<?= addslashes($whatsapp_url) ?>';
         }, 1000);

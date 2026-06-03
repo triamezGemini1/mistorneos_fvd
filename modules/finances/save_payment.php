@@ -10,7 +10,7 @@ require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/auth.php';
 require_once __DIR__ . '/../../config/csrf.php';
 
-// Verificar autenticaci�n
+// Verificar autenticación
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 
 // Configurar respuesta JSON
@@ -36,7 +36,7 @@ try {
     $fecha = $_POST['fecha'] ?? date('Y-m-d');
     $tipo_pago = $_POST['tipo_pago'] ?? 'efectivo';
     $moneda = $_POST['moneda'] ?? 'USD';
-    $monto = (float)($_POST['monto'] ?? 0); // Este es el monto en d�lares
+    $monto = (float)($_POST['monto'] ?? 0); // Este es el monto en dólares
     $tasa_cambio = (float)($_POST['tasa_cambio'] ?? 0);
     $monto_dolares = (float)($_POST['monto_dolares'] ?? $monto);
     $monto_total = (float)($_POST['monto_total'] ?? $monto);
@@ -52,9 +52,9 @@ try {
         throw new Exception('El monto debe ser mayor que cero');
     }
     
-    // Validar tasa de cambio si es en bol�vares
+    // Validar tasa de cambio si es en bolívares
     if ($moneda === 'BS' && $tasa_cambio <= 0) {
-        throw new Exception('La tasa de cambio es requerida para pagos en bol�vares');
+        throw new Exception('La tasa de cambio es requerida para pagos en bolívares');
     }
     
     $pdo = DB::pdo();
@@ -71,7 +71,7 @@ try {
     
     $pendiente = $deuda['monto_total'] - $deuda['abono'];
     
-    // El monto en d�lares no puede exceder la deuda pendiente
+    // El monto en dólares no puede exceder la deuda pendiente
     if ($monto_dolares > $pendiente) {
         throw new Exception('El monto excede la deuda pendiente ($' . number_format((float)$pendiente, 2) . ')');
     }
@@ -94,7 +94,7 @@ try {
         $tasa_cambio, $monto_dolares, $monto_total, $referencia, $banco, $observaciones
     ]);
     
-    // Actualizar abono en deuda_clubes (siempre en d�lares)
+    // Actualizar abono en deuda_clubes (siempre en dólares)
     $stmt = $pdo->prepare("UPDATE deuda_clubes SET abono = COALESCE(abono, 0) + ? WHERE torneo_id = ? AND club_id = ?");
     $stmt->execute([$monto_dolares, $torneo_id, $club_id]);
     

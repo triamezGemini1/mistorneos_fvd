@@ -1,0 +1,123 @@
+/**
+ * FVD — Inscripción en sitio (torneo_gestion&action=inscribir_sitio)
+ * Tipografía +30% respecto al dashboard compact (base 0.875rem).
+ */
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll {
+  font-size: calc(0.875rem * 1.3);
+  line-height: 1.5;
+}
+
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion {
+  font-size: inherit;
+}
+
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .form-control,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .form-select,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .form-control-sm,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .form-select-sm,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .btn,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .btn-sm,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .table,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .alert,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .badge,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .form-label,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .breadcrumb,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .nav-link,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion p,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion td,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion th,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .card-header,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion #mensaje_formulario_cedula {
+  font-size: inherit;
+}
+
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .form-control-sm,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .form-select-sm {
+  min-height: 2.35em;
+  padding: 0.35em 0.65em;
+  line-height: 1.4;
+}
+
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion h1,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion h1.h3 {
+  font-size: calc(1.75rem * 1.3);
+}
+
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion h5,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .h5 {
+  font-size: calc(1.25rem * 1.3);
+}
+
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .small,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion small,
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .form-label.small {
+  font-size: 0.875em;
+}
+
+body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .table > :not(caption) > * > * {
+  padding: 0.55em 0.65em;
+}
+
+@media (max-width: 768px) {
+  body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .form-control,
+  body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .form-select,
+  body.page-inscribir-sitio.fvd-dashboard-compact main.fvd-main-scroll .ds-inscripcion .btn {
+    min-height: calc(44px * 1.3);
+  }
+}
+
+/* Fila compacta de búsqueda (antes inline en la vista) */
+body.page-inscribir-sitio .insc-sitio-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65em;
+}
+
+body.page-inscribir-sitio .insc-sitio-una-linea {
+  width: 100%;
+}
+
+body.page-inscribir-sitio .insc-sitio-campo {
+  min-width: 0;
+}
+
+body.page-inscribir-sitio .insc-sitio-campo .form-control,
+body.page-inscribir-sitio .insc-sitio-campo .form-select {
+  width: 100%;
+}
+
+body.page-inscribir-sitio .insc-sitio-nac {
+  flex: 0 1 8%;
+  min-width: 3.5em;
+}
+
+body.page-inscribir-sitio .insc-sitio-cedula {
+  flex: 0 1 18%;
+  min-width: 6em;
+}
+
+body.page-inscribir-sitio .insc-sitio-club {
+  flex: 1 1 20%;
+  min-width: 7em;
+}
+
+body.page-inscribir-sitio .insc-sitio-resultado {
+  flex: 0 1 18%;
+  min-width: 5em;
+}
+
+body.page-inscribir-sitio .insc-sitio-resultado#wrap_btn_inscribir_cedula {
+  flex: 0 0 auto;
+}
+
+body.page-inscribir-sitio .table-row-hover:hover {
+  background-color: #e3f2fd !important;
+}
+
+@media (min-width: 768px) {
+  body.page-inscribir-sitio .ds-inscripcion .card-body {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+}

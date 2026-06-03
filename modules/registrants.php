@@ -9,7 +9,7 @@ require_once __DIR__ . '/../lib/InscritosHelper.php';
 // Verificar permisos
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 
-// Obtener informaci�n del usuario actual
+// Obtener información del usuario actual
 $current_user = Auth::user();
 $user_role = $current_user['role'] ?? '';
 $user_club_id = Auth::getUserClubId();
@@ -29,7 +29,7 @@ $success_message = $_GET['success'] ?? null;
 $error_message = $_GET['error'] ?? null;
 $return_to = $_GET['return_to'] ?? 'index'; // 'panel_torneo' cuando se entra desde panel_torneo.php para retorno correcto
 
-// Procesar eliminaci�n si se solicita
+// Procesar eliminación si se solicita
 // POST: cambiar estatus de inscrito (Confirmar/Retirar)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cambiar_estatus_inscrito') {
     $success_message = null;
@@ -66,7 +66,7 @@ if ($action === 'delete' && $id) {
     try {
         $registrant_id = (int)$id;
         
-        // Obtener datos antes de eliminar, incluyendo informaci�n del torneo
+        // Obtener datos antes de eliminar, incluyendo información del torneo
         $stmt = DB::pdo()->prepare("
             SELECT u.nombre, r.torneo_id, t.club_responsable, t.estatus as torneo_estatus
             FROM inscritos r
@@ -108,7 +108,7 @@ if ($action === 'delete' && $id) {
     exit;
 }
 
-// Obtener datos para edici�n
+// Obtener datos para edición
 $registrant = null;
 $deuda_info = null;
 if (($action === 'edit' || $action === 'view') && $id) {
@@ -137,7 +137,7 @@ if (($action === 'edit' || $action === 'view') && $id) {
                     exit;
                 }
                 
-                // Si es acci�n de editar y el torneo ya pas�, redirigir a vista
+                // Si es acción de editar y el torneo ya pasó, redirigir a vista
                 if ($action === 'edit' && Auth::isTournamentPast((int)$registrant['torneo_id'])) {
                     header('Location: index.php?page=registrants&action=view&id=' . $id . '&error=' . urlencode('No puede modificar inscritos de torneos pasados. Solo puede verlos.'));
                     exit;
@@ -170,7 +170,7 @@ if ($action === 'new' && $torneo_id_context <= 0) {
 }
 if (in_array($action, ['new', 'edit'])) {
     try {
-        // Filtrar torneos seg�n el rol del usuario
+        // Filtrar torneos según el rol del usuario
         $tournament_filter = Auth::getTournamentFilterForRole('t');
         $where_clause = "WHERE t.estatus = 1";
         
@@ -223,9 +223,9 @@ if (in_array($action, ['new', 'edit'])) {
         }
         
         // Obtener clubes según el rol del usuario
+        require_once __DIR__ . '/../lib/ClubHelper.php';
         if ($is_admin_general) {
-            $stmt = DB::pdo()->query("SELECT id, nombre FROM clubes WHERE estatus = 1 ORDER BY nombre ASC");
-            $clubs_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $clubs_list = ClubHelper::listarClubesActivos(DB::pdo(), '', 'id ASC');
         } else {
             // admin_club y admin_torneo: usar clubes supervisados
             require_once __DIR__ . '/../lib/ClubHelper.php';
@@ -250,6 +250,8 @@ if (in_array($action, ['new', 'edit'])) {
 $registrants_list = [];
 // Aceptar torneo_id desde la URL (para enlaces desde torneos) o filter_torneo (desde filtros)
 $filter_torneo = $_GET['torneo_id'] ?? $_GET['filter_torneo'] ?? '';
+$permite_cambiar_asoc_reg = true;
+$clubes_inscripcion_opts = [];
 $filtro_busqueda = trim((string) ($_GET['q'] ?? ''));
 $filtro_estatus_insc = $_GET['estatus_filtro'] ?? 'todos';
 if (!in_array($filtro_estatus_insc, ['todos', 'pendiente', 'confirmado', 'retirado'], true)) {
@@ -267,7 +269,7 @@ if ($is_admin_torneo && !empty($filter_torneo)) {
     }
 }
 
-// Estad�sticas del torneo seleccionado
+// Estadísticas del torneo seleccionado
 $torneo_stats = null;
 $resumen_por_club = [];
 
@@ -297,9 +299,9 @@ try {
 // Obtener lista de clubs para el filtro
 $clubs_filter = [];
 try {
+    require_once __DIR__ . '/../lib/ClubHelper.php';
     if ($is_admin_general) {
-        $stmt = DB::pdo()->query("SELECT id, nombre FROM clubes WHERE estatus = 1 ORDER BY nombre ASC");
-        $clubs_filter = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $clubs_filter = ClubHelper::listarClubesActivos(DB::pdo(), '', 'nombre ASC');
     } else {
         // admin_club y admin_torneo: usar clubes supervisados
         require_once __DIR__ . '/../lib/ClubHelper.php';
@@ -309,10 +311,10 @@ try {
     // Silencio
 }
 
-// Calcular estad�sticas si hay torneo seleccionado
+// Calcular estadísticas si hay torneo seleccionado
 if (!empty($filter_torneo) && $action === 'list') {
     try {
-        // Estad�sticas generales del torneo
+        // Estadísticas generales del torneo
         $stmt = DB::pdo()->prepare("
             SELECT 
                 COUNT(*) as total,
@@ -358,6 +360,10 @@ if (!empty($filter_torneo) && $action === 'list') {
             $club['total_inscritos'] = (int)($club['total_inscritos'] ?? 0);
             $club['hombres'] = (int)($club['hombres'] ?? 0);
             $club['mujeres'] = (int)($club['mujeres'] ?? 0);
+            $cidRes = (int) ($club['id'] ?? 0);
+            if ($cidRes > 0) {
+                $club['club_nombre'] = ClubHelper::etiquetaAsociacion($cidRes, (string) ($club['club_nombre'] ?? ''));
+            }
         }
         unset($club); // Romper referencia
         
@@ -383,9 +389,9 @@ if ($action === 'list') {
             $params[] = (int)$filter_torneo;
 
             if ($filtro_estatus_insc === 'pendiente') {
-                $where[] = "(r.estatus = 0 OR r.estatus = 'pendiente')";
+                $where[] = InscritosHelper::sqlWherePendienteConAlias('r');
             } elseif ($filtro_estatus_insc === 'confirmado') {
-                $where[] = "(r.estatus IN (1, 2, 3) OR r.estatus IN ('confirmado', 'solvente'))";
+                $where[] = InscritosHelper::sqlWhereConfirmadoConAlias('r');
             } elseif ($filtro_estatus_insc === 'retirado') {
                 $where[] = InscritosHelper::sqlWhereRetiradoConAlias('r');
             }
@@ -444,19 +450,23 @@ if ($action === 'list') {
         // Sin paginación: en este reporte se debe listar TODO el torneo.
         $pagination = null;
         
-        // Obtener registros de la p�gina actual
+        // Obtener registros de la página actual
+        require_once __DIR__ . '/../lib/NumfvdHelper.php';
+        $exprNumfvdList = NumfvdHelper::inscritosTieneColumnaNumfvd(DB::pdo())
+            ? 'COALESCE(NULLIF(r.numfvd, 0), NULLIF(u.numfvd, 0), 0)'
+            : 'COALESCE(u.numfvd, 0)';
         $stmt = DB::pdo()->prepare("
             SELECT r.*, 
                    u.nombre, u.sexo, u.cedula, u.celular,
-                   COALESCE(u.numfvd, 0) AS usuario_numfvd,
+                   {$exprNumfvdList} AS usuario_numfvd,
                    r.id_usuario,
                    t.nombre as torneo_nombre,
                    t.fechator as torneo_fecha,
                    t.costo as torneo_costo,
                    t.club_responsable,
                    t.estatus as torneo_estatus,
-                   c.id as club_id,
-                   c.nombre as club_nombre
+                   COALESCE(c.id, r.id_club) as club_id,
+                   COALESCE(NULLIF(TRIM(c.nombre), ''), CONCAT('Asociación #', r.id_club)) as club_nombre
             FROM inscritos r
             LEFT JOIN usuarios u ON r.id_usuario = u.id
             LEFT JOIN tournaments t ON r.torneo_id = t.id
@@ -464,10 +474,10 @@ if ($action === 'list') {
             $where_clause
             ORDER BY 
                 CASE 
-                    WHEN c.id = t.club_responsable THEN 1
+                    WHEN COALESCE(c.id, r.id_club) = t.club_responsable THEN 1
                     ELSE 0
                 END ASC,
-                c.nombre ASC,
+                club_nombre ASC,
                 u.nombre ASC
         ");
         $stmt->execute($params);
@@ -478,7 +488,7 @@ if ($action === 'list') {
     }
 }
 
-// Funci�n para calcular deuda del club en un torneo
+// Función para calcular deuda del club en un torneo
 function calcularDeudaClub($club_id, $torneo_id) {
     try {
         // Obtener costo del torneo
@@ -519,7 +529,7 @@ function calcularDeudaClub($club_id, $torneo_id) {
     }
 }
 
-// Funci�n para obtener deuda por AJAX
+// Función para obtener deuda por AJAX
 if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
     $club_id = (int)($_GET['club_id'] ?? 0);
     $torneo_id = (int)($_GET['torneo_id'] ?? 0);
@@ -528,7 +538,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
         $deuda = calcularDeudaClub($club_id, $torneo_id);
         echo json_encode(['success' => true, 'data' => $deuda]);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Par�metros inv�lidos']);
+        echo json_encode(['success' => false, 'message' => 'Parámetros inválidos']);
     }
     exit;
 }
@@ -716,7 +726,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
         <?php endforeach; ?>
     </form>
     <?php else: ?>
-    <!-- Panel de Filtros y Exportaci�n -->
+    <!-- Panel de Filtros y Exportación -->
     <div class="card mb-4">
         <div class="card-header bg-primary text-white">
             <h5 class="card-title mb-0">
@@ -878,7 +888,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
     
     <?php endif; ?>
 
-    <!-- Estad�sticas y Resumen por Club -->
+    <!-- Estadísticas y Resumen por Club -->
     <?php if (!empty($filter_torneo) && $torneo_stats && !$modo_torneo_compacto): ?>
         <?php
         $contadores_inscripcion = [
@@ -888,7 +898,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
         ];
         require __DIR__ . '/../resources/views/partials/torneo_inscripcion_badges_bs5.php';
         ?>
-        <!-- Estad�sticas Generales del Torneo -->
+        <!-- Estadísticas Generales del Torneo -->
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="card bg-primary text-white">
@@ -990,7 +1000,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
             <?php if (empty($filter_torneo)): ?>
                 <div class="alert alert-warning">
                     <i class="fas fa-info-circle me-2"></i>
-                    <strong>Por favor seleccione un torneo</strong> para ver los inscritos y estad�sticas.
+                    <strong>Por favor seleccione un torneo</strong> para ver los inscritos y estadísticas.
                 </div>
             <?php elseif (empty($registrants_list)): ?>
                 <div class="alert alert-info">
@@ -1007,6 +1017,17 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                 $club_info = null;
                 $clubes_en_lista = [];
                 
+                $clubes_inscripcion_opts = [];
+                $permite_cambiar_asoc_reg = true;
+                if (!empty($filter_torneo)) {
+                    require_once __DIR__ . '/../lib/EntidadFvdCatalogo.php';
+                    require_once __DIR__ . '/../lib/AsociacionAdminHelper.php';
+                    $clubes_inscripcion_opts = ClubHelper::listarClubesActivos(DB::pdo(), '', 'id ASC');
+                    if (AsociacionAdminHelper::contextoInscripcionOperativa(DB::pdo()) !== null) {
+                        $permite_cambiar_asoc_reg = false;
+                    }
+                }
+
                 $torneo_cerrado_reg = false;
                 if (!empty($filter_torneo)) {
                     $stmt = DB::pdo()->prepare("SELECT nombre, fechator FROM tournaments WHERE id = ?");
@@ -1027,7 +1048,14 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                 // Obtener lista de clubes únicos en los inscritos mostrados
                 if (!empty($registrants_list)) {
                     // Obtener IDs de clubes únicos y válidos
-                    $clubes_ids_raw = array_column($registrants_list, 'club_id');
+                    $clubes_ids_raw = array_map(static function ($row) {
+                        $cid = (int) ($row['club_id'] ?? 0);
+                        if ($cid <= 0) {
+                            $cid = (int) ($row['id_club'] ?? 0);
+                        }
+
+                        return $cid;
+                    }, $registrants_list);
                     $clubes_ids = [];
                     foreach ($clubes_ids_raw as $id) {
                         if ($id !== null && $id !== '' && $id !== 0) {
@@ -1092,31 +1120,6 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                         </h3>
                     </div>
                     <div class="card-body py-3">
-                        <style>
-                            .registrants-filtro-toolbar .form-label-spacer {
-                                visibility: hidden;
-                                height: 1.5rem;
-                                margin-bottom: 0.25rem;
-                            }
-                            .registrants-filtro-estatus {
-                                flex-wrap: nowrap;
-                                overflow-x: auto;
-                                padding-bottom: 2px;
-                            }
-                            .registrants-filtro-estatus .btn,
-                            .registrants-filtro-limpiar {
-                                min-width: auto;
-                                white-space: nowrap;
-                                border-width: 2px;
-                                border-radius: .5rem;
-                                font-weight: 500;
-                                height: calc(1.5em + 0.75rem + 2px);
-                                display: inline-flex;
-                                align-items: center;
-                                justify-content: center;
-                                padding: 0.375rem 0.85rem;
-                            }
-                        </style>
                         <form method="get" class="row g-3 align-items-end registrants-filtro-toolbar" id="registrantsFilterForm">
                             <input type="hidden" name="page" value="registrants">
                             <input type="hidden" name="filter_torneo" value="<?= (int)$filter_torneo ?>">
@@ -1161,8 +1164,9 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                                 <th>Nombre</th>
                                 <th>Sexo</th>
                                 <th>Celular</th>
-                                <th class="text-center">Pago</th>
-                                <th class="text-center">Retirado</th>
+                                <th>Asociación</th>
+                                <th class="text-center">Estatus</th>
+                                <th class="text-center">Retirar</th>
                                 <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
@@ -1175,8 +1179,8 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                                 $club_nombre = $item['club_nombre'] ?? 'Sin Club';
                                 if (!isset($inscritos_por_club[$club_id])) {
                                     $inscritos_por_club[$club_id] = [
-                                        'nombre' => $club_nombre,
-                                        'inscritos' => []
+                                        'nombre' => ClubHelper::etiquetaAsociacion((int) $club_id, $club_nombre),
+                                        'inscritos' => [],
                                     ];
                                 }
                                 $inscritos_por_club[$club_id]['inscritos'][] = $item;
@@ -1194,14 +1198,14 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                                 if ($club_index > 0):
                             ?>
                                 <tr class="table-group-divider">
-                                    <td colspan="8"></td>
+                                    <td colspan="9"></td>
                                 </tr>
                             <?php 
                                 endif;
                                 $club_index++;
                             ?>
                                 <tr class="table-secondary fw-bold">
-                                    <td colspan="8" class="bg-light">
+                                    <td colspan="9" class="bg-light">
                                         <i class="fas fa-building me-2"></i>
                                         <?= htmlspecialchars($datos_club['nombre']) ?>
                                         <span class="badge bg-primary ms-2"><?= count($datos_club['inscritos']) ?> inscrito(s)</span>
@@ -1225,21 +1229,50 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                                         ?>
                                     </td>
                                     <td><?= htmlspecialchars($item['celular'] ?? 'N/A') ?></td>
-                                    <td class="text-center">
+                                    <td class="registrants-club-cell">
+                                        <?php
+                                        $cid_insc = (int) ($item['club_id'] ?? $item['id_club'] ?? 0);
+                                        if ($permite_cambiar_asoc_reg && empty($torneo_cerrado_reg) && !empty($clubes_inscripcion_opts)): ?>
+                                        <select class="form-select form-select-sm js-cambiar-asoc-inscrito"
+                                                data-inscripcion-id="<?= (int) $item['id'] ?>"
+                                                data-usuario-id="<?= (int) ($item['id_usuario'] ?? 0) ?>"
+                                                data-torneo-id="<?= (int) $filter_torneo ?>"
+                                                title="Cambiar asociación">
+                                            <?php foreach ($clubes_inscripcion_opts as $cOpt):
+                                                $cidOpt = (int) ($cOpt['id'] ?? 0);
+                                                if ($cidOpt <= 0) {
+                                                    continue;
+                                                }
+                                            ?>
+                                            <option value="<?= $cidOpt ?>"<?= $cid_insc === $cidOpt ? ' selected' : '' ?>>
+                                                <?= htmlspecialchars(ClubHelper::etiquetaAsociacion($cidOpt, (string) ($cOpt['nombre'] ?? ''))) ?>
+                                            </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <?php else: ?>
+                                            <?= $cid_insc > 0
+                                                ? htmlspecialchars(ClubHelper::etiquetaAsociacion($cid_insc, (string) ($item['club_nombre'] ?? '')))
+                                                : '—' ?>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-center registrants-estatus-cell">
                                         <?php
                                         $est = $item['estatus'] ?? 0;
                                         $es_confirmado = InscritosHelper::esConfirmado($est);
                                         $es_retirado = InscritosHelper::esRetirado($est);
                                         $uid_est = (int) $item['id'];
-                                        if (empty($torneo_cerrado_reg) && !$es_retirado): ?>
-                                        <div class="form-check form-switch d-inline-flex justify-content-center mb-0">
-                                            <input type="checkbox" class="form-check-input js-switch-pago-inscrito" role="switch"
-                                                   data-inscripcion-id="<?= $uid_est ?>" data-torneo-id="<?= (int)$filter_torneo ?>"
-                                                   <?= $es_confirmado ? 'checked' : '' ?>>
-                                            <label class="form-check-label small ms-1 js-switch-pago-label"><?= $es_confirmado ? 'Confirmado' : 'Pendiente' ?></label>
-                                        </div>
-                                        <?php elseif ($es_retirado): ?>
-                                            <span class="text-muted small">—</span>
+                                        if ($es_retirado): ?>
+                                            <span class="badge bg-dark">Retirado</span>
+                                        <?php elseif (empty($torneo_cerrado_reg)): ?>
+                                            <button type="button"
+                                                class="btn btn-sm px-2 py-0 js-pago-celda-inscrito <?= $es_confirmado ? 'btn-success' : 'btn-warning text-dark' ?>"
+                                                data-inscripcion-id="<?= $uid_est ?>"
+                                                data-torneo-id="<?= (int)$filter_torneo ?>"
+                                                data-estado="<?= $es_confirmado ? 'confirmado' : 'pendiente' ?>"
+                                                data-nombre="<?= htmlspecialchars((string)($item['nombre'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                                title="<?= $es_confirmado ? 'Ver recibo de pago emitido' : 'Pagar e emitir recibo' ?>">
+                                                <?= $es_confirmado ? 'Confirmado' : 'Pagar' ?>
+                                            </button>
                                         <?php elseif ($es_confirmado): ?>
                                             <span class="badge bg-success">Confirmado</span>
                                         <?php else: ?>
@@ -1247,35 +1280,49 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center">
-                                        <?php if (empty($torneo_cerrado_reg)): ?>
-                                        <div class="form-check form-switch d-inline-flex justify-content-center mb-0">
-                                            <input type="checkbox" class="form-check-input js-switch-retirado-inscrito" role="switch"
-                                                   data-inscripcion-id="<?= $uid_est ?>" data-torneo-id="<?= (int)$filter_torneo ?>"
-                                                   <?= $es_retirado ? 'checked' : '' ?>>
-                                            <label class="form-check-label small ms-1 js-switch-retirado-label"><?= $es_retirado ? 'Retirado' : 'Activo' ?></label>
-                                        </div>
+                                        <?php if (!$es_retirado && empty($torneo_cerrado_reg)): ?>
+                                            <button type="button" class="btn btn-sm btn-outline-dark js-retirar-inscrito"
+                                                    data-inscripcion-id="<?= $uid_est ?>"
+                                                    data-torneo-id="<?= (int)$filter_torneo ?>"
+                                                    data-pago-confirmado="<?= $es_confirmado ? '1' : '0' ?>"
+                                                    data-usuario-id="<?= (int)($item['id_usuario'] ?? 0) ?>"
+                                                    data-nombre="<?= htmlspecialchars((string)($item['nombre'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                                    data-cedula="<?= htmlspecialchars((string)($item['cedula'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                                    data-club-id="<?= (int)($item['club_id'] ?? $item['id_club'] ?? 0) ?>"
+                                                    title="Retirar del torneo y liberar en disponibles">
+                                                <i class="fas fa-user-slash"></i>
+                                            </button>
                                         <?php else: ?>
-                                            <span class="badge <?= $es_retirado ? 'bg-dark' : 'bg-secondary' ?>"><?= $es_retirado ? 'Retirado' : 'Activo' ?></span>
+                                            <span class="text-muted small">—</span>
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-group btn-group-sm flex-wrap justify-content-center">
-                                        <?php if (!$es_retirado && empty($torneo_cerrado_reg)): ?>
-                                            <button type="button" class="btn btn-outline-primary js-enviar-mensaje-inscrito" title="Enviar mensaje (notificación web y Telegram)"
+                                        <?php if ($es_retirado && empty($torneo_cerrado_reg)): ?>
+                                            <button type="button" class="btn btn-outline-danger js-eliminar-inscripcion-retirado"
+                                                    title="Eliminar inscripción y liberar jugador"
+                                                    data-inscripcion-id="<?= (int)$item['id'] ?>"
+                                                    data-torneo-id="<?= (int)$filter_torneo ?>"
+                                                    data-nombre="<?= htmlspecialchars((string)($item['nombre'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                                <i class="fas fa-trash-alt"></i><span class="d-none d-xl-inline ms-1">Eliminar</span>
+                                            </button>
+                                        <?php elseif (!$es_retirado && empty($torneo_cerrado_reg)): ?>
+                                            <button type="button" class="btn btn-outline-primary js-enviar-mensaje-inscrito" title="Enviar recordatorio de pago"
                                                     data-inscripcion-id="<?= (int)$item['id'] ?>" data-torneo-id="<?= (int)$filter_torneo ?>">
                                                 <i class="fas fa-paper-plane"></i>
                                             </button>
                                             <?php if ($es_confirmado): ?>
-                                            <button type="button" class="btn btn-outline-success js-recibo-inscrito" title="Recibo / imprimir"
+                                            <button type="button" class="btn btn-outline-success js-recibo-inscrito" title="Ver recibo"
                                                     data-inscripcion-id="<?= (int)$item['id'] ?>" data-torneo-id="<?= (int)$filter_torneo ?>">
                                                 <i class="fas fa-receipt"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary js-revertir-pago-inscrito" title="Revertir a Pagar (confirmación doble)"
+                                                    data-inscripcion-id="<?= (int)$item['id'] ?>"
+                                                    data-torneo-id="<?= (int)$filter_torneo ?>"
+                                                    data-nombre="<?= htmlspecialchars((string)($item['nombre'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                                <i class="fas fa-undo"></i>
                                             </button>
                                             <?php endif; ?>
-                                        <?php elseif ($es_confirmado && empty($torneo_cerrado_reg)): ?>
-                                            <button type="button" class="btn btn-outline-success js-recibo-inscrito" title="Recibo / imprimir"
-                                                    data-inscripcion-id="<?= (int)$item['id'] ?>" data-torneo-id="<?= (int)$filter_torneo ?>">
-                                                <i class="fas fa-receipt"></i>
-                                            </button>
                                         <?php endif; ?>
                                         </div>
                                     </td>
@@ -1309,16 +1356,16 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'deuda') {
     </div>
 </div>
 <?php
-$insc_api = class_exists('AppHelpers') ? rtrim(AppHelpers::getPublicUrl(), '/') . '/api/inscripcion_admin.php' : '/public/api/inscripcion_admin.php';
-$insc_js = class_exists('AppHelpers') ? rtrim(AppHelpers::getPublicUrl(), '/') . '/assets/registrants-inscripciones.js' : '/public/assets/registrants-inscripciones.js';
+// URL relativa: fetch() desde public/index.php → public/api/inscripcion_admin.php
+$insc_api = 'api/inscripcion_admin.php';
 ?>
 <script>
 window.REGISTRANTS_INSC_CFG = {
     apiUrl: <?= json_encode($insc_api, JSON_UNESCAPED_UNICODE) ?>,
-    csrf: <?= json_encode(class_exists('CSRF') ? CSRF::token() : '', JSON_UNESCAPED_UNICODE) ?>
+    csrf: <?= json_encode(class_exists('CSRF') ? CSRF::token() : '', JSON_UNESCAPED_UNICODE) ?>,
+    permiteCambiarAsoc: <?= !empty($permite_cambiar_asoc_reg) ? 'true' : 'false' ?>
 };
 </script>
-<script src="<?= htmlspecialchars($insc_js) ?>"></script>
 <?php endif; ?>
 
 <?php elseif ($action === 'new' || $action === 'edit'): ?>
@@ -1340,9 +1387,9 @@ window.REGISTRANTS_INSC_CFG = {
             </h5>
         </div>
         <div class="card-body">
-            <!-- Estad�sticas del Torneo -->
+            <!-- Estadísticas del Torneo -->
             <div id="tournamentStats" class="alert alert-info border d-none mb-4">
-                <h5 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Estad�sticas del Torneo</h5>
+                <h5 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Estadísticas del Torneo</h5>
                 <div class="row">
                     <div class="col-md-3">
                         <div class="text-center p-3 bg-white rounded">
@@ -1388,7 +1435,7 @@ window.REGISTRANTS_INSC_CFG = {
                     <input type="hidden" name="id" value="<?= (int)$registrant['id'] ?>">
                 <?php endif; ?>
                 
-                <!-- Informaci�n de Deuda del Club -->
+                <!-- Información de Deuda del Club -->
                 <div id="deudaInfo" class="alert alert-light border d-none mb-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -1469,13 +1516,13 @@ window.REGISTRANTS_INSC_CFG = {
                         <div class="mb-3">
                             <label for="nombre_display" class="form-label">Nombre Completo</label>
                             <input type="text" class="form-control" id="nombre_display" readonly 
-                                   placeholder="Se carga autom�ticamente">
+                                   placeholder="Se carga automáticamente">
                         </div>
                         
                         <div class="mb-3">
                             <label for="sexo_display" class="form-label">Sexo</label>
                             <input type="text" class="form-control" id="sexo_display" readonly 
-                                   placeholder="Se carga autom�ticamente">
+                                   placeholder="Se carga automáticamente">
                         </div>
                     </div>
                     
@@ -1483,19 +1530,19 @@ window.REGISTRANTS_INSC_CFG = {
                         <div class="mb-3">
                             <label for="club_display" class="form-label">Club</label>
                             <input type="text" class="form-control" id="club_display" readonly 
-                                   placeholder="Se carga autom�ticamente">
+                                   placeholder="Se carga automáticamente">
                         </div>
                         
                         <div class="mb-3">
                             <label for="celular_display" class="form-label">Celular</label>
                             <input type="text" class="form-control" id="celular_display" readonly 
-                                   placeholder="Se carga autom�ticamente">
+                                   placeholder="Se carga automáticamente">
                         </div>
                         
                         <div class="mb-3">
-                            <label for="categoria_display" class="form-label">Categor�a</label>
+                            <label for="categoria_display" class="form-label">Categoría</label>
                             <input type="text" class="form-control" id="categoria_display" readonly 
-                                   placeholder="Se calcula autom�ticamente">
+                                   placeholder="Se calcula automáticamente">
                             <input type="hidden" name="categ" id="categ" value="0">
                             <small class="text-muted">Junior (<19), Libre (19-60), Master (>60)</small>
                         </div>
@@ -1533,11 +1580,11 @@ window.REGISTRANTS_INSC_CFG = {
 <script>
 // Preparar formulario antes de enviar (remover nacionalidad del submit)
 function prepareSubmit() {
-    // No se requiere validaci�n adicional
+    // No se requiere validación adicional
     return true;
 }
 
-// Funci�n al cambiar torneo
+// Función al cambiar torneo
 async function onTorneoChange() {
     // Con torneo fijo, solo actualizar stats y deuda
     const torneoInput = document.getElementById('torneo_id');
@@ -1548,7 +1595,7 @@ async function onTorneoChange() {
     actualizarDeuda();
 }
 
-// Cargar estad�sticas del torneo
+// Cargar estadísticas del torneo
 async function cargarEstadisticasTorneo(torneo_id) {
     const statsDiv = document.getElementById('tournamentStats');
     
@@ -1565,17 +1612,17 @@ async function cargarEstadisticasTorneo(torneo_id) {
             statsDiv.classList.remove('d-none');
         }
     } catch (error) {
-        console.error('Error al cargar estad�sticas:', error);
+        console.error('Error al cargar estadísticas:', error);
     }
 }
 
-// Funci�n al cambiar atleta seleccionado
+// Función al cambiar atleta seleccionado
 function onAthleteChange() {
     const athleteSelect = document.getElementById('athlete_id');
     const selectedOption = athleteSelect.options[athleteSelect.selectedIndex];
     
     if (!selectedOption || !selectedOption.value) {
-        // Limpiar campos si no hay selecci�n
+        // Limpiar campos si no hay selección
         document.getElementById('cedula_display').value = '';
         document.getElementById('nombre_display').value = '';
         document.getElementById('sexo_display').value = '';
@@ -1594,8 +1641,8 @@ function onAthleteChange() {
     document.getElementById('club_display').value = selectedOption.getAttribute('data-club-nombre') || '';
     document.getElementById('celular_display').value = selectedOption.getAttribute('data-celular') || '';
     
-    // Calcular categor�a (necesitar�amos fecha de nacimiento, pero no la tenemos en atletas)
-    // Por ahora dejar vac�o, se puede calcular despu�s si es necesario
+    // Calcular categoría (necesitaremos fecha de nacimiento, pero no la tenemos en atletas)
+    // Por ahora dejar vacío, se puede calcular después si es necesario
     document.getElementById('categoria_display').value = 'Por calcular';
     document.getElementById('categ').value = '0';
     
@@ -1603,7 +1650,7 @@ function onAthleteChange() {
     actualizarDeuda();
 }
 
-// Calcular categor�a por edad
+// Calcular categoría por edad
 function calcularCategoria() {
     const fechnac = document.getElementById('fechnac').value;
     if (!fechnac) return;
@@ -1620,20 +1667,20 @@ function calcularCategoria() {
     let categoria, categoriaTexto;
     if (edad < 19) {
         categoria = 1;
-        categoriaTexto = 'Junior (< 19 a�os)';
+        categoriaTexto = 'Junior (< 19 años)';
     } else if (edad > 60) {
         categoria = 3;
-        categoriaTexto = 'Master (> 60 a�os)';
+        categoriaTexto = 'Master (> 60 años)';
     } else {
         categoria = 2;
-        categoriaTexto = 'Libre (19-60 a�os)';
+        categoriaTexto = 'Libre (19-60 años)';
     }
     
     document.getElementById('categ').value = categoria;
     document.getElementById('categ_display').value = categoriaTexto;
 }
 
-// Actualizar informaci�n de deuda
+// Actualizar información de deuda
 async function actualizarDeuda() {
     const athleteSelect = document.getElementById('athlete_id');
     const selectedOption = athleteSelect.options[athleteSelect.selectedIndex];
@@ -1664,7 +1711,7 @@ async function actualizarDeuda() {
     }
 }
 
-// Funci�n para seleccionar/deseleccionar todos los clubs
+// Función para seleccionar/deseleccionar todos los clubs
 function toggleAllClubs(checkbox) {
     const clubCheckboxes = document.querySelectorAll('.club-checkbox');
     clubCheckboxes.forEach(cb => {
@@ -1672,7 +1719,7 @@ function toggleAllClubs(checkbox) {
     });
 }
 
-// Agregar un indicador visual cuando se est� aplicando el filtro
+// Agregar un indicador visual cuando se está aplicando el filtro
 document.addEventListener('DOMContentLoaded', function() {
     const filterForm = document.getElementById('filterForm');
     if (filterForm) {
@@ -1687,7 +1734,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Funci�n para exportar a Excel
+// Función para exportar a Excel
 function exportarExcel() {
     const form = document.getElementById('filterForm');
     if (!form) {
@@ -1697,14 +1744,14 @@ function exportarExcel() {
     
     const formData = new FormData(form);
     
-    // Construir URL con par�metros
+    // Construir URL con parámetros
     const params = new URLSearchParams();
     params.append('torneo_id', formData.get('filter_torneo') || '');
     
     const clubs = formData.getAll('filter_clubs[]');
     clubs.forEach(club => params.append('club_ids[]', club));
     
-    // Agregar numeraci�n si est� marcada
+    // Agregar numeración si está marcada
     if (document.getElementById('numerarRegistros').checked) {
         params.append('numerar', '1');
     }
@@ -1713,7 +1760,7 @@ function exportarExcel() {
     window.location.href = '../modules/registrants/export_excel.php?' + params.toString();
 }
 
-// Funci�n para exportar a PDF
+// Función para exportar a PDF
 function exportarPDF() {
     const form = document.getElementById('filterForm');
     if (!form) {
@@ -1723,14 +1770,14 @@ function exportarPDF() {
     
     const formData = new FormData(form);
     
-    // Construir URL con par�metros
+    // Construir URL con parámetros
     const params = new URLSearchParams();
     params.append('torneo_id', formData.get('filter_torneo') || '');
     
     const clubs = formData.getAll('filter_clubs[]');
     clubs.forEach(club => params.append('club_ids[]', club));
     
-    // Agregar numeraci�n si est� marcada
+    // Agregar numeración si está marcada
     if (document.getElementById('numerarRegistros').checked) {
         params.append('numerar', '1');
     }
@@ -1739,7 +1786,7 @@ function exportarPDF() {
     window.location.href = '../modules/registrants/export_pdf.php?' + params.toString();
 }
 
-// Funci�n para exportar un club espec�fico a PDF
+// Función para exportar un club específico a PDF
 function generarCredenciales() {
     const form = document.getElementById('filterForm');
     if (!form) {
@@ -1755,17 +1802,17 @@ function generarCredenciales() {
         return;
     }
     
-    // Confirmar acci�n
-    if (!confirm('�Desea generar credenciales para todos los jugadores del torneo seleccionado? Esto puede tardar unos momentos.')) {
+    // Confirmar acción
+    if (!confirm('¿Desea generar credenciales para todos los jugadores del torneo seleccionado? Esto puede tardar unos momentos.')) {
         return;
     }
     
-    // Construir URL con par�metros
+    // Construir URL con parámetros
     const params = new URLSearchParams();
     params.append('action', 'bulk');
     params.append('tournament_id', torneoId);
     
-    // Si hay clubs espec�ficos seleccionados
+    // Si hay clubs específicos seleccionados
     const clubs = formData.getAll('filter_clubs[]');
     if (clubs.length > 0) {
         params.append('club_id', clubs[0]); // Por ahora solo el primer club
@@ -1780,14 +1827,14 @@ function generarCredenciales() {
     // Abrir en nueva ventana para descargar el ZIP
     window.location.href = 'modules/registrants/generate_credential.php?' + params.toString();
     
-    // Restaurar bot�n despu�s de 3 segundos
+    // Restaurar botón después de 3 segundos
     setTimeout(() => {
         btn.disabled = false;
         btn.innerHTML = originalText;
     }, 3000);
 }
 
-// Funci�n para exportar un club espec�fico a PDF
+// Función para exportar un club específico a PDF
 function exportarClubPDF(clubId) {
     const torneoId = document.querySelector('[name="filter_torneo"]').value;
     
@@ -1803,7 +1850,7 @@ function exportarClubPDF(clubId) {
     window.location.href = '../modules/registrants/export_pdf.php?' + params.toString();
 }
 
-// Funci�n para exportar un club espec�fico a Excel
+// Función para exportar un club específico a Excel
 function exportarClubExcel(clubId) {
     const torneoId = document.querySelector('[name="filter_torneo"]').value;
     
@@ -1820,16 +1867,16 @@ function exportarClubExcel(clubId) {
     window.location.href = '../modules/registrants/export_excel.php?' + params.toString();
 }
 
-// Funci�n para numerar en BD
+// Función para numerar en BD
 function numerarEnBD() {
     const form = document.getElementById('filterForm');
     const formData = new FormData(form);
     
     // Verificar si hay registros filtrados
-    if (!confirm('�Desea asignar n�meros consecutivos en la columna IDENTIFICADOR?\n\n' +
-                 'Esto actualizar� la base de datos con numeraci�n: 1, 2, 3...\n' +
+    if (!confirm('¿Desea asignar números consecutivos en la columna IDENTIFICADOR?\n\n' +
+                 'Esto actualizará la base de datos con numeración: 1, 2, 3...\n' +
                  'Los clubs normales primero, el club responsable al final.\n\n' +
-                 'Esta acci�n se aplicar� a los registros actualmente filtrados.')) {
+                 'Esta acción se aplicará a los registros actualmente filtrados.')) {
         return;
     }
     
@@ -1838,7 +1885,7 @@ function numerarEnBD() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Numerando...';
     
-    // Construir par�metros
+    // Construir parámetros
     const params = new URLSearchParams();
     params.append('torneo_id', formData.get('filter_torneo') || '');
     
@@ -1851,15 +1898,15 @@ function numerarEnBD() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('? ' + data.message + '\n\nRegistros numerados: ' + data.registros_actualizados);
+            alert('✓ ' + data.message + '\n\nRegistros numerados: ' + data.registros_actualizados);
             location.reload();
         } else {
-            alert('? Error: ' + (data.message || 'Error desconocido'));
+            alert('✓ Error: ' + (data.message || 'Error desconocido'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('? Error de conexi�n al numerar registros');
+        alert('✓ Error de conexión al numerar registros');
     })
     .finally(() => {
         btn.disabled = false;
@@ -1867,9 +1914,9 @@ function numerarEnBD() {
     });
 }
 
-// Funci�n para actualizar deuda de clubes
+// Función para actualizar deuda de clubes
 function actualizarDeudaClubes() {
-    if (!confirm('�Desea actualizar la deuda de todos los clubes basado en los inscritos actuales?\n\nEsto recalcular� la deuda de cada club por torneo.')) {
+    if (!confirm('¿Desea actualizar la deuda de todos los clubes basado en los inscritos actuales?\n\nEsto recalculará la deuda de cada club por torneo.')) {
         return;
     }
     
@@ -1888,15 +1935,15 @@ function actualizarDeudaClubes() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('? ' + data.message + '\n\nClubs actualizados: ' + data.clubs_actualizados);
+            alert('✓ ' + data.message + '\n\nClubs actualizados: ' + data.clubs_actualizados);
             location.reload();
         } else {
-            alert('? Error: ' + (data.message || 'Error desconocido'));
+            alert('✓ Error: ' + (data.message || 'Error desconocido'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('? Error de conexi�n al actualizar deuda');
+        alert('✓ Error de conexión al actualizar deuda');
     })
     .finally(() => {
         btn.disabled = false;
@@ -1904,31 +1951,31 @@ function actualizarDeudaClubes() {
     });
 }
 
-// Funci�n para numerar jugadores por club
+// Función para numerar jugadores por club
 function numerarPorClub() {
     const form = document.getElementById('filterForm');
     const formData = new FormData(form);
     const torneoId = formData.get('filter_torneo');
     
     if (!torneoId) {
-        alert('? Por favor, seleccione un torneo primero');
+        alert('✓ Por favor, seleccione un torneo primero');
         return;
     }
     
     const clubs = formData.getAll('filter_clubs[]');
     
-    let mensaje = '�Desea numerar los jugadores por club?\n\n';
-    mensaje += '?? Numeraci�n POR CLUB:\n';
-    mensaje += '� Cada club tendr� su propia numeraci�n: 1, 2, 3...\n';
-    mensaje += '� Los jugadores se ordenar�n alfab�ticamente dentro de cada club\n\n';
+    let mensaje = '¿Desea numerar los jugadores por club?\n\n';
+    mensaje += '• Numeración POR CLUB:\n';
+    mensaje += '• Cada club tendrá su propia numeración: 1, 2, 3...\n';
+    mensaje += '• Los jugadores se ordenarán alfabéticamente dentro de cada club\n\n';
     
     if (clubs.length > 0) {
-        mensaje += '?? Se numerar�n ' + clubs.length + ' club(s) seleccionado(s)\n';
+        mensaje += '• Se numerarán ' + clubs.length + ' club(s) seleccionado(s)\n';
     } else {
-        mensaje += '?? Se numerar�n TODOS los clubs del torneo\n';
+        mensaje += '• Se numerarán TODOS los clubs del torneo\n';
     }
     
-    mensaje += '\n?? Esta acci�n actualizar� los n�meros de identificaci�n en la base de datos.';
+    mensaje += '\n⚠ Esta acción actualizará los números de identificación en la base de datos.';
     
     if (!confirm(mensaje)) {
         return;
@@ -1943,13 +1990,13 @@ function numerarPorClub() {
     let url = '../modules/registrants/numerar_por_club.php?torneo_id=' + torneoId;
     
     if (clubs.length === 1) {
-        // Si solo hay un club seleccionado, numerar ese club espec�fico
+        // Si solo hay un club seleccionado, numerar ese club específico
         url += '&club_id=' + clubs[0];
     } else if (clubs.length === 0) {
         // Si no hay clubs seleccionados, numerar todos
         url += '&numerar_todos=1';
     } else {
-        // Si hay m�ltiples clubs, numerar todos (el backend lo procesar�)
+        // Si hay múltiples clubs, numerar todos (el backend lo procesará)
         url += '&numerar_todos=1';
     }
     
@@ -1960,25 +2007,25 @@ function numerarPorClub() {
     .then(data => {
         if (data.success) {
             let detalleMsg = '? ' + data.message + '\n\n';
-            detalleMsg += '?? Total de jugadores numerados: ' + data.total_jugadores_actualizados + '\n';
-            detalleMsg += '?? Clubs procesados: ' + data.clubes_procesados + '\n\n';
+            detalleMsg += '• Total de jugadores numerados: ' + data.total_jugadores_actualizados + '\n';
+            detalleMsg += '• Clubs procesados: ' + data.clubes_procesados + '\n\n';
             
             if (data.detalle_clubes && data.detalle_clubes.length > 0) {
                 detalleMsg += 'Detalle por club:\n';
                 data.detalle_clubes.forEach(club => {
-                    detalleMsg += '� ' + club.club_nombre + ': ' + club.jugadores_numerados + ' jugador(es)\n';
+                    detalleMsg += '• ' + club.club_nombre + ': ' + club.jugadores_numerados + ' jugador(es)\n';
                 });
             }
             
             alert(detalleMsg);
             location.reload();
         } else {
-            alert('? Error: ' + (data.message || 'Error desconocido'));
+            alert('✓ Error: ' + (data.message || 'Error desconocido'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('? Error de conexi�n al numerar por club');
+        alert('✓ Error de conexión al numerar por club');
     })
     .finally(() => {
         btn.disabled = false;
@@ -1986,11 +2033,11 @@ function numerarPorClub() {
     });
 }
 
-// Inicializar event listeners cuando el DOM est� listo
+// Inicializar event listeners cuando el DOM está listo
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('?? DOM cargado - Inicializando...');
+    console.log('• DOM cargado - Inicializando...');
     
-    // B�squeda solo con bot�n TEST (blur desactivado para evitar errores)
+    // Búsqueda solo con botón TEST (blur desactivado para evitar errores)
     // const cedulaInput = document.getElementById('cedula');
     // if (cedulaInput) {
     //     cedulaInput.addEventListener('blur', buscarPersona);

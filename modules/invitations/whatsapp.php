@@ -140,11 +140,11 @@ try {
     $pdf_generated = true;
     
     // Mensaje corto para WhatsApp
-    $mensaje = "?? *INVITACI?N AL TORNEO*\n\n";
+    $mensaje = "• *INVITACI?N AL TORNEO*\n\n";
     $mensaje .= "*" . $inv['torneo_nombre'] . "*\n\n";
-    $mensaje .= "?? Fecha: " . $fecha_torneo . "\n";
-    $mensaje .= "?? Club: " . $inv['club_nombre'] . "\n\n";
-    $mensaje .= "?? *Descargue su invitaci?n completa aqu?:*\n";
+    $mensaje .= "• Fecha: " . $fecha_torneo . "\n";
+    $mensaje .= "• Club: " . $inv['club_nombre'] . "\n\n";
+    $mensaje .= "• *Descargue su invitaci?n completa aqu?:*\n";
     $mensaje .= $pdf_url . "\n\n";
     $mensaje .= "El documento incluye:\n";
     $mensaje .= "? TOKEN de acceso\n";

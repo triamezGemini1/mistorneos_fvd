@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../config/bootstrap.php';
 require_once __DIR__ . '/../../config/auth.php';
 require_once __DIR__ . '/../../lib/file_upload.php';
 
-// Verificar autenticaci�n
+// Verificar autenticación
 $user = Auth::user();
 if (!$user) {
     http_response_code(401);

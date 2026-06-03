@@ -10,7 +10,7 @@ require_once __DIR__ . '/../../config/bootstrap.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/auth.php';
 
-// Verificar autenticaci�n
+// Verificar autenticación
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 
 try {
@@ -79,14 +79,14 @@ try {
     die('Error: ' . htmlspecialchars($e->getMessage()));
 }
 
-// Funci�n helper para convertir sexo
+// Función helper para convertir sexo
 function formatSexo($sexo) {
     if ($sexo === 'M' || $sexo == 1) return 'M';
     if ($sexo === 'F' || $sexo == 2) return 'F';
     return '';
 }
 
-// Funci�n helper para convertir categor�a
+// Función helper para convertir categoría
 function formatCategoria($categ) {
     switch ($categ) {
         case 1: return 'JUNIOR';
@@ -160,12 +160,12 @@ function formatCategoria($categ) {
     <table border="0" style="margin-top: 20px; width: 100%;">
         <tr>
             <td style="text-align: center; color: #666; font-size: 9pt;">
-                Serviclubes LED - Sistema de Gesti�n de Torneos
+                Serviclubes LED - Sistema de Gestión de Torneos
             </td>
         </tr>
         <tr>
             <td style="text-align: center; color: #666; font-size: 8pt;">
-                Exportaci�n generada el <?= date('d/m/Y H:i:s') ?>
+                Exportación generada el <?= date('d/m/Y H:i:s') ?>
             </td>
         </tr>
     </table>

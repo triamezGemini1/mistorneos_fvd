@@ -39,6 +39,7 @@ if ($layout_asset_base === '') {
 $layout_asset_href = static function (string $rel) use ($layout_public_href): string {
     return htmlspecialchars(AppHelpers::assetHref($rel, rtrim($layout_public_href, '/')));
 };
+$layout_logo_href = rtrim($layout_public_href, '/');
 
 // Base del menú: usar URL_BASE (path) para que enlaces no apunten a la raíz del dominio y la sesión persista en subcarpeta
 if (defined('URL_BASE') && URL_BASE !== '' && URL_BASE !== '/') {
@@ -142,7 +143,17 @@ $modo_prueba_badge_class = $role_badge_class[$role_activo_layout] ?? 'bg-warning
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/app-search.css') ?>">
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/custom-13inch.css') ?>">
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-dashboard-compact.css') ?>">
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-tokens.css') ?>">
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-identidad.css') ?>">
+  <?php if (($current_page ?? '') === 'home'): ?>
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-dashboard-home-page.css') ?>">
+  <?php endif; ?>
+  <?php if (($current_page ?? '') === 'registrants'): ?>
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/registrants-page.css') ?>">
+  <?php endif; ?>
+  <?php if (($current_page ?? '') === 'torneo_gestion' && ($_GET['action'] ?? '') === 'inscribir_sitio'): ?>
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/inscribir-sitio-page.css') ?>">
+  <?php endif; ?>
 </head>
 <?php
 $is_panel_control_torneos = ($current_page === 'torneo_gestion' && ($_GET['action'] ?? '') === 'panel');
@@ -163,7 +174,7 @@ if ($from_url !== '') {
 }
 if ($nav_origin === '' && ReportReturnNavigation::isReportView($current_page, $layout_nav_action)) {
     $storedReturn = ReportReturnNavigation::getStoredReturnRelativeUrl();
-    $nav_origin = htmlspecialchars($storedReturn !== '' ? $storedReturn : 'index.php?page=home', ENT_QUOTES, 'UTF-8');
+    $nav_origin = htmlspecialchars($storedReturn !== '' ? $storedReturn : AppHelpers::landingUrl(), ENT_QUOTES, 'UTF-8');
 }
 $body_page_extra = '';
 if ($current_page === 'torneo_gestion') {
@@ -178,9 +189,18 @@ if ($current_page === 'torneo_gestion') {
     if ($tg_action_layout === 'registrar_resultados' || $tg_action_layout === 'registrar_resultados_v2') {
         $body_page_extra .= ' page-registrar-resultados';
     }
+    if ($tg_action_layout === 'inscribir_sitio') {
+        $body_page_extra .= ' page-inscribir-sitio';
+    }
 }
 if ($current_page === 'estadisticas_torneos') {
     $body_page_extra .= ' page-estadisticas-torneos';
+}
+if ($current_page === 'registrants') {
+    $body_page_extra .= ' page-registrants';
+}
+if ($current_page === 'home') {
+    $body_page_extra .= ' page-dashboard-home';
 }
 ?>
 <body class="bg-light fvd-dashboard-compact<?= $is_panel_control_torneos ? ' page-panel-control-torneos' : '' ?><?= !empty($layout_hide_sidebar) ? ' layout-no-sidebar' : '' ?><?= htmlspecialchars($body_page_extra, ENT_QUOTES, 'UTF-8') ?>"<?= $nav_origin !== '' ? ' data-nav-origin="' . $nav_origin . '"' : '' ?>>
@@ -227,18 +247,18 @@ if ($current_page === 'estadisticas_torneos') {
     <nav id="sidebar" class="bg-dark text-white border-end shadow d-flex flex-column">
       <div class="sidebar-header p-3 border-bottom">
         <h4 class="mb-0 text-center d-flex align-items-center justify-content-center flex-nowrap">
-          <?= AppHelpers::appLogo('me-2', $fvd_nombre_layout, 35, true) ?>
+          <?= AppHelpers::appLogo('me-2', $fvd_nombre_layout, 35, true, $layout_logo_href) ?>
           <span class="sidebar-brand text-truncate" title="<?= htmlspecialchars($fvd_nombre_layout) ?>"><?= htmlspecialchars(FvdBranding::siglas()) ?></span>
         </h4>
       </div>
       
       <ul class="list-unstyled px-2 py-2 flex-grow-1 overflow-y-auto min-h-0">
         <?php if ($user['role'] !== 'admin_general'): ?>
-        <!-- Inicio y Calendario: links directos para admin_club y admin_torneo -->
+        <!-- Inicio (estadísticas) y Calendario -->
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('home')) ?>" class="nav-link <?= $current_page === 'home' ? 'active' : '' ?>">
-            <i class="fas fa-home me-3"></i>
-            <span class="nav-text">Inicio</span>
+            <i class="fas fa-chart-line me-3"></i>
+            <span class="nav-text">Estadísticas</span>
           </a>
         </li>
         <li class="mb-2">
@@ -347,7 +367,6 @@ if ($current_page === 'estadisticas_torneos') {
         $is_comunicacion_open = in_array($current_page, ['notificaciones_masivas', 'whatsapp_config', 'comments']);
         $is_integraciones_open = in_array($current_page, ['admin_atletas_sync', 'importacion_torneo_externo', 'torneo_split_ranking']);
         ?>
-        <!-- 1. Inicio (acordeón: Dashboard, Calendario) -->
         <li class="mb-2">
           <a href="#" class="nav-link <?= $is_inicio_open ? 'active' : '' ?>"
              onclick="event.preventDefault(); toggleSubmenu('inicio-submenu', this);"
@@ -360,7 +379,7 @@ if ($current_page === 'estadisticas_torneos') {
             <li class="mb-1">
               <a href="<?= htmlspecialchars($dashboard_href('home')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'home' ? 'active' : '' ?>">
                 <i class="fas fa-chart-line me-2"></i>
-                <span>Dashboard</span>
+                <span>Estadísticas</span>
               </a>
             </li>
             <li class="mb-1">
@@ -614,10 +633,10 @@ if ($current_page === 'estadisticas_torneos') {
           
           <div class="navbar-nav me-auto d-flex align-items-center">
             <?php
-            $topbar_logo_src = FvdBranding::logoUrl();
+            $topbar_logo_src = FvdBranding::logoHref($layout_logo_href);
             $topbar_nombre = htmlspecialchars($fvd_nombre_layout);
             ?>
-            <img src="<?= htmlspecialchars($topbar_logo_src) ?>" alt="<?= $topbar_nombre ?>" height="39" class="me-2 d-none d-md-inline-block fvd-topbar-logo" style="object-fit: contain; width: auto; max-height: 39px;">
+            <img src="<?= htmlspecialchars($topbar_logo_src) ?>" alt="<?= $topbar_nombre ?>" height="39" class="me-2 fvd-topbar-logo" style="object-fit: contain; width: auto; max-height: 39px;">
             <h5 class="mb-0 text-muted d-none d-md-block"><?= $topbar_nombre ?></h5>
             <h6 class="mb-0 text-muted d-md-none"><?= strlen($topbar_nombre) > 20 ? 'Dashboard' : $topbar_nombre ?></h6>
             <?php if (!empty($layout_operativo_asoc) && ($current_page ?? '') !== 'asociacion_panel'): ?>
@@ -742,7 +761,7 @@ if ($current_page === 'estadisticas_torneos') {
               echo 'Compruebe que ha seleccionado un torneo y que tiene permisos. ';
               echo '<a href="' . htmlspecialchars($panel_url) . '" class="alert-link">Volver al panel de torneos</a>.</div>';
             } else {
-              echo '<div class="alert alert-info mx-3">Contenido no disponible. <a href="' . htmlspecialchars($dashboard_href('home')) . '">Ir a Inicio</a>.</div>';
+              echo '<div class="alert alert-info mx-3">Contenido no disponible. <a href="' . htmlspecialchars($dashboard_href('home')) . '">Ir a Estadísticas</a>.</div>';
             }
           } else {
             echo $main_output;
@@ -785,6 +804,9 @@ if (str_ends_with($app_base_for_js, '/public')) {
   <script src="<?= $layout_asset_href('assets/single-tab-enforcer.js') ?>" defer></script>
   <script src="<?= $layout_asset_href('assets/app-search.js') ?>" defer></script>
   <script src="<?= $layout_asset_href('assets/dashboard-init.js') ?>" defer></script>
+  <?php if ($current_page === 'registrants'): ?>
+  <script src="<?= $layout_asset_href('assets/registrants-inscripciones.js') ?>" defer></script>
+  <?php endif; ?>
 <?php
 $layout_asset_base = $layout_asset_base ?? '';
 $layout_already_loaded_bootstrap = true; // Evitar doble carga de Bootstrap (rompe dropdown del usuario)

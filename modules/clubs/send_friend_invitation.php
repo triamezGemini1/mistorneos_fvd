@@ -65,7 +65,7 @@ try {
     
     // Generar URL de registro con club_id
     $app_url = $_ENV['APP_URL'] ?? 'http://localhost/mistorneos_fvd';
-    $register_url = $app_url . "/public/register_by_club.php?club_id=" . $club_id;
+    $register_url = AppHelpers::url("register_by_club.php?club_id=") . $club_id;
     
     // Generar mensaje de invitación
     $mensaje = "🎉 *¡INVITACIÓN A AFILIARTE!*\n\n";

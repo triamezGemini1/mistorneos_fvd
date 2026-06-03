@@ -10,6 +10,8 @@
  */
 declare(strict_types=1);
 
+require_once __DIR__ . '/deploy_ftp_lib.php';
+
 function arg(string $name, ?string $default = null): ?string
 {
     $prefix = '--' . $name . '=';
@@ -36,10 +38,15 @@ function prompt(string $label, bool $secret = false): string
     return trim($line === false ? '' : $line);
 }
 
-$host = arg('host', getenv('FTP_HOST') ?: 'ftp.laestaciondeldominohoy.com');
-$port = (int) (arg('port', getenv('FTP_PORT') ?: '21') ?: '21');
-$user = arg('user', getenv('FTP_USER') ?: '') ?: prompt('Usuario FTP: ');
-$pass = arg('pass', getenv('FTP_PASS') ?: '') ?: prompt('Contraseña FTP: ', true);
+$root = dirname(__DIR__);
+$envLocal = loadFtpEnvFile($root . DIRECTORY_SEPARATOR . '.env.ftp.local');
+
+$host = arg('host', $envLocal['FTP_HOST'] ?? getenv('FTP_HOST') ?: 'ftp.laestaciondeldominohoy.com');
+$port = (int) (arg('port', $envLocal['FTP_PORT'] ?? getenv('FTP_PORT') ?: '21') ?: '21');
+$user = arg('user', $envLocal['FTP_USER'] ?? $envLocal['FTP_USERNAME'] ?? getenv('FTP_USER') ?: '')
+    ?: prompt('Usuario FTP: ');
+$pass = arg('pass', $envLocal['FTP_PASS'] ?? $envLocal['FTP_PASSWORD'] ?? getenv('FTP_PASS') ?: '')
+    ?: prompt('Contraseña FTP: ', true);
 
 echo "\n=== Diagnóstico FTP ===\n";
 echo "Host: {$host}:{$port}\n";

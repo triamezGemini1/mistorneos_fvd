@@ -285,7 +285,7 @@ if (!isset($torneo_id)) {
 $torneo_lugar_preview = ($torneo_seleccionado && isset($torneo_seleccionado['lugar']) && trim((string)$torneo_seleccionado['lugar']) !== '') ? trim($torneo_seleccionado['lugar']) : 'Centro de eventos';
 $organizacion_nombre_preview = ($torneo_seleccionado && isset($torneo_seleccionado['club_nombre']) && trim((string)$torneo_seleccionado['club_nombre']) !== '') ? trim($torneo_seleccionado['club_nombre']) : 'Mi Organización';
 $base_preview = function_exists('app_base_url') ? app_base_url() : ($_ENV['APP_URL'] ?? 'http://localhost/mistorneos_fvd');
-$url_inscripcion_preview = rtrim($base_preview, '/') . '/public/tournament_register.php?torneo_id=' . ($torneo_id ?: '1');
+$url_inscripcion_preview = AppHelpers::url('tournament_register.php', ['torneo_id' => $torneo_id ?: 1]);
 
 // Variables comunes para resultado (admin_club las tiene en el else; admin_general las tiene arriba)
 if (!isset($csrf_token)) { $csrf_token = CSRF::token(); }
@@ -486,7 +486,7 @@ if (isset($resultados) && $resultados !== null) {
         var torneoFecha = <?= json_encode($torneo_fecha_preview ?? date('d/m/Y')) ?>;
         var torneoLugar = <?= json_encode(($torneo_seleccionado_ag && isset($torneo_seleccionado_ag['lugar']) ? $torneo_seleccionado_ag['lugar'] : 'Centro de eventos')) ?>;
         var organizacionNombre = <?= json_encode(($torneo_seleccionado_ag && isset($torneo_seleccionado_ag['club_nombre']) ? $torneo_seleccionado_ag['club_nombre'] : 'Mi Organización')) ?>;
-        var urlInscripcion = <?= json_encode(rtrim(app_base_url(), '/') . '/public/tournament_register.php?torneo_id=' . ($torneo_id_ag ?: 1)) ?>;
+        var urlInscripcion = <?= json_encode(AppHelpers::url('tournament_register.php', ['torneo_id' => $torneo_id_ag ?: 1])) ?>;
         function escapeHtml(t) { if (!t) return ''; var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
         function getCanalAg() { var r = document.querySelector('#form-notif-masivas-ag input[name="canal"]:checked'); return r ? r.value : 'whatsapp'; }
         function updatePreviewAg() {

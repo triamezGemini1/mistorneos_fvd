@@ -40,7 +40,7 @@ $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
                     $cu = function_exists('Auth') ? Auth::user() : null;
                     $rol = $cu ? ($cu['role'] ?? '') : '';
                     if ($rol === 'usuario') {
-                        $urlRetornoFinal = rtrim(AppHelpers::getBaseUrl(), '/') . '/public/user_portal.php?section=notificaciones';
+                        $urlRetornoFinal = AppHelpers::url('user_portal.php', ['section' => 'notificaciones']);
                     } else {
                         $urlRetornoFinal = AppHelpers::dashboard('user_notificaciones');
                     }
@@ -61,7 +61,7 @@ $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
                     $cu = function_exists('Auth') ? Auth::user() : null;
                     $rol = $cu ? ($cu['role'] ?? '') : '';
                     if ($rol === 'usuario') {
-                        $urlRetornoFinal = rtrim(AppHelpers::getBaseUrl(), '/') . '/public/user_portal.php?section=notificaciones';
+                        $urlRetornoFinal = AppHelpers::url('user_portal.php', ['section' => 'notificaciones']);
                     } else {
                         $urlRetornoFinal = AppHelpers::dashboard('user_notificaciones');
                     }

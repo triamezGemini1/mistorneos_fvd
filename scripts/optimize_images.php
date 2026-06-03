@@ -91,11 +91,11 @@ echo "\n";
 echo "✅ Optimización completada!\n";
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 echo "📊 Estadísticas:\n";
-echo "   • Archivos procesados: {$result['processed']}\n";
-echo "   • Archivos optimizados: {$result['optimized']}\n";
-echo "   • Archivos fallidos: {$result['failed']}\n";
-echo "   • Espacio ahorrado: {$result['total_savings_mb']} MB\n";
-echo "   • Tiempo transcurrido: {$duration} segundos\n";
+echo "   ?? Archivos procesados: {$result['processed']}\n";
+echo "   ?? Archivos optimizados: {$result['optimized']}\n";
+echo "   ?? Archivos fallidos: {$result['failed']}\n";
+echo "   ?? Espacio ahorrado: {$result['total_savings_mb']} MB\n";
+echo "   ?? Tiempo transcurrido: {$duration} segundos\n";
 echo "\n";
 
 if (!empty($result['files'])) {

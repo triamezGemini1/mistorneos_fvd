@@ -63,16 +63,16 @@ class Auth {
   }
 
   public static function logout(): void {
-    // Limpiar toda la sesi�n primero
+    // Limpiar toda la sesión primero
     $_SESSION = [];
     
-    // Destruir la sesi�n actual
+    // Destruir la sesión actual
     if (session_status() === PHP_SESSION_ACTIVE) {
       session_unset();
       session_destroy();
     }
     
-    // Limpiar cookies de sesi�n si est�n habilitadas
+    // Limpiar cookies de sesión si est�n habilitadas
     if (!headers_sent()) {
       $params = session_get_cookie_params();
       
@@ -142,7 +142,7 @@ class Auth {
       $ok = true;
     }
     if (!$ok) {
-      // Redirigir a una p�gina de error en lugar de establecer c�digo de respuesta
+      // Redirigir a una página de error en lugar de establecer código de respuesta
       if (!headers_sent()) {
         $base = class_exists('AppHelpers') && method_exists('AppHelpers', 'getRequestEntryUrl') ? AppHelpers::getRequestEntryUrl() : rtrim(app_base_url(), '/') . '/public';
         header('Location: ' . $base . '/access_denied.php');
@@ -151,7 +151,7 @@ class Auth {
         // Si los headers ya se enviaron, mostrar mensaje de error
         echo '<div class="alert alert-danger text-center mt-4">';
         echo '<h4>Acceso Denegado</h4>';
-        echo '<p>No tienes permisos para acceder a esta secci�n.</p>';
+        echo '<p>No tienes permisos para acceder a esta sección.</p>';
         $base = class_exists('AppHelpers') && method_exists('AppHelpers', 'getRequestEntryUrl') ? AppHelpers::getRequestEntryUrl() : rtrim(app_base_url(), '/') . '/public';
         echo '<a href="' . $base . '/index.php?page=registrants" class="btn btn-primary">Ir a Inscripciones</a>';
         echo '</div>';
@@ -227,15 +227,15 @@ class Auth {
       }
     }
     
-    // Si llega aqu�, no tiene permisos
+    // Si llega aquí, no tiene permisos
     if (!headers_sent()) {
-      header('Location: ' . app_base_url() . '/public/access_denied.php');
+      header('Location: ' . AppHelpers::url('access_denied.php'));
       exit;
     } else {
       echo '<div class="alert alert-danger text-center mt-4">';
       echo '<h4>Acceso Denegado</h4>';
-      echo '<p>No tienes permisos para acceder a esta secci�n.</p>';
-      echo '<a href="' . app_base_url() . '/public/index.php?page=registrants" class="btn btn-primary">Ir a Inscripciones</a>';
+      echo '<p>No tienes permisos para acceder a esta sección.</p>';
+      echo '<a href="' . htmlspecialchars(AppHelpers::url('index.php', ['page' => 'registrants'])) . '" class="btn btn-primary">Ir a Inscripciones</a>';
       echo '</div>';
       exit;
     }
@@ -618,7 +618,7 @@ class Auth {
   }
 
   /**
-   * Verifica si un torneo ya pas� (fechator < hoy)
+   * Verifica si un torneo ya pasó (fechator < hoy)
    * @param int $tournament_id
    * @return bool
    */

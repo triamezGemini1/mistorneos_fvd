@@ -45,7 +45,10 @@ if (!$torneo) {
 
 // Si el torneo ya finalizó, redirigir a resultados
 if ($torneo['fechator'] && strtotime($torneo['fechator']) < strtotime('today')) {
-    $resultados_url = app_base_url() . '/public/evento_resultados.php?torneo_id=' . $torneo_id . '&msg=' . urlencode('Este torneo ha finalizado. Consulta los resultados oficiales aquí.');
+    $resultados_url = AppHelpers::url('evento_resultados.php', [
+        'torneo_id' => $torneo_id,
+        'msg' => 'Este torneo ha finalizado. Consulta los resultados oficiales aquí.',
+    ]);
     header('Location: ' . $resultados_url);
     exit;
 }
@@ -262,7 +265,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $telefono = '58' . $telefono;
                 }
                 $app_url = $_ENV['APP_URL'] ?? (function_exists('app_base_url') ? app_base_url() : '');
-                $pago_link = rtrim($app_url, '/') . "/public/report_payment.php?payment_id=" . $payment_id;
+                $pago_link = AppHelpers::url("report_payment.php?payment_id=") . $payment_id;
                 $mensaje = "✅ *INSCRIPCIÓN EXITOSA*\n\nHola *" . htmlspecialchars($nombre) . "*\n\nTu registro e inscripción en el torneo han sido exitosos.\n\n🏆 *Torneo:* " . htmlspecialchars($torneo['nombre']) . "\n💰 *Costo:* $" . number_format($torneo['costo'], 2) . "\n\n🔗 *Reportar Pago:*\n" . $pago_link;
                 $_SESSION['payment_notification'] = ['mensaje' => $mensaje, 'telefono' => $telefono, 'payment_id' => $payment_id];
             }
@@ -354,7 +357,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 }
                 
                 $app_url = $_ENV['APP_URL'] ?? (function_exists('app_base_url') ? app_base_url() : FvdConfig::resolveAppUrl());
-                $pago_link = $app_url . "/public/report_payment.php?payment_id=" . $payment_id;
+                $pago_link = AppHelpers::url("report_payment.php?payment_id=") . $payment_id;
                 
                 $mensaje = "✅ *INSCRIPCIÓN EXITOSA*\n\n";
                 $mensaje .= "Hola *" . htmlspecialchars($usuario['nombre'] ?? $usuario['username']) . "*\n\n";

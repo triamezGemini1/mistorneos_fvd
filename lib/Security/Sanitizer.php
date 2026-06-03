@@ -5,7 +5,7 @@
 namespace Lib\Security;
 
 /**
- * Input Sanitizer - Limpieza y sanitizaci�n de inputs del usuario
+ * Input Sanitizer - Limpieza y sanitización de inputs del usuario
  * 
  * Previene:
  * - XSS (Cross-Site Scripting)
@@ -129,7 +129,7 @@ final class Sanitizer
     }
 
     /**
-     * Sanitiza HTML permitiendo tags espec�ficos
+     * Sanitiza HTML permitiendo tags específicos
      * 
      * @param string|null $html
      * @param array $allowedTags Tags permitidos (ej: ['p', 'a', 'strong'])
@@ -216,7 +216,7 @@ final class Sanitizer
         // Remover caracteres peligrosos
         $filename = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $filename);
         
-        // Prevenir nombres de archivo vac�os
+        // Prevenir nombres de archivo vacíos
         if (empty($filename) || $filename === '.') {
             return null;
         }
@@ -247,7 +247,7 @@ final class Sanitizer
             return null;
         }
 
-        // Si se especifica basePath, verificar que est� dentro
+        // Si se especifica basePath, verificar que est• dentro
         if ($basePath !== null) {
             $realBasePath = realpath($basePath);
             if ($realBasePath === false || strpos($realPath, $realBasePath) !== 0) {
@@ -262,7 +262,7 @@ final class Sanitizer
      * Sanitiza array recursivamente
      * 
      * @param array $array
-     * @param string $type Tipo de sanitizaci�n ('string', 'int', 'email', etc.)
+     * @param string $type Tipo de sanitización ('string', 'int', 'email', etc.)
      * @return array
      */
     public static function array(array $array, string $type = 'string'): array
@@ -328,7 +328,7 @@ final class Sanitizer
     }
 
     /**
-     * Limpia y valida c�dula/DNI/RUT
+     * Limpia y valida cédula/DNI/RUT
      * 
      * @param string|null $value
      * @return string|null
@@ -339,14 +339,14 @@ final class Sanitizer
             return null;
         }
 
-        // Remover todo excepto n�meros y guiones
+        // Remover todo excepto números y guiones
         $value = preg_replace('/[^0-9\-]/', '', $value);
         
         return trim($value) ?: null;
     }
 
     /**
-     * Limpia n�mero de tel�fono
+     * Limpia número de teléfono
      * 
      * @param string|null $value
      * @return string|null
@@ -357,14 +357,14 @@ final class Sanitizer
             return null;
         }
 
-        // Remover todo excepto n�meros, +, espacios y guiones
+        // Remover todo excepto números, +, espacios y guiones
         $value = preg_replace('/[^0-9+\-\s()]/', '', $value);
         
         return trim($value) ?: null;
     }
 
     /**
-     * Sanitiza c�digo postal
+     * Sanitiza código postal
      * 
      * @param string|null $value
      * @return string|null
@@ -441,10 +441,10 @@ final class Sanitizer
         // Remover acentos
         $value = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
         
-        // Solo letras, n�meros y guiones
+        // Solo letras, números y guiones
         $value = preg_replace('/[^a-z0-9\-]/', '-', $value);
         
-        // Remover m�ltiples guiones consecutivos
+        // Remover múltiples guiones consecutivos
         $value = preg_replace('/-+/', '-', $value);
         
         // Trim guiones

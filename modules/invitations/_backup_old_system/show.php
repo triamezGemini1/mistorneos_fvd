@@ -11,7 +11,7 @@ $q = $pdo->prepare("SELECT i.*, c.nombre as club_nombre, t.nombre as torneo_nomb
                     WHERE i.token=:tk");
 $q->execute([':tk'=>$token]);
 $inv = $q->fetch();
-if (!$inv) { exit('Invitaci�n no encontrada'); }
+if (!$inv) { exit('Invitación no encontrada'); }
 $url = inv_public_url($inv['torneo_id'], $inv['club_id'], $inv['token']);
 $wa_text = rawurlencode(
   "Hola " . ($inv['invitado_delegado'] ?? 'delegado') . ",\n" .
@@ -23,8 +23,8 @@ $wa_text = rawurlencode(
 );
 $wa = "https://wa.me/?text={$wa_text}";
 ?>
-<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Invitaci�n creada</title></head><body>
-<h1>Invitaci�n creada</h1>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Invitación creada</title></head><body>
+<h1>Invitación creada</h1>
 <p><strong>Club:</strong> <?=htmlspecialchars($inv['club_nombre'])?></p>
 <p><strong>Torneo:</strong> <?=htmlspecialchars($inv['torneo_nombre'])?></p>
 <p><strong>Vigencia:</strong> <?=htmlspecialchars($inv['acceso1'])?> ? <?=htmlspecialchars($inv['acceso2'])?></p>

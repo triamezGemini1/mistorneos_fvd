@@ -136,8 +136,8 @@ try {
     echo "\n";
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
     echo "✅ Migración completada!\n";
-    echo "   • Torneos actualizados: {$updated}\n";
-    echo "   • Errores: {$failed}\n";
+    echo "   ?? Torneos actualizados: {$updated}\n";
+    echo "   ?? Errores: {$failed}\n";
     echo "\n";
     
 } catch (Exception $e) {

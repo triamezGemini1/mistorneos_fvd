@@ -76,96 +76,193 @@ body.fvd-dashboard-compact .btn-outline-primary:hover {
   gap: 0.5rem;
   align-items: stretch;
 }
+.fvd-kpi-operativo__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
 @media (min-width: 992px) {
   .fvd-kpi-operativo__columns:not(.fvd-kpi-operativo__columns--single) {
     grid-template-columns: 1fr 1fr;
   }
 }
 .fvd-kpi-operativo .fvd-kpi-panel {
-  border-radius: 0.5rem;
-  border: 1px solid #e2e8f0;
-  background: rgba(248, 250, 252, 0.95);
-  padding: 0.5rem 0.55rem 0.55rem;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  border-radius: 0.625rem;
+  border: 1px solid #e8eef4;
+  background: #fafbfc;
+  padding: 0.65rem 0.75rem 0.75rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
   overflow: visible;
   min-width: 0;
 }
+.fvd-kpi-operativo .fvd-kpi-panel--atletas {
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
 .fvd-kpi-operativo .fvd-kpi-panel__title {
-  font-size: 0.625rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #64748b;
-  margin: 0 0 0.35rem 0.1rem;
-  line-height: 1.1;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: #334155;
+  margin: 0 0 0.55rem 0.1rem;
+  line-height: 1.35;
+}
+.fvd-kpi-operativo .fvd-kpi-panel__title--general {
+  color: #1e3a5f;
+}
+.fvd-kpi-operativo .fvd-kpi-panel__title--atletas {
+  color: #0f4c5c;
 }
 .fvd-kpi-grid {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.5rem;
   width: 100%;
 }
 .fvd-kpi-grid--general {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (min-width: 768px) {
+  .fvd-kpi-grid--general {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 .fvd-kpi-grid--atletas {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: auto auto;
+}
+.fvd-kpi-grid--atletas-bottom {
+  margin-top: 0.5rem;
 }
 @media (max-width: 575px) {
   .fvd-kpi-grid--atletas {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: auto auto auto;
+    grid-template-columns: 1fr;
+  }
+  .fvd-kpi-grid--general {
+    grid-template-columns: 1fr 1fr;
   }
 }
+
+/* Botones de estadística (pastel) */
+.fvd-stat-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.625rem;
+  border: 1px solid transparent;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+  min-height: 3.35rem;
+  box-sizing: border-box;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.fvd-stat-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.1);
+}
+.fvd-stat-btn__icon {
+  flex-shrink: 0;
+  width: 2.1rem;
+  height: 2.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.45);
+}
+.fvd-stat-btn__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+.fvd-stat-btn__label {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: inherit;
+  opacity: 0.92;
+}
+.fvd-stat-btn__value {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: inherit;
+}
+@media (min-width: 1024px) {
+  .fvd-stat-btn__value {
+    font-size: 1.375rem;
+  }
+}
+
+/* Colores pastel por indicador */
+.fvd-stat-btn--activos { background: #c8f0dc; border-color: #9ee0bc; color: #14532d; }
+.fvd-stat-btn--h-activos { background: #cce4ff; border-color: #a8cffc; color: #1e3a8a; }
+.fvd-stat-btn--m-activas { background: #d4f0ff; border-color: #a8ddfc; color: #0c4a6e; }
+.fvd-stat-btn--inactivos { background: #e8edf2; border-color: #cbd5e1; color: #334155; }
+.fvd-stat-btn--h-inactivos { background: #eceae8; border-color: #d6d3d1; color: #44403c; }
+.fvd-stat-btn--m-inactivas { background: #f5ebe8; border-color: #e7d5cf; color: #57534e; }
+.fvd-stat-btn--atletas { background: #dce8ff; border-color: #b8cff9; color: #1e3a8a; }
+.fvd-stat-btn--torneos { background: #ffeccc; border-color: #fcd98a; color: #92400e; }
+.fvd-stat-btn--asociaciones { background: #ccf5e3; border-color: #9debbd; color: #065f46; }
+.fvd-stat-btn--eventos { background: #ebe4ff; border-color: #cfc0fc; color: #5b21b6; }
+
+/* Legacy celdas (compat.) */
 .fvd-kpi-operativo .fvd-kpi-cell {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 2.1rem;
-  padding: 0.3rem 0.4rem 0.35rem;
-  border-radius: 0.35rem;
-  border: 1px solid #e2e8f0;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.55rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e8eef4;
   background: #fff;
-  border-left-width: 3px;
+  border-left-width: 4px;
   overflow: hidden;
   box-sizing: border-box;
 }
 .fvd-kpi-operativo .fvd-kpi-cell__head {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.35rem;
   min-width: 0;
 }
 .fvd-kpi-operativo .fvd-kpi-cell__icon-wrap {
   flex-shrink: 0;
-  width: 1rem;
-  height: 1rem;
+  width: 1.35rem;
+  height: 1.35rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.2rem;
-  font-size: 0.55rem;
+  border-radius: 0.35rem;
+  font-size: 0.65rem;
 }
 .fvd-kpi-operativo .fvd-kpi-cell__label {
-  font-size: 0.5625rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: #64748b;
-  line-height: 1.1;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  color: #475569;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .fvd-kpi-operativo .fvd-kpi-cell__value {
-  font-family: ui-monospace, monospace;
-  font-size: 0.8125rem;
-  font-weight: 800;
-  line-height: 1;
-  margin: 0.15rem 0 0;
-  padding-left: 1.2rem;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0.2rem 0 0;
+  padding-left: 1.65rem;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 /* Indicadores generales — tonos diferenciados */
 .fvd-kpi-operativo .fvd-kpi-cell--atletas { border-left-color: #1e40af; }
@@ -201,16 +298,162 @@ body.fvd-dashboard-compact .btn-outline-primary:hover {
 .fvd-kpi-operativo .fvd-kpi-cell--m-inactivas .fvd-kpi-cell__value { color: #57534e; }
 .fvd-kpi-operativo .fvd-kpi-panel--atletas .fvd-kpi-cell__label {
   white-space: normal;
-  line-height: 1.05;
-  font-size: 0.5rem;
+  line-height: 1.2;
+  font-size: 0.6875rem;
 }
-@media (min-width: 1024px) {
-  .fvd-kpi-operativo .fvd-kpi-cell {
-    min-height: 2.2rem;
-  }
-  .fvd-kpi-operativo .fvd-kpi-cell__value {
-    font-size: 0.875rem;
-  }
+
+/* Dashboard estadísticas — cabecera y botones pastel */
+.fvd-dashboard-stats__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.fvd-dashboard-stats__title {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #1e3a5f;
+  margin: 0;
+  line-height: 1.25;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.fvd-dashboard-stats__title i {
+  color: #c4a574;
+  font-size: 1.1rem;
+}
+.fvd-dashboard-stats__subtitle {
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin: 0.25rem 0 0;
+  line-height: 1.4;
+}
+.fvd-dashboard-stats__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.fvd-dashboard-stats__date {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+.fvd-dashboard-stats__kpis {
+  margin-bottom: 1rem;
+}
+.fvd-dashboard-acceso {
+  margin: 0 0 1rem;
+}
+.fvd-dash-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.5rem;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none !important;
+  border: 1px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  cursor: pointer;
+  line-height: 1.3;
+}
+a.fvd-dash-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  filter: brightness(0.98);
+}
+.fvd-dash-btn--chip {
+  pointer-events: none;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.65rem;
+}
+.fvd-dash-btn--lavender {
+  background: #e9e0ff;
+  color: #5b4b8a;
+  border-color: #d4c4f7;
+}
+.fvd-dash-btn--peach {
+  background: #ffe8d9;
+  color: #9a4d2e;
+  border-color: #ffd4b8;
+}
+.fvd-dash-btn--mint {
+  background: #d8f5e8;
+  color: #2d6a4f;
+  border-color: #b8ead4;
+}
+.fvd-dash-btn--sky {
+  background: #dbeafe;
+  color: #1e4976;
+  border-color: #bfdbfe;
+}
+.fvd-dash-btn--rose {
+  background: #fce7f3;
+  color: #9d174d;
+  border-color: #fbcfe8;
+}
+.fvd-dash-btn--torneos {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #78350f;
+  border-color: #fcd34d;
+}
+.fvd-dash-btn--hero {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.2);
+}
+.fvd-dash-btn--hero .fvd-dash-btn__icon {
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.55);
+  font-size: 1.25rem;
+  color: #b45309;
+}
+.fvd-dash-btn__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: left;
+}
+.fvd-dash-btn__title {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: inherit;
+}
+.fvd-dash-btn__hint {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  opacity: 0.85;
+  color: inherit;
+}
+.fvd-dash-btn__arrow {
+  flex-shrink: 0;
+  opacity: 0.7;
+  font-size: 0.9rem;
 }
 
 /* Panel operativo admin general — fallback sin Tailwind */

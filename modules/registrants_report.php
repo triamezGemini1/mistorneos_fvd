@@ -11,7 +11,7 @@ require_once __DIR__ . '/../config/db.php';
 // Permitir acceso a usuarios registrados y administradores
 $user = Auth::user();
 if (!$user) {
-    header('Location: ' . app_base_url() . '/public/login.php');
+    header('Location: ' . AppHelpers::url('login.php'));
     exit;
 }
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club', 'usuario']);

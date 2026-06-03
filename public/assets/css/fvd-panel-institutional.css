@@ -1,0 +1,591 @@
+/**
+ * FVD — Panel torneo y dashboard
+ * Paleta 60-30-10: botones y tarjetas con color institucional visible.
+ */
+
+/* —— Tipografía base en panel —— */
+.tw-panel.fvd-panel-institutional {
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+}
+
+/* —— Tarjetas de columna —— */
+.tw-panel.fvd-panel-institutional .tw-column > .bg-white.rounded-xl {
+  background: var(--color-bg-card) !important;
+  border: 1px solid var(--color-border-neutral) !important;
+  border-radius: var(--radius-ui) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08) !important;
+  overflow: hidden;
+}
+
+.tw-panel.fvd-panel-institutional .tw-column:nth-child(1) > .bg-white.rounded-xl {
+  border-top: 3px solid var(--fvd-section-mesas) !important;
+}
+
+.tw-panel.fvd-panel-institutional .tw-column:nth-child(2) > .bg-white.rounded-xl {
+  border-top: 3px solid var(--fvd-section-operaciones) !important;
+}
+
+.tw-panel.fvd-panel-institutional .tw-column:nth-child(3) > .bg-white.rounded-xl {
+  border-top: 3px solid var(--fvd-section-resultados) !important;
+}
+
+.tw-panel.fvd-panel-institutional .tw-column:nth-child(4) > .bg-white.rounded-xl {
+  border-top: 3px solid var(--color-border-neutral, #cbd5e1) !important;
+}
+
+/* Cabeceras sobrias: fondo claro + acento fino en el borde superior de la tarjeta */
+.tw-panel.fvd-panel-institutional .tw-column .bg-gradient-to-r,
+.tw-panel.fvd-panel-institutional .tw-column > .bg-white > div[class*="bg-gradient-to-r"] {
+  background: #f1f5f9 !important;
+  background-image: none !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  padding: 0.5rem 0.75rem !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+}
+
+.tw-panel.fvd-panel-institutional .tw-column .bg-gradient-to-r h3,
+.tw-panel.fvd-panel-institutional .tw-column .bg-gradient-to-r h3.text-white {
+  font-family: var(--font-sans);
+  font-size: 1.0625rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  letter-spacing: 0.015em;
+  margin: 0 !important;
+  justify-content: center !important;
+  width: 100%;
+  text-align: center !important;
+}
+
+.tw-panel.fvd-panel-institutional .p-5 {
+  padding: 0.65rem 0.75rem !important;
+  background: var(--color-bg-main);
+}
+
+.tw-panel.fvd-panel-institutional .space-y-4 > * + * {
+  margin-top: 0.35rem !important;
+}
+
+/* —— Botones: layout común —— */
+.tw-panel.fvd-panel-institutional a.tw-btn,
+.tw-panel.fvd-panel-institutional button.tw-btn,
+.tw-panel.fvd-panel-institutional span.tw-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2rem;
+  padding: 6px 12px !important;
+  font-family: var(--font-sans) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  line-height: 1.25rem !important;
+  border-radius: var(--radius-ui) !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
+}
+
+/* PRIMARY — naval (gestión, inscripciones, generar ronda) */
+.tw-panel.fvd-panel-institutional a[class*="bg-blue-"],
+.tw-panel.fvd-panel-institutional button[class*="bg-blue-"],
+.tw-panel.fvd-panel-institutional a[class*="bg-indigo-"],
+.tw-panel.fvd-panel-institutional button[class*="bg-indigo-"] {
+  background-color: var(--color-text-primary) !important;
+  color: #fff !important;
+  border-color: var(--color-text-primary) !important;
+}
+
+.tw-panel.fvd-panel-institutional a[class*="bg-blue-"]:hover,
+.tw-panel.fvd-panel-institutional button[class*="bg-blue-"]:hover:not(:disabled),
+.tw-panel.fvd-panel-institutional a[class*="bg-indigo-"]:hover,
+.tw-panel.fvd-panel-institutional button[class*="bg-indigo-"]:hover:not(:disabled) {
+  background-color: #020617 !important;
+  border-color: #020617 !important;
+  filter: none;
+}
+
+/* ACCENT — ámbar / naranja (inscripción en sitio, traspasos, podios) */
+.tw-panel.fvd-panel-institutional a[class*="bg-amber-"],
+.tw-panel.fvd-panel-institutional button[class*="bg-amber-"],
+.tw-panel.fvd-panel-institutional a[class*="bg-orange-"] {
+  background-color: var(--color-brand-accent) !important;
+  color: #fff !important;
+  border-color: var(--color-brand-accent) !important;
+}
+
+.tw-panel.fvd-panel-institutional a[class*="bg-amber-"]:hover,
+.tw-panel.fvd-panel-institutional button[class*="bg-amber-"]:hover:not(:disabled),
+.tw-panel.fvd-panel-institutional a[class*="bg-orange-"]:hover {
+  background-color: #92400e !important;
+  border-color: #92400e !important;
+}
+
+/* SUCCESS — verde institucional (mesas, asignaciones, clubes) */
+.tw-panel.fvd-panel-institutional a[class*="bg-emerald-"],
+.tw-panel.fvd-panel-institutional a[class*="bg-green-"] {
+  background-color: var(--color-success) !important;
+  color: #fff !important;
+  border-color: var(--color-success) !important;
+}
+
+.tw-panel.fvd-panel-institutional a[class*="bg-emerald-"]:hover,
+.tw-panel.fvd-panel-institutional a[class*="bg-green-"]:hover {
+  background-color: #065f46 !important;
+  border-color: #065f46 !important;
+}
+
+/* OPERACIONES — teal (mesas operador, por asociación) */
+.tw-panel.fvd-panel-institutional a[class*="bg-teal-"] {
+  background-color: #0f766e !important;
+  color: #fff !important;
+  border-color: #0f766e !important;
+}
+
+.tw-panel.fvd-panel-institutional a[class*="bg-teal-"]:hover {
+  background-color: #115e59 !important;
+  border-color: #115e59 !important;
+}
+
+/* INFO — azul (invitar clubes, agregar mesa, ranking web) */
+.tw-panel.fvd-panel-institutional a[class*="bg-cyan-"],
+.tw-panel.fvd-panel-institutional a[class*="bg-sky-"],
+.tw-panel.fvd-panel-institutional button[class*="bg-cyan-"] {
+  background-color: var(--color-info) !important;
+  color: #fff !important;
+  border-color: var(--color-info) !important;
+}
+
+.tw-panel.fvd-panel-institutional a[class*="bg-cyan-"]:hover,
+.tw-panel.fvd-panel-institutional a[class*="bg-sky-"]:hover,
+.tw-panel.fvd-panel-institutional button[class*="bg-cyan-"]:hover:not(:disabled) {
+  background-color: #075985 !important;
+  border-color: #075985 !important;
+}
+
+/* REPORTES — pizarra (resultados, cuadrícula, PDF, QR) */
+.tw-panel.fvd-panel-institutional a[class*="bg-purple-"],
+.tw-panel.fvd-panel-institutional a[class*="bg-violet-"],
+.tw-panel.fvd-panel-institutional a[class*="bg-rose-"] {
+  background-color: var(--color-primary-muted) !important;
+  color: #fff !important;
+  border-color: var(--color-primary-muted) !important;
+}
+
+.tw-panel.fvd-panel-institutional a[class*="bg-purple-"]:hover,
+.tw-panel.fvd-panel-institutional a[class*="bg-violet-"]:hover,
+.tw-panel.fvd-panel-institutional a[class*="bg-rose-"]:hover {
+  background-color: #1e293b !important;
+  border-color: #1e293b !important;
+}
+
+/* SECUNDARIO — contorno naval (invitaciones, reportes neutros) */
+.tw-panel.fvd-panel-institutional a[class*="bg-slate-"] {
+  background-color: var(--color-bg-card) !important;
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-text-primary) !important;
+}
+
+.tw-panel.fvd-panel-institutional a[class*="bg-slate-"]:hover {
+  background-color: var(--color-text-primary) !important;
+  color: #fff !important;
+}
+
+/* DESTRUCTIVO */
+.tw-panel.fvd-panel-institutional button[class*="bg-red-"] {
+  background-color: var(--color-danger) !important;
+  color: #fff !important;
+  border-color: var(--color-danger) !important;
+}
+
+.tw-panel.fvd-panel-institutional button[class*="bg-red-"]:hover:not(:disabled) {
+  background-color: #991b1b !important;
+  border-color: #991b1b !important;
+}
+
+/* DESHABILITADO */
+.tw-panel.fvd-panel-institutional .tw-btn[class*="bg-gray-"],
+.tw-panel.fvd-panel-institutional button.tw-btn:disabled,
+.tw-panel.fvd-panel-institutional .tw-btn.cursor-not-allowed {
+  background-color: #e2e8f0 !important;
+  color: #94a3b8 !important;
+  border-color: #cbd5e1 !important;
+  opacity: 1;
+  cursor: not-allowed !important;
+}
+
+/* Alerta verificar mesas */
+.tw-panel.fvd-panel-institutional .tw-panel-btn--alert {
+  background-color: var(--color-brand-accent) !important;
+  color: #fff !important;
+  border-color: var(--color-brand-accent) !important;
+}
+
+/* Encabezado torneo */
+.tw-panel.fvd-panel-institutional .panel-header,
+.tw-panel.fvd-panel-institutional .fvd-panel-header {
+  background: var(--color-text-primary) !important;
+  border-radius: var(--radius-ui) !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-header .titulo-torneo,
+.tw-panel.fvd-panel-institutional .panel-header .meta {
+  font-family: var(--font-sans);
+  color: #fff;
+}
+
+/* Franja superior — tarjetas con tinte */
+.tw-panel.fvd-panel-institutional .panel-top-strip__label {
+  font-family: var(--font-sans);
+  color: var(--color-text-primary) !important;
+  font-weight: 800 !important;
+  font-size: 0.92rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.tw-panel.fvd-panel-institutional .panel-top-strip .panel-badge-med {
+  border: 1px solid var(--color-border-neutral) !important;
+  border-left-width: 3px !important;
+  border-radius: var(--radius-ui) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.tw-panel.fvd-panel-institutional .panel-badge-med__k {
+  font-family: var(--font-sans);
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-badge-med__v {
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-top-strip__stats-row--inline .panel-badge-med__k {
+  font-size: 1rem !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-top-strip__stats-row--inline .panel-badge-med__v {
+  font-size: 1.69rem !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-badge-med--emerald {
+  background: var(--color-success-bg) !important;
+  border-left-color: var(--color-success) !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-badge-med--blue {
+  background: var(--color-info-bg) !important;
+  border-left-color: var(--color-info) !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-badge-med--amber {
+  background: var(--color-warning-bg) !important;
+  border-left-color: var(--color-brand-accent) !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-badge-med--indigo {
+  background: var(--color-primary-bg) !important;
+  border-left-color: var(--color-text-primary) !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-badge-med--rose {
+  background: #fdf2f8 !important;
+  border-left-color: #9d174d !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-badge-med--slate {
+  background: #f1f5f9 !important;
+  border-left-color: #475569 !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-badge-med--violet {
+  background: #f5f3ff !important;
+  border-left-color: #6d28d9 !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-badge-med__v {
+  color: var(--color-text-primary) !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.35rem !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-top-strip__cron .panel-top-strip__cron-btn {
+  font-family: var(--font-sans);
+  border-radius: var(--radius-ui) !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-top-strip__cron .panel-top-strip__cron-btn:not(.panel-top-strip__cron-btn--banner) {
+  background: var(--color-brand-accent) !important;
+  color: #fff !important;
+  border-color: var(--color-brand-accent) !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-top-strip__cron .panel-top-strip__cron-btn:not(.panel-top-strip__cron-btn--banner):hover {
+  background: #92400e !important;
+  border-color: #92400e !important;
+  color: #fff !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-top-strip__cron .panel-top-strip__cron-btn--banner {
+  background: linear-gradient(135deg, #3730a3 0%, #4f46e5 100%) !important;
+  border-color: #4338ca !important;
+  color: #fff !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-top-strip__cron .countdown-tiempo-restante {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--color-text-primary) !important;
+}
+
+.tw-panel.fvd-panel-institutional .panel-top-strip__link-verify {
+  color: var(--color-brand-accent) !important;
+  font-weight: 500;
+}
+
+.tw-panel.fvd-panel-institutional nav[aria-label="breadcrumb"] a {
+  color: var(--color-text-secondary) !important;
+  font-size: 0.875rem;
+}
+
+.tw-panel.fvd-panel-institutional nav[aria-label="breadcrumb"] a:hover {
+  color: var(--color-brand-accent) !important;
+}
+
+/* —— Dashboard home —— */
+.fvd-dashboard-home {
+  font-family: var(--font-sans);
+}
+
+.fvd-dashboard-home__title {
+  font-family: var(--font-sans);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.fvd-dashboard-home__subtitle {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  margin: 0.25rem 0 0;
+}
+
+.fvd-dashboard-home__actions .btn-fvd-ghost {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-text-primary);
+  border-radius: var(--radius-ui);
+  text-decoration: none;
+}
+
+.fvd-dashboard-home__actions .btn-fvd-ghost:hover {
+  background: var(--color-text-primary);
+  color: #fff;
+}
+
+.fvd-dashboard-home__actions .btn-fvd-accent-sm {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--color-brand-accent);
+  border: 1px solid var(--color-brand-accent);
+  border-radius: var(--radius-ui);
+  text-decoration: none;
+}
+
+.fvd-dashboard-home__actions .btn-fvd-accent-sm:hover {
+  background: #92400e;
+  border-color: #92400e;
+  color: #fff;
+}
+
+.fvd-dashboard-home__date {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.fvd-dashboard-home__role-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-brand-accent);
+  background: var(--color-text-primary);
+  border-radius: var(--radius-ui);
+}
+
+/* ========== Panel gestión de torneos: títulos pastel +60% y botones en degradado por columna ========== */
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(1) .bg-gradient-to-r,
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(1) > .bg-white > div[class*="bg-gradient-to-r"] {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 45%, #ccfbf1 100%) !important;
+  border-bottom-color: #6ee7b7 !important;
+}
+
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(2) .bg-gradient-to-r,
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(2) > .bg-white > div[class*="bg-gradient-to-r"] {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 48%, #e0e7ff 100%) !important;
+  border-bottom-color: #93c5fd !important;
+}
+
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(3) .bg-gradient-to-r,
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(3) > .bg-white > div[class*="bg-gradient-to-r"] {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 48%, #ffedd5 100%) !important;
+  border-bottom-color: #fcd34d !important;
+}
+
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(1) .bg-gradient-to-r h3 {
+  color: #065f46 !important;
+}
+
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(2) .bg-gradient-to-r h3 {
+  color: #1e3a8a !important;
+}
+
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(3) .bg-gradient-to-r h3 {
+  color: #92400e !important;
+}
+
+/* +60% sobre tamaño base del panel (1.0625rem → 1.7rem; 14" 1.3125rem → 2.1rem; ≥1280px 1.5rem → 2.4rem) */
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column .bg-gradient-to-r h3,
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column .bg-gradient-to-r h3.text-white {
+  font-size: 1.7rem !important;
+  line-height: 1.25 !important;
+}
+
+@media (min-width: 1024px) {
+  body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column .bg-gradient-to-r h3,
+  body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column .bg-gradient-to-r h3.text-white {
+    font-size: 2.1rem !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column .bg-gradient-to-r h3,
+  body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column .bg-gradient-to-r h3.text-white {
+    font-size: 2.4rem !important;
+  }
+}
+
+/* Botones: degradado de la paleta de cada columna */
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(1) a.tw-btn:not([class*="bg-gray"]):not(.cursor-not-allowed),
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(1) button.tw-btn:not(:disabled):not([class*="bg-gray"]),
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(1) span.tw-btn:not([class*="bg-gray"]) {
+  background: linear-gradient(135deg, #6ee7b7 0%, #2dd4bf 55%, #5eead4 100%) !important;
+  color: #064e3b !important;
+  border-color: #14b8a6 !important;
+}
+
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(1) a.tw-btn:not([class*="bg-gray"]):not(.cursor-not-allowed):hover,
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(1) button.tw-btn:not(:disabled):not([class*="bg-gray"]):hover {
+  background: linear-gradient(135deg, #34d399 0%, #14b8a6 55%, #0d9488 100%) !important;
+  color: #022c22 !important;
+  border-color: #0f766e !important;
+}
+
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(2) a.tw-btn:not([class*="bg-gray"]):not(.cursor-not-allowed),
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(2) button.tw-btn:not(:disabled):not([class*="bg-gray"]),
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(2) span.tw-btn:not([class*="bg-gray"]) {
+  background: linear-gradient(135deg, #93c5fd 0%, #60a5fa 50%, #818cf8 100%) !important;
+  color: #1e3a8a !important;
+  border-color: #3b82f6 !important;
+}
+
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(2) a.tw-btn:not([class*="bg-gray"]):not(.cursor-not-allowed):hover,
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(2) button.tw-btn:not(:disabled):not([class*="bg-gray"]):hover {
+  background: linear-gradient(135deg, #3b82f6 0%, #4f46e5 55%, #4338ca 100%) !important;
+  color: #fff !important;
+  border-color: #3730a3 !important;
+}
+
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(3) a.tw-btn:not([class*="bg-gray"]):not(.cursor-not-allowed),
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(3) button.tw-btn:not(:disabled):not([class*="bg-gray"]),
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(3) span.tw-btn:not([class*="bg-gray"]) {
+  background: linear-gradient(135deg, #fcd34d 0%, #fbbf24 50%, #fdba74 100%) !important;
+  color: #78350f !important;
+  border-color: #f59e0b !important;
+}
+
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(3) a.tw-btn:not([class*="bg-gray"]):not(.cursor-not-allowed):hover,
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column:nth-child(3) button.tw-btn:not(:disabled):not([class*="bg-gray"]):hover {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 55%, #d97706 100%) !important;
+  color: #fff !important;
+  border-color: #c2410c !important;
+}
+
+body.page-panel-control-torneos .tw-panel.fvd-panel-institutional:not(.fvd-panel-operativo) .tw-column .tw-panel-btn--alert {
+  filter: saturate(1.08);
+}
+
+/* Pie del panel: crédito La Estación del Dominó (tamaño visible) */
+.tw-panel.fvd-panel-institutional .fvd-panel-footer-credit {
+  margin-top: 1.25rem;
+  padding: 1rem 0.75rem 0.5rem;
+  background: var(--color-bg-card, #fff);
+  border-radius: var(--radius-ui, 6px);
+  border: 1px solid var(--color-border-neutral, #e2e8f0);
+}
+
+.tw-panel.fvd-panel-institutional .fvd-panel-footer-credit .fvd-support-credit {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  gap: 0.65rem 1rem;
+}
+
+.tw-panel.fvd-panel-institutional .fvd-panel-footer-credit .fvd-support-credit__text {
+  max-width: 100%;
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary, #475569);
+}
+
+.tw-panel.fvd-panel-institutional .fvd-panel-footer-credit .fvd-support-credit__logo {
+  height: 5.5rem;
+  max-width: min(100%, 28rem);
+  object-fit: contain;
+  object-position: center;
+}
+
+@media (min-width: 768px) {
+  .tw-panel.fvd-panel-institutional .fvd-panel-footer-credit .fvd-support-credit {
+    flex-direction: row;
+    justify-content: center;
+    text-align: left;
+  }
+  .tw-panel.fvd-panel-institutional .fvd-panel-footer-credit .fvd-support-credit__logo {
+    height: 6.5rem;
+    max-width: 32rem;
+  }
+}

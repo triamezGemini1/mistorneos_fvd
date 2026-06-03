@@ -74,7 +74,7 @@ final class BusquedaJugadorInscripcionService
             if ($c === '') {
                 continue;
             }
-            $stmt = $pdo->prepare('SELECT id, username, nacionalidad, nombre, cedula, sexo, fechnac, celular, email, club_id, role, status FROM usuarios WHERE cedula = ? LIMIT 1');
+            $stmt = $pdo->prepare('SELECT id, username, nacionalidad, nombre, cedula, sexo, fechnac, celular, email, club_id, role, status, entidad FROM usuarios WHERE cedula = ? LIMIT 1');
             $stmt->execute([$c]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($row) {
@@ -82,7 +82,7 @@ final class BusquedaJugadorInscripcionService
             }
         }
         $stmt = $pdo->prepare('
-            SELECT id, username, nacionalidad, nombre, cedula, sexo, fechnac, celular, email, club_id, role, status
+            SELECT id, username, nacionalidad, nombre, cedula, sexo, fechnac, celular, email, club_id, role, status, entidad
             FROM usuarios
             WHERE REPLACE(REPLACE(REPLACE(REPLACE(TRIM(CAST(cedula AS CHAR)), \'-\', \'\'), \'.\', \'\'), \' \', \'\'), \'/\', \'\') = ?
             LIMIT 1
@@ -105,15 +105,14 @@ final class BusquedaJugadorInscripcionService
             return null;
         }
         require_once $path;
+        if (!PersonaDatabase::isConfigured()) {
+            return null;
+        }
         $nac = self::normalizarNacionalidad($nacionalidad);
         try {
-            $database = new PersonaDatabase();
-            $result = $database->searchPersonaById($nac, $cedulaDigitos);
-            if (!empty($result['encontrado']) && !empty($result['persona'])) {
-                return ['persona' => $result['persona']];
-            }
-            if (!empty($result['success']) && !empty($result['data'])) {
-                return ['persona' => $result['data']];
+            $persona = PersonaDatabase::buscarPorCedula($nac, $cedulaDigitos);
+            if ($persona !== null) {
+                return ['persona' => $persona];
             }
         } catch (Throwable $e) {
             error_log('BusquedaJugadorInscripcionService externa: ' . $e->getMessage());

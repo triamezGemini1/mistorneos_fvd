@@ -53,6 +53,25 @@ $files = [
     'public/api/reporte_pago_admin.php',
     'public/assets/reportes-pago-usuarios.js',
     'modules/gestion_torneos/panel-moderno.php',
+    // Estadísticas partiresul → numfvd (sin id_usuario en producción)
+    'lib/PartiresulJugadorHelper.php',
+    'modules/torneo_gestion.php',
+    'lib/Core/MesaRepositoryPersistTrait.php',
+    'config/env.production.example',
+    // QR personal del atleta (torneo_qr_jugador.php)
+    'lib/NumfvdHelper.php',
+    'lib/PublicInfoTorneoMesasService.php',
+    'lib/PublicTorneoPortalHelper.php',
+    'public/torneo_qr_jugador.php',
+    'modules/tournament_admin.php',
+    'modules/tournament_admin/imprimir_qr_lote.php',
+    'modules/tournament_admin/reporte_identificacion_jugadores.php',
+    'modules/tournament_admin/generar_qr.php',
+    'lib/TorneoJugadorQrToken.php',
+    'lib/TorneoQrJugadorMesaPartial.php',
+    'public/diag_qr_jugador.php',
+    'lib/InscritosPartiresulHelper.php',
+    'scripts/test_qr_token.php',
 ];
 
 if (!is_dir($distDir) && !@mkdir($distDir, 0755, true) && !is_dir($distDir)) {

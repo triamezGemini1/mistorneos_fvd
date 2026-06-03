@@ -19,7 +19,7 @@ $url_panel = rtrim($base_url, '/') . '/' . basename($script) . '?page=torneo_ges
 // URL pública: consulta de mesa por ronda (QR del torneo + ID de jugador; no expone el perfil completo)
 $public_base = rtrim(AppHelpers::getPublicUrl(), '/');
 $info_torneo_mesas_url = $public_base . '/info_torneo_mesas.php?torneo_id=' . (int) $torneo_id;
-$torneo_info_url = $base_url . '/public/torneo_info.php?torneo_id=' . $torneo_id;
+$torneo_info_url = AppHelpers::url('torneo_info.php', ['torneo_id' => $torneo_id]);
 
 // URLs específicas para cada sección
 $urls = [

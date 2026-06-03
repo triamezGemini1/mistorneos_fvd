@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/auth.php';
 // Verificar que solo admin_general y admin_torneo pueden acceder
 Auth::requireRole(['admin_general', 'admin_torneo']);
 
-// Obtener acci�n solicitada
+// Obtener acción solicitada
 $action = $_GET['action'] ?? 'list';
 
 // Obtener lista de pagos
@@ -30,7 +30,7 @@ try {
         <div>
             <h1 class="h3 mb-1">
                 <i class="fas fa-credit-card me-2"></i>
-                Gesti�n de Pagos
+                Gestión de Pagos
             </h1>
             <p class="text-muted mb-0">Administra los pagos del sistema</p>
         </div>
@@ -175,7 +175,7 @@ try {
                 <div class="text-center py-5">
                     <i class="fas fa-credit-card text-muted fs-1 mb-3"></i>
                     <h5 class="text-muted">No hay pagos registrados</h5>
-                    <p class="text-muted">Los pagos aparecer�n aqu� cuando se registren</p>
+                    <p class="text-muted">Los pagos aparecer�n aqu• cuando se registren</p>
                 </div>
             <?php endif; ?>
         </div>

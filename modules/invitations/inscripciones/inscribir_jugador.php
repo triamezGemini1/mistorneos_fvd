@@ -23,7 +23,7 @@ try {
     $celular = trim($_POST['celular'] ?? '');
     $categ = (int)($_POST['categ'] ?? 0);
     
-    // Limpiar c�dula: remover nacionalidad si viene pegada (V12345678 ? 12345678)
+    // Limpiar cédula: remover nacionalidad si viene pegada (V12345678 ? 12345678)
     $cedula = preg_replace('/^[VEJP]/i', '', $cedula);
     
     $torneo_id = $_SESSION['torneo_id'];
@@ -31,7 +31,7 @@ try {
     
     // Validaciones
     if (empty($cedula)) {
-        echo json_encode(['success' => false, 'message' => 'Debe ingresar la c�dula']);
+        echo json_encode(['success' => false, 'message' => 'Debe ingresar la cédula']);
         exit;
     }
     
@@ -45,13 +45,13 @@ try {
         exit;
     }
     
-    // Fecha de nacimiento ya no es requerida (est� oculta)
+    // Fecha de nacimiento ya no es requerida (est• oculta)
     // if (empty($fechnac)) {
     //     echo json_encode(['success' => false, 'message' => 'Debe ingresar la fecha de nacimiento']);
     //     exit;
     // }
     
-    // Verificar si ya est� inscrito en este torneo
+    // Verificar si ya est• inscrito en este torneo
     $stmt = $pdo->prepare("
         SELECT id FROM inscripciones 
         WHERE cedula = ? AND torneo_id = ? AND club_id = ?
@@ -61,7 +61,7 @@ try {
     if ($stmt->fetch()) {
         echo json_encode([
             'success' => false, 
-            'message' => 'El jugador ya est� inscrito en este torneo'
+            'message' => 'El jugador ya est• inscrito en este torneo'
         ]);
         exit;
     }
@@ -69,7 +69,7 @@ try {
     // Convertir nombre a may�sculas
     $nombre = strtoupper($nombre);
     
-    // Convertir sexo de letra a n�mero para la base de datos
+    // Convertir sexo de letra a número para la base de datos
     // Tabla registrants usa: 1 = Masculino, 2 = Femenino
     $sexoNumerico = 1; // Por defecto Masculino
     if (strtoupper($sexo) === 'F' || $sexo == '2') {

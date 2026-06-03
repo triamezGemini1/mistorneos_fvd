@@ -60,18 +60,46 @@ if ($qNombre === '' && $cedula === '' && $cedula_raw !== '') {
 try {
     $pdo = DB::pdo();
 
-    $emitirEncontradoUsuario = static function (array $persona, string $cRef) use ($pdo): void {
+    $inscribirSitio = !empty($input['inscribir_sitio']) || !empty($input['sitio']);
+    $clubFiltroPost = (int) ($input['id_club'] ?? $input['club_id'] ?? 0);
+    $clubFiltro = AsociacionAdminHelper::clubFiltroInscripcionSitio(
+        $pdo,
+        $clubFiltroPost > 0 ? $clubFiltroPost : null
+    );
+    $filtroAmbitoSql = static function (string $alias = 'u') use ($pdo, $clubFiltro): array {
+        if ($clubFiltro !== null && $clubFiltro > 0) {
+            return AsociacionAdminHelper::filtroSqlUsuariosPorClub($clubFiltro, $alias);
+        }
+
+        return AsociacionAdminHelper::filtroSqlUsuariosAsociacion($pdo, $alias);
+    };
+    $rechazarSiFueraAsociacion = static function (int $uid) use ($pdo, $clubFiltro, $inscribirSitio): bool {
+        if ($uid <= 0) {
+            return false;
+        }
+        if ($clubFiltro !== null && $clubFiltro > 0) {
+            return !AsociacionAdminHelper::usuarioPerteneceAClub($pdo, $uid, $clubFiltro);
+        }
+
+        return $inscribirSitio && !AsociacionAdminHelper::usuarioEnAmbitoAsociacion($pdo, $uid);
+    };
+
+    $emitirEncontradoUsuario = static function (array $persona, string $cRef) use ($pdo, $rechazarSiFueraAsociacion, $clubFiltro): void {
         $uid = (int) ($persona['id'] ?? 0);
-        if ($uid > 0 && !AsociacionAdminHelper::usuarioEnAmbitoAsociacion($pdo, $uid)) {
+        if ($rechazarSiFueraAsociacion($uid)) {
+            $msg = ($clubFiltro !== null && $clubFiltro > 0)
+                ? 'El atleta no pertenece a la asociación seleccionada.'
+                : 'El atleta no pertenece a su asociación.';
             echo json_encode([
                 'accion' => 'error',
                 'status' => 'error',
-                'mensaje' => 'El atleta no pertenece a su asociación.',
+                'mensaje' => $msg,
                 'error' => 'fuera_ambito',
                 'encontrado' => false,
             ]);
             exit;
         }
+        $clubRes = AsociacionAdminHelper::resolverClubAtletaDesdeUsuario($pdo, $persona);
         $fechnac = $persona['fechnac'] ?? '';
         if ($fechnac && preg_match('/^\d{4}-\d{2}-\d{2}/', $fechnac) === false && strtotime($fechnac) !== false) {
             $fechnac = date('Y-m-d', strtotime($fechnac));
@@ -83,7 +111,7 @@ try {
             'encontrado' => true,
             'fuente' => 'usuarios',
             'existe_en_usuarios' => true,
-            'mensaje' => 'Datos encontrados en la plataforma. Revise y pulse Inscribir.',
+            'mensaje' => 'Datos encontrados en la plataforma. Revise la asociación y pulse Inscribir.',
             'persona' => [
                 'id' => (int) ($persona['id'] ?? 0),
                 'username' => $persona['username'] ?? '',
@@ -95,14 +123,33 @@ try {
                 'celular' => $celular,
                 'telefono' => $celular,
                 'email' => $persona['email'] ?? '',
-                'club_id' => (int) ($persona['club_id'] ?? 0),
+                'club_id' => (int) ($clubRes['club_id'] ?? 0),
+                'club_nombre' => (string) ($clubRes['club_nombre'] ?? ''),
             ],
         ]);
         exit;
     };
 
+    $exigirClubInscripcionSitio = static function () use ($inscribirSitio, $torneo_id, $clubFiltro): ?array {
+        if (!$inscribirSitio || $torneo_id <= 0 || $clubFiltro !== null) {
+            return null;
+        }
+
+        return [
+            'accion' => 'error',
+            'status' => 'error',
+            'mensaje' => 'Seleccione la asociación en el panel antes de buscar.',
+            'error' => 'club_requerido',
+            'encontrado' => false,
+        ];
+    };
+
     // ─── BLOQUE 0a: ID de usuario (inscripción en sitio: búsqueda por ID) ───
     if ($userIdParam > 0) {
+        if ($errClub = $exigirClubInscripcionSitio()) {
+            echo json_encode($errClub);
+            exit;
+        }
         if ($torneo_id <= 0) {
             http_response_code(400);
             echo json_encode([
@@ -124,8 +171,12 @@ try {
             ]);
             exit;
         }
-        $stmtU = $pdo->prepare('SELECT id, username, nacionalidad, nombre, cedula, sexo, fechnac, celular, email, club_id FROM usuarios WHERE id = ? LIMIT 1');
-        $stmtU->execute([$userIdParam]);
+        [$sqlAmbitoId, $paramsAmbitoId] = $filtroAmbitoSql('u');
+        $stmtU = $pdo->prepare(
+            'SELECT id, username, nacionalidad, nombre, cedula, sexo, fechnac, celular, email, club_id, entidad
+             FROM usuarios u WHERE u.id = ?' . $sqlAmbitoId . ' LIMIT 1'
+        );
+        $stmtU->execute(array_merge([$userIdParam], $paramsAmbitoId));
         $persona = $stmtU->fetch(PDO::FETCH_ASSOC);
         if ($persona) {
             error_log('search_persona.php - BLOQUE ID: ENCONTRADO id=' . $userIdParam);
@@ -137,6 +188,10 @@ try {
     // ─── BLOQUE 0b: Nombre o usuario (fragmento, mín. 3 caracteres) ───
     $lenQ = function_exists('mb_strlen') ? mb_strlen($qNombre, 'UTF-8') : strlen($qNombre);
     if ($qNombre !== '' && $lenQ >= 3) {
+        if ($errClub = $exigirClubInscripcionSitio()) {
+            echo json_encode($errClub);
+            exit;
+        }
         if ($torneo_id <= 0) {
             http_response_code(400);
             echo json_encode([
@@ -148,9 +203,9 @@ try {
             exit;
         }
         $like = '%' . addcslashes($qNombre, '%_\\') . '%';
-        [$sqlAmbito, $paramsAmbito] = AsociacionAdminHelper::filtroSqlUsuariosAsociacion($pdo, 'u');
+        [$sqlAmbito, $paramsAmbito] = $filtroAmbitoSql('u');
         $stmtN = $pdo->prepare("
-            SELECT id, username, nacionalidad, nombre, cedula, sexo, fechnac, celular, email, club_id
+            SELECT id, username, nacionalidad, nombre, cedula, sexo, fechnac, celular, email, club_id, entidad
             FROM usuarios u
             WHERE (u.nombre LIKE ? OR u.username LIKE ?)
             {$sqlAmbito}
@@ -254,17 +309,45 @@ try {
     }
 
     // ─── BLOQUE 2: USUARIO. Si existe en usuarios → una sola acción: encontrado_usuario (persona con id; front rellena y permite inscribir). ───
+    if ($errClub = $exigirClubInscripcionSitio()) {
+        echo json_encode($errClub);
+        exit;
+    }
     error_log("search_persona.php - BLOQUE USUARIO: Buscando en usuarios (cedula variantes)");
+    $procesarPersonaCedula = static function (array $persona, string $cRef) use (
+        $emitirEncontradoUsuario,
+        $rechazarSiFueraAsociacion,
+        $clubFiltro
+    ): void {
+        $uid = (int) ($persona['id'] ?? 0);
+        if ($rechazarSiFueraAsociacion($uid)) {
+            $msg = ($clubFiltro !== null && $clubFiltro > 0)
+                ? 'El atleta está registrado en otra asociación. Seleccione la asociación correcta en el panel si desea inscribirlo con otro código.'
+                : 'El atleta no pertenece a su asociación.';
+            echo json_encode([
+                'accion' => 'error',
+                'status' => 'error',
+                'mensaje' => $msg,
+                'error' => 'fuera_ambito',
+                'encontrado' => false,
+            ]);
+            exit;
+        }
+        $emitirEncontradoUsuario($persona, $cRef);
+    };
     $cedula_variantes = array_unique([$cedula, $nacionalidad . $cedula]);
     foreach ($cedula_variantes as $c) {
         if ($c === '') continue;
         try {
-            $stmt = $pdo->prepare("SELECT id, username, nacionalidad, nombre, cedula, sexo, fechnac, celular, email, club_id FROM usuarios WHERE cedula = ? LIMIT 1");
+            $stmt = $pdo->prepare(
+                'SELECT id, username, nacionalidad, nombre, cedula, sexo, fechnac, celular, email, club_id, entidad
+                 FROM usuarios WHERE cedula = ? LIMIT 1'
+            );
             $stmt->execute([$c]);
             $persona = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($persona) {
                 error_log("search_persona.php - BLOQUE USUARIO: ENCONTRADO (" . ($persona['nombre'] ?? '') . ")");
-                $emitirEncontradoUsuario($persona, $c);
+                $procesarPersonaCedula($persona, $c);
             }
         } catch (Throwable $e) {
             error_log("search_persona.php - BLOQUE USUARIO excepcion: " . $e->getMessage());
@@ -272,7 +355,7 @@ try {
     }
     try {
         $stmtNorm = $pdo->prepare("
-            SELECT id, username, nacionalidad, nombre, cedula, sexo, fechnac, celular, email, club_id
+            SELECT id, username, nacionalidad, nombre, cedula, sexo, fechnac, celular, email, club_id, entidad
             FROM usuarios
             WHERE REPLACE(REPLACE(REPLACE(REPLACE(TRIM(CAST(cedula AS CHAR)), '-', ''), '.', ''), ' ', ''), '/', '') = ?
             LIMIT 1
@@ -281,82 +364,56 @@ try {
         $personaNorm = $stmtNorm->fetch(PDO::FETCH_ASSOC);
         if ($personaNorm) {
             error_log("search_persona.php - BLOQUE USUARIO (normalizado): ENCONTRADO (" . ($personaNorm['nombre'] ?? '') . ")");
-            $emitirEncontradoUsuario($personaNorm, (string) ($personaNorm['cedula'] ?? $cedula));
+            $procesarPersonaCedula($personaNorm, (string) ($personaNorm['cedula'] ?? $cedula));
         }
     } catch (Throwable $e) {
         error_log("search_persona.php - BLOQUE USUARIO normalizado: " . $e->getMessage());
     }
     error_log("search_persona.php - BLOQUE USUARIO: no encontrado, continuar a BLOQUE PERSONAS");
 
-    // ─── BLOQUE 3: PERSONAS. Si existe en base externa → una sola acción: encontrado_persona (persona sin id; front rellena; al enviar se crea usuario e inscribe). ───
+    // ─── BLOQUE 3: PERSONAS (solo si DB_SECONDARY_* está configurada; conexión bajo demanda). ───
     if (file_exists(__DIR__ . '/../../config/persona_database.php')) {
-        error_log("search_persona.php - BLOQUE PERSONAS: Buscando en base externa");
-        @set_time_limit(15); // evitar bloqueo indefinido si la BD externa tarda (p. ej. 32M registros)
         require_once __DIR__ . '/../../config/persona_database.php';
-        try {
-            $database = new PersonaDatabase();
-            $result = $database->searchPersonaById($nacionalidad, $cedula);
-
-            if (isset($result['encontrado']) && $result['encontrado'] && isset($result['persona'])) {
-                error_log("search_persona.php - BLOQUE PERSONAS: ENCONTRADO en base externa");
-                $p = $result['persona'];
-                $cel = $p['celular'] ?? $p['telefono'] ?? '';
-                $fechnac = $p['fechnac'] ?? '';
-                if ($fechnac && preg_match('/^\d{4}-\d{2}-\d{2}/', $fechnac) === false && strtotime($fechnac) !== false) {
-                    $fechnac = date('Y-m-d', strtotime($fechnac));
+        if (PersonaDatabase::isConfigured()) {
+            error_log('search_persona.php - BLOQUE PERSONAS: Buscando en base externa');
+            @set_time_limit(15);
+            try {
+                $p = PersonaDatabase::buscarPorCedula($nacionalidad, $cedula);
+                if ($p !== null) {
+                    error_log('search_persona.php - BLOQUE PERSONAS: ENCONTRADO en base externa');
+                    $cel = $p['celular'] ?? $p['telefono'] ?? '';
+                    $fechnac = $p['fechnac'] ?? '';
+                    if ($fechnac && preg_match('/^\d{4}-\d{2}-\d{2}/', $fechnac) === false && strtotime($fechnac) !== false) {
+                        $fechnac = date('Y-m-d', strtotime($fechnac));
+                    }
+                    echo json_encode([
+                        'accion' => 'encontrado_persona',
+                        'status' => 'encontrado',
+                        'encontrado' => true,
+                        'fuente' => 'externa',
+                        'existe_en_usuarios' => false,
+                        'mensaje' => 'Datos encontrados en base externa. Revise y pulse Inscribir (se creará usuario al inscribir).',
+                        'persona' => [
+                            'nacionalidad' => $p['nacionalidad'] ?? $nacionalidad,
+                            'nombre' => $p['nombre'] ?? '',
+                            'sexo' => $p['sexo'] ?? '',
+                            'fechnac' => $fechnac,
+                            'celular' => $cel,
+                            'telefono' => $cel,
+                            'email' => $p['email'] ?? '',
+                        ],
+                    ]);
+                    exit;
                 }
-                echo json_encode([
-                    'accion' => 'encontrado_persona',
-                    'status' => 'encontrado',
-                    'encontrado' => true,
-                    'fuente' => 'externa',
-                    'existe_en_usuarios' => false,
-                    'mensaje' => 'Datos encontrados en base externa. Revise y pulse Inscribir (se creará usuario al inscribir).',
-                    'persona' => [
-                        'nacionalidad' => $p['nacionalidad'] ?? $nacionalidad,
-                        'nombre' => $p['nombre'] ?? '',
-                        'sexo' => $p['sexo'] ?? '',
-                        'fechnac' => $fechnac,
-                        'celular' => $cel,
-                        'telefono' => $cel,
-                        'email' => $p['email'] ?? ''
-                    ]
-                ]);
-                exit;
+                error_log('search_persona.php - BLOQUE PERSONAS: no encontrado');
+            } catch (Throwable $e) {
+                error_log('search_persona.php - BLOQUE PERSONAS excepcion: ' . $e->getMessage());
             }
-            if (isset($result['success']) && $result['success'] && isset($result['data'])) {
-                error_log("search_persona.php - BLOQUE PERSONAS: ENCONTRADO (formato data)");
-                $d = $result['data'];
-                $cel = $d['telefono'] ?? $d['celular'] ?? '';
-                $fechnac = $d['fechnac'] ?? '';
-                if ($fechnac && preg_match('/^\d{4}-\d{2}-\d{2}/', $fechnac) === false && strtotime($fechnac) !== false) {
-                    $fechnac = date('Y-m-d', strtotime($fechnac));
-                }
-                echo json_encode([
-                    'accion' => 'encontrado_persona',
-                    'status' => 'encontrado',
-                    'encontrado' => true,
-                    'fuente' => 'externa',
-                    'existe_en_usuarios' => false,
-                    'mensaje' => 'Datos encontrados en base externa. Revise y pulse Inscribir (se creará usuario al inscribir).',
-                    'persona' => [
-                        'nacionalidad' => $d['nacionalidad'] ?? $nacionalidad,
-                        'nombre' => $d['nombre'] ?? '',
-                        'sexo' => $d['sexo'] ?? '',
-                        'fechnac' => $fechnac,
-                        'celular' => $cel,
-                        'telefono' => $cel,
-                        'email' => $d['email'] ?? ''
-                    ]
-                ]);
-                exit;
-            }
-            error_log("search_persona.php - BLOQUE PERSONAS: no encontrado");
-        } catch (Throwable $e) {
-            error_log("search_persona.php - BLOQUE PERSONAS excepcion: " . $e->getMessage());
+        } else {
+            error_log('search_persona.php - BLOQUE PERSONAS omitido (BD personas no configurada)');
         }
     } else {
-        error_log("search_persona.php - BLOQUE PERSONAS omitido (sin config), continuar a BLOQUE NUEVO");
+        error_log('search_persona.php - BLOQUE PERSONAS omitido (sin config), continuar a BLOQUE NUEVO');
     }
 
     // ─── BLOQUE 4: NUEVO. No encontrado en ninguno → una sola acción: nuevo (front mantiene nacionalidad y cédula, limpia resto, foco nombre; al enviar se crea usuario e inscribe). ───

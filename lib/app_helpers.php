@@ -1,22 +1,115 @@
 <?php
 
 /**
- * Helper centralizado para la aplicaci�n
- * Detecta autom�ticamente el entorno y simplifica la generaci�n de URLs
+ * Helper centralizado para la aplicación
+ * Detecta automáticamente el entorno y simplifica la generación de URLs
  */
 class AppHelpers {
     public static ?bool $is_production = null;
     public static ?string $base_url = null;
+
+    private static function integralUrlLoaded(): bool
+    {
+        $path = __DIR__ . '/IntegralUrl.php';
+        if (!is_file($path)) {
+            return false;
+        }
+        if (!class_exists('IntegralUrl', false)) {
+            require_once $path;
+        }
+
+        return IntegralUrl::isEnabled();
+    }
+
+    /**
+     * Normaliza path web a public/ (con barras inicial/final).
+     */
+    public static function normalizePublicWebPath(string $path): string
+    {
+        $path = '/' . trim(str_replace('\\', '/', $path), '/');
+        if (!str_ends_with($path, '/public')) {
+            if (str_ends_with($path, '/public/')) {
+                return $path;
+            }
+            if (!str_contains($path, '/public/')) {
+                $path = rtrim($path, '/') . '/public';
+            }
+        }
+
+        return rtrim($path, '/') . '/';
+    }
+
+    /**
+     * Resuelve URL_BASE: si BASE_PATH en .env no coincide con SCRIPT_NAME, gana la detección real.
+     * Evita enlaces a /mistorneos_fvd1/… cuando la app está en /mistorneos_fvd/public/.
+     */
+    public static function resolveUrlBasePath(): string
+    {
+        $detected = self::detectPublicPathFromScript();
+        if ($detected === '' || $detected === '/') {
+            if (!empty($_SERVER['SCRIPT_NAME'])) {
+                $dir = str_replace('\\', '/', dirname((string) $_SERVER['SCRIPT_NAME']));
+                if (preg_match('#^(.+?/public)/api$#', $dir, $m)) {
+                    $dir = $m[1];
+                }
+                if ($dir !== '.' && $dir !== '' && $dir !== '/') {
+                    $detected = '/' . trim($dir, '/') . '/';
+                }
+            }
+        }
+
+        $fromEnv = class_exists('Env', false) ? trim((string) Env::get('BASE_PATH', '')) : '';
+        if ($fromEnv !== '') {
+            $envPath = self::normalizePublicWebPath($fromEnv);
+            if ($detected !== '' && $detected !== '/') {
+                $detNorm = self::normalizePublicWebPath($detected);
+                if (rtrim($envPath, '/') !== rtrim($detNorm, '/')) {
+                    error_log('[URL_BASE] BASE_PATH .env (' . rtrim($envPath, '/') . ') difiere de SCRIPT (' . rtrim($detNorm, '/') . '); se usa SCRIPT.');
+                    return $detNorm;
+                }
+            }
+
+            return $envPath;
+        }
+
+        if ($detected !== '' && $detected !== '/') {
+            return self::normalizePublicWebPath($detected);
+        }
+
+        return class_exists('FvdConfig', false) ? FvdConfig::BASE_PATH : '/mistorneos_fvd/public/';
+    }
+
+    /**
+     * Detecta segmentos de ruta obsoletos o de monorepo en URLs generadas.
+     *
+     * @return list<string>
+     */
+    public static function detectSuspiciousUrlSegments(string $url): array
+    {
+        $issues = [];
+        $lower = strtolower($url);
+        if (str_contains($lower, 'mistorneos_fvd1') && !str_contains($lower, '/' . self::getProjectFolder() . '/')) {
+            $issues[] = 'contiene mistorneos_fvd1 (monorepo) fuera de la app standalone';
+        }
+        if (preg_match('#/mistorneos/public#', $lower) && !preg_match('#/mistorneos_fvd/public#', $lower)) {
+            $issues[] = 'usa ruta antigua /mistorneos/public (debe ser /mistorneos_fvd/public)';
+        }
+        if (preg_match('#/public/public/#', $lower)) {
+            $issues[] = 'doble /public/public/ en la URL';
+        }
+
+        return $issues;
+    }
     
     /**
-     * Detecta si estamos en producci�n
+     * Detecta si estamos en producción
      */
     public static function isProduction(): bool {
         if (self::$is_production === null) {
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             $server_name = $_SERVER['SERVER_NAME'] ?? '';
             
-            // Indicadores de producci�n
+            // Indicadores de producción
             self::$is_production = (
                 strpos($host, 'laestacion') !== false ||
                 strpos($host, 'laestaciondeldomino.com') !== false ||
@@ -104,6 +197,20 @@ class AppHelpers {
                 }
                 self::$base_url = $protocol . '://' . $host . $path;
             }
+
+            if (defined('URL_BASE') && URL_BASE !== '' && URL_BASE !== '/') {
+                $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $publicPath = rtrim((string) URL_BASE, '/');
+                $projectPath = preg_replace('#/public$#', '', $publicPath) ?: $publicPath;
+                $expectedBase = rtrim($scheme . '://' . $host . $projectPath, '/');
+                $currentPath = parse_url((string) self::$base_url, PHP_URL_PATH) ?: '';
+                if ($currentPath !== $projectPath && $projectPath !== '') {
+                    error_log('[APP_URL] Ajuste: APP_URL path (' . $currentPath . ') → URL_BASE (' . $projectPath . ')');
+                    self::$base_url = $expectedBase;
+                }
+            }
+
             if (str_ends_with(self::$base_url, '/public')) {
                 self::$base_url = rtrim(substr(self::$base_url, 0, -7), '/');
             }
@@ -149,10 +256,16 @@ class AppHelpers {
     }
     
     /**
-     * Genera URL para cualquier archivo de la aplicaci�n
-     * SIMPLIFICADO: Siempre usar /public/ para archivos PHP (como en desarrollo)
+     * URL absoluta a un recurso bajo public/ (app standalone mistorneos_fvd).
+     * Usar siempre este método en lugar de app_base_url() . '/public/…'.
      */
     public static function url(string $path = '', array $params = []): string {
+        if (self::integralUrlLoaded()) {
+            $page = (string) ($params['page'] ?? '');
+
+            return IntegralUrl::publicUrl($path, $params, $page);
+        }
+
         $base = self::getPublicUrl();
         $path = ltrim($path, '/');
         if (str_starts_with($path, 'public/')) {
@@ -160,7 +273,7 @@ class AppHelpers {
         }
         $url = $base . ($path !== '' ? '/' . $path : '');
         
-        // Agregar par�metros si existen
+        // Agregar parámetros si existen
         if (!empty($params)) {
             $query_string = http_build_query($params);
             $url .= '?' . $query_string;
@@ -170,9 +283,28 @@ class AppHelpers {
     }
     
     /**
-     * Genera URL para el dashboard
+     * Página de inicio según rol.
+     */
+    public static function landingUrl(): string
+    {
+        if (!class_exists('Auth', false) || !Auth::user()) {
+            return self::dashboard('home');
+        }
+        if (Auth::isOperativoSoloAsociacion()) {
+            return self::dashboard('asociacion_panel');
+        }
+
+        return self::dashboard('home');
+    }
+
+    /**
+     * Genera URL para el panel administrativo (index.php?page=…).
      */
     public static function dashboard(string $page = 'home', array $params = []): string {
+        if (self::integralUrlLoaded()) {
+            return IntegralUrl::dashboardUrl($page, $params);
+        }
+
         $params['page'] = $page;
         return self::url('index.php', $params);
     }
@@ -204,7 +336,7 @@ class AppHelpers {
     }
     
     /**
-     * Genera URL para archivos espec�ficos
+     * Genera URL para archivos específicos
      */
     public static function file(string $filename, array $params = []): string {
         return self::url($filename, $params);
@@ -242,10 +374,45 @@ class AppHelpers {
     }
     
     /**
-     * Genera URL para endpoints de API
+     * URL absoluta a un endpoint bajo public/api/ (misma carpeta public/ del entry point).
+     * En instalación standalone (mistorneos_fvd/public/) usa getRequestEntryUrl() — no monorepo.
+     *
+     * @param array<string, scalar> $params Query string opcional (nunca incluye page=…)
      */
     public static function api(string $endpoint, array $params = []): string {
-        return self::url('api/' . ltrim($endpoint, '/'), $params);
+        $endpoint = ltrim(str_replace('\\', '/', $endpoint), '/');
+        if (str_starts_with($endpoint, 'api/')) {
+            $endpoint = substr($endpoint, 4);
+        }
+        unset($params['page']);
+
+        $rel = 'api/' . $endpoint;
+
+        // Standalone: anclar al script actual (index.php en public/) — producción mistorneos_fvd original
+        if (self::integralUrlLoaded()) {
+            if (!IntegralUrl::isMonorepo()) {
+                $entry = rtrim(self::getRequestEntryUrl(), '/');
+                if ($entry !== '' && !str_ends_with($entry, '/api')) {
+                    $url = $entry . '/' . $rel;
+                    if ($params !== []) {
+                        $url .= '?' . http_build_query($params);
+                    }
+
+                    return $url;
+                }
+            }
+            $pageHint = trim((string) ($_GET['page'] ?? ''));
+
+            return IntegralUrl::publicUrl($rel, $params, $pageHint);
+        }
+
+        $base = rtrim(self::getPublicUrl(), '/');
+        $url = $base . '/' . $rel;
+        if ($params !== []) {
+            $url .= '?' . http_build_query($params);
+        }
+
+        return $url;
     }
     
     /**
@@ -283,6 +450,12 @@ class AppHelpers {
      */
     public static function getPublicWebPath(): string
     {
+        if (self::integralUrlLoaded()) {
+            $page = (string) ($_GET['page'] ?? '');
+
+            return IntegralUrl::publicWebPathForPage($page);
+        }
+
         static $cached = null;
         if ($cached !== null) {
             return $cached;
@@ -329,6 +502,40 @@ class AppHelpers {
             return '/';
         }
         return rtrim($path, '/') . '/';
+    }
+
+    /**
+     * Path web a la carpeta public/ inferido desde SCRIPT_NAME (ej. /mistorneos_fvd/public/).
+     * Usado por bootstrap.php para URL_BASE cuando BASE_PATH no está en .env.
+     */
+    public static function detectPublicPathFromScript(): string
+    {
+        if (!empty($_SERVER['SCRIPT_NAME'])) {
+            $dir = str_replace('\\', '/', dirname((string) $_SERVER['SCRIPT_NAME']));
+            if (preg_match('#^(.+?/public)/api$#', $dir, $m)) {
+                $dir = $m[1];
+            }
+            if (preg_match('#/public$#', $dir) || str_contains($dir, '/public/')) {
+                if (!str_ends_with($dir, '/public')) {
+                    if (preg_match('#^(.+/public)/#', $dir . '/', $m2)) {
+                        $dir = $m2[1];
+                    }
+                }
+                $trimmed = trim($dir, '/');
+
+                return ($trimmed === '') ? '/' : '/' . $trimmed . '/';
+            }
+            if ($dir !== '.' && $dir !== '' && $dir !== '/') {
+                return '/' . trim($dir, '/') . '/';
+            }
+        }
+
+        $web = self::getPublicWebPath();
+        if ($web !== '' && $web !== '/') {
+            return rtrim($web, '/') . '/';
+        }
+
+        return class_exists('FvdConfig', false) ? FvdConfig::BASE_PATH : '/mistorneos_fvd/public/';
     }
 
     /** URL absoluta a un asset en public/ */
@@ -395,7 +602,7 @@ class AppHelpers {
     }
     
     /**
-     * Obtiene informaci�n del entorno para debugging
+     * Obtiene información del entorno para debugging
      */
 
     /**
@@ -434,7 +641,7 @@ class AppHelpers {
             return $publicPath . '/profile.php';
         }
 
-        return $publicPath . '/index.php?page=home';
+        return self::landingUrl();
     }
 
     /**
@@ -442,7 +649,7 @@ class AppHelpers {
      */
     public static function resolveReturnToUrl(string $returnTo, ?string $fallback = null): string
     {
-        $fallback = $fallback ?? self::dashboard('home');
+        $fallback = $fallback ?? self::landingUrl();
         $returnTo = trim($returnTo);
         if ($returnTo === '' || preg_match('#^(javascript|data):#i', $returnTo)) {
             return $fallback;
@@ -519,28 +726,157 @@ class AppHelpers {
     }
     
     /**
-     * Obtiene la URL del logo principal.
-     * Prioridad: public/assets/logo.png (estático) si existe; si no, view_image.php con lib/Assets/mislogos/logo4.png.
+     * Comprueba si existe un archivo bajo la raíz del proyecto (upload/, public/, lib/, etc.).
      */
-    public static function getAppLogo(): string {
-        if (class_exists('FvdConfig', false)) {
-            $row = FvdConfig::getOrganizacionMaestra();
-            if (!empty($row['logo'])) {
-                $url = self::imageUrl((string) $row['logo']);
-                if ($url !== '') {
-                    return $url;
-                }
+    public static function projectFileExists(string $relativePath): bool
+    {
+        $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
+        if ($relativePath === '' || str_contains($relativePath, '..')) {
+            return false;
+        }
+        $root = dirname(__DIR__);
+        $full = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+
+        return is_file($full);
+    }
+
+    /**
+     * Ruta relativa a public/ del logo institucional FVD (archivo estático).
+     */
+    public static function getBrandLogoRelativePath(): ?string
+    {
+        $candidates = [
+            'public/assets/vendor/img/logofvd.png',
+            'public/assets/img/logo-fvd.png',
+            'public/assets/logo.png',
+        ];
+        foreach ($candidates as $rel) {
+            if (self::projectFileExists($rel)) {
+                return preg_replace('#^public/#', '', $rel) ?: null;
             }
+        }
+
+        return null;
+    }
+
+    /**
+     * URL del logo institucional FVD (assets estáticos; no depende de la BD).
+     */
+    public static function getBrandLogoUrl(bool $versioned = false): string
+    {
+        $rel = self::getBrandLogoRelativePath();
+        if ($rel !== null) {
+            $href = $versioned ? self::assetVersion($rel) : $rel;
+
+            return rtrim(self::getPublicUrl(), '/') . '/' . $href;
         }
         $logo4 = __DIR__ . '/Assets/mislogos/logo4.png';
         if (is_file($logo4)) {
             return rtrim(self::getPublicUrl(), '/') . '/view_image.php?path=' . rawurlencode('lib/Assets/mislogos/logo4.png');
         }
-        $publicLogo = __DIR__ . '/../public/assets/logo.png';
-        if (is_file($publicLogo)) {
-            return rtrim(self::getPublicUrl(), '/') . '/assets/logo.png';
+
+        return rtrim(self::getPublicUrl(), '/') . '/' . self::assetVersion('assets/img/logo-fvd.png');
+    }
+
+    /**
+     * Href del logo para layouts con &lt;base href=".../public/"&gt; (ruta bajo public/).
+     */
+    public static function getAppLogoHref(?string $basePrefix = null): string
+    {
+        $rel = self::getBrandLogoRelativePath();
+        if ($rel !== null) {
+            return self::assetHref($rel, $basePrefix);
         }
-        return rtrim(self::getPublicUrl(), '/') . '/view_image.php?path=' . rawurlencode('lib/Assets/mislogos/logo4.png');
+
+        $dbRel = self::resolveDbLogoPublicRelativePath();
+        if ($dbRel !== null) {
+            return self::assetHref($dbRel, $basePrefix);
+        }
+
+        return self::assetHref('assets/img/logo-fvd.png', $basePrefix);
+    }
+
+    /**
+     * URL absoluta del logo (OG, emails, páginas sin &lt;base&gt;).
+     * Prioriza el PNG estático FVD en public/assets/ (evita rutas BD rotas vía view_image).
+     */
+    public static function getAppLogo(): string
+    {
+        $rel = self::getBrandLogoRelativePath();
+        if ($rel !== null) {
+            return rtrim(self::getPublicUrl(), '/') . '/' . self::assetVersion($rel);
+        }
+
+        $dbUrl = self::resolveDbLogoAbsoluteUrl();
+        if ($dbUrl !== null) {
+            return $dbUrl;
+        }
+
+        return rtrim(self::getPublicUrl(), '/') . '/' . self::assetVersion('assets/img/logo-fvd.png');
+    }
+
+    /**
+     * Ruta relativa a public/ si el logo en BD es un archivo bajo public/.
+     */
+    private static function resolveDbLogoPublicRelativePath(): ?string
+    {
+        $logoPath = self::resolveDbLogoProjectPath();
+        if ($logoPath === null) {
+            return null;
+        }
+        if (str_starts_with($logoPath, 'public/')) {
+            $rel = preg_replace('#^public/#', '', $logoPath);
+
+            return ($rel !== null && $rel !== '') ? $rel : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * URL absoluta del logo en BD cuando es servible (view_image o public/).
+     */
+    private static function resolveDbLogoAbsoluteUrl(): ?string
+    {
+        $logoPath = self::resolveDbLogoProjectPath();
+        if ($logoPath === null) {
+            return null;
+        }
+
+        $publicRel = self::resolveDbLogoPublicRelativePath();
+        if ($publicRel !== null) {
+            return rtrim(self::getPublicUrl(), '/') . '/' . self::assetVersion($publicRel);
+        }
+
+        $allowedPrefixes = ['upload/', 'uploads/', 'lib/Assets/'];
+        foreach ($allowedPrefixes as $prefix) {
+            if (str_starts_with($logoPath, $prefix)) {
+                return self::imageUrl($logoPath);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Ruta del logo en organización maestra (BD), normalizada y verificada en disco.
+     */
+    private static function resolveDbLogoProjectPath(): ?string
+    {
+        if (!class_exists('FvdConfig', false)) {
+            return null;
+        }
+        $row = FvdConfig::getOrganizacionMaestra();
+        $logoPath = trim((string) ($row['logo'] ?? ''));
+        if ($logoPath === '') {
+            return null;
+        }
+        $logoPath = ltrim(str_replace('\\', '/', $logoPath), '/');
+        if (!self::projectFileExists($logoPath)) {
+            return null;
+        }
+
+        return $logoPath;
     }
     
     /**
@@ -549,14 +885,17 @@ class AppHelpers {
      * @param string $alt Texto alternativo
      * @param int $height Altura en píxeles (por defecto 40)
      * @param bool $priority Si true, añade fetchpriority="high" para LCP (logo principal del dashboard)
+     * @param string|null $basePrefix Prefijo &lt;base href&gt; del layout (public/); usa ruta relativa estable
      */
-    public static function appLogo(string $class = '', string $alt = '', int $height = 40, bool $priority = false): string {
+    public static function appLogo(string $class = '', string $alt = '', int $height = 40, bool $priority = false, ?string $basePrefix = null): string {
         if ($alt === '' && class_exists('FvdBranding', false)) {
             $alt = FvdBranding::nombre();
         } elseif ($alt === '') {
             $alt = 'Federación Venezolana de Dominó';
         }
-        $logo_url = self::getAppLogo();
+        $logo_url = ($basePrefix !== null && $basePrefix !== '')
+            ? self::getAppLogoHref($basePrefix)
+            : self::getAppLogo();
         $class_attr = $class ? ' class="' . htmlspecialchars($class) . '"' : '';
         $priority_attr = $priority ? ' fetchpriority="high"' : '';
         return '<img src="' . htmlspecialchars($logo_url) . '" alt="' . htmlspecialchars($alt) . '" height="' . $height . '"' . $class_attr . $priority_attr . '>';

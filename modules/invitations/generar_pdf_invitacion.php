@@ -1,6 +1,6 @@
 <?php
 /**
- * Generar PDF de Invitaci�n
+ * Generar PDF de Invitación
  */
 
 
@@ -47,7 +47,7 @@ try {
     $inv = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$inv) {
-        die('Invitaci�n no encontrada');
+        die('Invitación no encontrada');
     }
     
     // URLs
@@ -56,7 +56,7 @@ try {
     
     // Datos
     $delegado = !empty($inv['club_delegado']) ? $inv['club_delegado'] : $inv['club_nombre'];
-    $organizacion = !empty($inv['organizacion_nombre']) ? $inv['organizacion_nombre'] : 'Organizaci�n';
+    $organizacion = !empty($inv['organizacion_nombre']) ? $inv['organizacion_nombre'] : 'Organización';
     $fecha_torneo = date('d/m/Y', strtotime($inv['torneo_fecha']));
     $vigencia = date('d/m/Y', strtotime($inv['acceso1'])) . ' al ' . date('d/m/Y', strtotime($inv['acceso2']));
     
@@ -172,14 +172,14 @@ try {
     </head>
     <body>
         <div class="header">
-            <h1>?? INVITACI�N A TORNEO</h1>
+            <h1>?? INVITACIÓN A TORNEO</h1>
             <p style="margin: 10px 0 0 0; font-size: 18px;">' . htmlspecialchars($organizacion) . '</p>
         </div>
         
         <div class="section">
-            <h2>?? INFORMACI�N DEL TORNEO</h2>
+            <h2>?? INFORMACIÓN DEL TORNEO</h2>
             <div class="info-row">
-                <span class="label">Organizaci�n Responsable:</span> ' . htmlspecialchars($organizacion) . '
+                <span class="label">Organización Responsable:</span> ' . htmlspecialchars($organizacion) . '
             </div>
             <div class="info-row">
                 <span class="label">Nombre del Torneo:</span> ' . htmlspecialchars($inv['torneo_nombre']) . '
@@ -207,7 +207,7 @@ try {
                 <span class="label">Delegado:</span> ' . htmlspecialchars($delegado) . '
             </div>
             <div class="info-row">
-                <span class="label">Tel�fono:</span> ' . htmlspecialchars($inv['club_telefono']) . '
+                <span class="label">Teléfono:</span> ' . htmlspecialchars($inv['club_telefono']) . '
             </div>';
     
     if (!empty($inv['club_email'])) {
@@ -220,7 +220,7 @@ try {
     if (!empty($inv['club_direccion'])) {
         $html .= '
             <div class="info-row">
-                <span class="label">Direcci�n:</span> ' . htmlspecialchars($inv['club_direccion']) . '
+                <span class="label">Dirección:</span> ' . htmlspecialchars($inv['club_direccion']) . '
             </div>';
     }
     
@@ -228,7 +228,7 @@ try {
         </div>
         
         <div class="section">
-            <h2>?? VIGENCIA DE LA INVITACI�N</h2>
+            <h2>?? VIGENCIA DE LA INVITACIÓN</h2>
             <div class="info-row">
                 <span class="label">Periodo de Acceso:</span> ' . htmlspecialchars($vigencia) . '
             </div>
@@ -239,7 +239,7 @@ try {
         
         <div class="token-box">
             <h3>?? TOKEN DE ACCESO</h3>
-            <p style="margin: 10px 0; font-size: 14px;">?? GUARDE ESTE TOKEN - Lo necesitar� para inscribir jugadores</p>
+            <p style="margin: 10px 0; font-size: 14px;">?? GUARDE ESTE TOKEN - Lo necesitará para inscribir jugadores</p>
             <div class="token">' . htmlspecialchars($inv['token']) . '</div>
         </div>
         
@@ -254,16 +254,16 @@ try {
                 <li><strong>Copie el TOKEN</strong> que aparece arriba (todo el texto)</li>
                 <li><strong>Abra la URL de acceso</strong> en su navegador</li>
                 <li><strong>Pegue su TOKEN</strong> en el formulario de login</li>
-                <li><strong>Una vez dentro,</strong> podr� inscribir a sus jugadores por c�dula</li>
+                <li><strong>Una vez dentro,</strong> podrá inscribir a sus jugadores por cédula</li>
             </ol>
             <p style="margin: 15px 0 0 0; font-weight: bold; color: #856404;">
-                ?? IMPORTANTE: Guarde este documento. Necesitar� el TOKEN cada vez que acceda al sistema.
+                ?? IMPORTANTE: Guarde este documento. Necesitar• el TOKEN cada vez que acceda al sistema.
             </p>
         </div>
         
         <div class="footer">
             <p><strong>Contacto:</strong> ' . htmlspecialchars($organizacion) . '</p>
-            <p style="margin: 5px 0;">�Esperamos contar con su participaci�n!</p>
+            <p style="margin: 5px 0;">¡Esperamos contar con su participación!</p>
             <p style="margin: 15px 0 0 0; font-size: 12px; color: #999;">
                 Documento generado el ' . date('d/m/Y H:i:s') . '
             </p>

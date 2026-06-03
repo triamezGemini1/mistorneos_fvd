@@ -17,7 +17,7 @@ use Psr\Log\LogLevel;
 /**
  * Logger - Sistema de logging compatible con PSR-3
  * 
- * Soporta m�ltiples handlers y formatters
+ * Soporta múltiples handlers y formatters
  * Niveles: emergency, alert, critical, error, warning, notice, info, debug
  * 
  * @package Lib\Logger
@@ -32,7 +32,7 @@ class Logger implements LoggerInterface
     private array $handlers = [];
 
     /**
-     * Nivel m�nimo de log a procesar
+     * Nivel mínimo de log a procesar
      * @var string
      */
     private string $minLevel;
@@ -55,7 +55,7 @@ class Logger implements LoggerInterface
     /**
      * Constructor
      * 
-     * @param string $minLevel Nivel m�nimo (default: INFO)
+     * @param string $minLevel Nivel mínimo (default: INFO)
      */
     public function __construct(string $minLevel = LogLevel::INFO)
     {
@@ -143,7 +143,7 @@ class Logger implements LoggerInterface
      */
     public function log($level, $message, array $context = []): void
     {
-        // Verificar si el nivel cumple el m�nimo
+        // Verificar si el nivel cumple el mínimo
         if (!$this->shouldLog($level)) {
             return;
         }
@@ -168,7 +168,7 @@ class Logger implements LoggerInterface
     }
 
     /**
-     * Verifica si debe loggear seg�n nivel m�nimo
+     * Verifica si debe loggear según nivel mínimo
      * 
      * @param string $level
      * @return bool
@@ -202,7 +202,7 @@ class Logger implements LoggerInterface
     }
 
     /**
-     * Obtiene informaci�n extra del contexto
+     * Obtiene información extra del contexto
      * 
      * @return array
      */

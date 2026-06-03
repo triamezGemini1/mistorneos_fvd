@@ -1,7 +1,7 @@
 <?php
 /**
  * Crear Invitaciones por Lotes
- * Permite crear m�ltiples invitaciones para un torneo a varios clubes a la vez
+ * Permite crear múltiples invitaciones para un torneo a varios clubes a la vez
  */
 
 
@@ -82,7 +82,7 @@ try {
                         continue;
                     }
                     
-                    // Generar token �nico
+                    // Generar token único
                     do {
                         $token = bin2hex(random_bytes(32));
                     } while (empty($token) || strlen($token) != 64);
@@ -101,11 +101,11 @@ try {
                 $pdo->commit();
                 
                 if ($creadas > 0) {
-                    $success[] = "? {$creadas} invitaci�n(es) creada(s) exitosamente";
+                    $success[] = "? {$creadas} invitación(es) creada(s) exitosamente";
                 }
                 
                 if ($duplicadas > 0) {
-                    $errors[] = "?? {$duplicadas} invitaci�n(es) ya exist�a(n) y no se crearon";
+                    $errors[] = "• {$duplicadas} invitación(es) ya exist�a(n) y no se crearon";
                 }
                 
             } catch (Exception $e) {
@@ -157,13 +157,13 @@ try {
             <div class="card">
                 <div class="card-header bg-primary text-white">
                     <h4 class="mb-0">?? Crear Invitaciones por Lotes</h4>
-                    <small>Cree m�ltiples invitaciones para un torneo a varios clubes</small>
+                    <small>Cree múltiples invitaciones para un torneo a varios clubes</small>
                 </div>
                 <div class="card-body">
                     
                     <?php if (!empty($success)): ?>
                         <div class="alert alert-success">
-                            <strong>? �xito:</strong>
+                            <strong>? éxito:</strong>
                             <ul class="mb-0">
                                 <?php foreach ($success as $msg): ?>
                                     <li><?= htmlspecialchars($msg) ?></li>
@@ -267,7 +267,7 @@ try {
                             <input type="text" name="usuario" class="form-control" 
                                    value="<?= htmlspecialchars($_POST['usuario'] ?? '') ?>"
                                    placeholder="Nombre del usuario/delegado">
-                            <small class="text-muted">Nombre de referencia del responsable de la inscripci�n</small>
+                            <small class="text-muted">Nombre de referencia del responsable de la inscripción</small>
                         </div>
 
                         <div class="mb-3">
@@ -281,7 +281,7 @@ try {
 
                         <div class="alert alert-info">
                             <small>
-                                <strong>?? Nota:</strong> Se generar� un token �nico para cada invitaci�n.
+                                <strong>?? Nota:</strong> Se generará un token único para cada invitación.
                                 Las invitaciones que ya existan (mismo torneo + club) ser�n omitidas.
                             </small>
                         </div>
@@ -324,16 +324,16 @@ function deselectAll() {
     updateCount();
 }
 
-// Validaci�n antes de enviar
+// Validación antes de enviar
 document.getElementById('formBatch').addEventListener('submit', function(e) {
     const checkboxes = document.querySelectorAll('input[name="clubs_ids[]"]:checked');
     if (checkboxes.length === 0) {
         e.preventDefault();
-        alert('?? Debe seleccionar al menos un club');
+        alert('• Debe seleccionar al menos un club');
         return false;
     }
     
-    if (!confirm(`�Confirma crear ${checkboxes.length} invitaci�n(es)?`)) {
+    if (!confirm(`�Confirma crear ${checkboxes.length} invitación(es)?`)) {
         e.preventDefault();
         return false;
     }

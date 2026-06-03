@@ -1,7 +1,7 @@
 ﻿<?php
 require_once __DIR__ . '/../config/session_start_early.php';
 /**
- * Reporte de Clubes en PDF - Versi�n P�blica
+ * Reporte de Clubes en PDF - Versión P�blica
  * Accesible directamente desde: public/report_clubs.php
  */
 
@@ -58,7 +58,7 @@ try {
     $stmt->execute($params);
     $clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Obtener estad�sticas
+    // Obtener estadísticas
     $stmt = $pdo->query("
         SELECT 
             COUNT(*) as total,
@@ -77,7 +77,7 @@ try {
     // Encabezado del reporte
     $subtitle = 'Lista completa de clubes registrados en el sistema';
     if ($search) {
-        $subtitle .= ' - B�squeda: "' . htmlspecialchars($search) . '"';
+        $subtitle .= ' - Búsqueda: "' . htmlspecialchars($search) . '"';
     }
     if ($status_filter !== null) {
         $subtitle .= ' - Estado: ' . ($status_filter ? 'Activos' : 'Inactivos');
@@ -85,7 +85,7 @@ try {
     
     $content .= $report->addReportHeader($subtitle);
     
-    // Estad�sticas
+    // Estadísticas
     $content .= $report->generateStatsBoxes([
         ['number' => $stats['total'], 'label' => 'Total Clubes'],
         ['number' => $stats['activos'], 'label' => 'Activos'],
@@ -99,7 +99,7 @@ try {
     if (empty($clubs)) {
         $content .= '<p style="text-align: center; color: #999; padding: 20px;">No se encontraron clubes con los filtros aplicados</p>';
     } else {
-        $headers = ['#', 'Club', 'Delegado', 'Tel�fono', 'Direcci�n', 'Estado'];
+        $headers = ['#', 'Club', 'Delegado', 'Teléfono', 'Dirección', 'Estado'];
         $rows = [];
         
         foreach ($clubs as $index => $club) {
@@ -129,8 +129,8 @@ try {
             $info_data = [
                 'Nombre' => htmlspecialchars($club['nombre']),
                 'Delegado' => htmlspecialchars($club['delegado'] ?? 'No especificado'),
-                'Tel�fono' => htmlspecialchars($club['telefono'] ?? 'No especificado'),
-                'Direcci�n' => htmlspecialchars($club['direccion'] ?? 'No especificado'),
+                'Teléfono' => htmlspecialchars($club['telefono'] ?? 'No especificado'),
+                'Dirección' => htmlspecialchars($club['direccion'] ?? 'No especificado'),
                 'Estado' => $club['estatus'] 
                     ? ReportGenerator::badge('Activo', 'success')
                     : ReportGenerator::badge('Inactivo', 'danger'),
@@ -138,7 +138,7 @@ try {
                 'Fecha de Registro' => ReportGenerator::formatDateTime($club['created_at'])
             ];
             
-            // Estad�sticas del club
+            // Estadísticas del club
             $stmt = $pdo->prepare("
                 SELECT 
                     COUNT(DISTINCT t.id) as torneos_organizados,

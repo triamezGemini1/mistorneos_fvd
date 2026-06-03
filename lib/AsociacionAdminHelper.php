@@ -478,24 +478,31 @@ final class AsociacionAdminHelper
         if ($forzado !== null) {
             return $forzado;
         }
-        if ($idUsuarioInscriptor > 0) {
-            $delegado = self::idClubDelegadoInscripcion($pdo, $idUsuarioInscriptor);
-            if ($delegado !== null) {
-                return $delegado;
-            }
+        if ($clubPost !== null && $clubPost > 0) {
+            return $clubPost;
         }
         if ($clubSelectorLanding !== null && $clubSelectorLanding > 0) {
             return $clubSelectorLanding;
         }
-        if ($clubPost !== null && $clubPost > 0) {
-            return $clubPost;
-        }
         if ($idUsuarioInscrito > 0) {
-            $st = $pdo->prepare('SELECT club_id FROM usuarios WHERE id = ? LIMIT 1');
+            $st = $pdo->prepare('SELECT club_id, entidad FROM usuarios WHERE id = ? LIMIT 1');
             $st->execute([$idUsuarioInscrito]);
-            $uc = (int) ($st->fetchColumn() ?: 0);
-            if ($uc > 0) {
-                return $uc;
+            $uRow = $st->fetch(PDO::FETCH_ASSOC);
+            if ($uRow) {
+                $resolved = self::resolverClubIdDesdeAtleta(
+                    $pdo,
+                    (int) ($uRow['club_id'] ?? 0),
+                    (int) ($uRow['entidad'] ?? 0)
+                );
+                if ($resolved !== null) {
+                    return $resolved;
+                }
+            }
+        }
+        if ($idUsuarioInscriptor > 0) {
+            $delegado = self::idClubDelegadoInscripcion($pdo, $idUsuarioInscriptor);
+            if ($delegado !== null) {
+                return $delegado;
             }
         }
         if ($clubActor !== null && $clubActor > 0) {
@@ -506,6 +513,62 @@ final class AsociacionAdminHelper
     }
 
     /**
+     * FVD: en clubes el id es el código de asociación/club. El atleta puede tener club_id o entidad apuntando a ese id.
+     */
+    public static function resolverClubIdDesdeAtleta(PDO $pdo, ?int $clubId, ?int $entidadId): ?int
+    {
+        foreach ([(int) ($clubId ?? 0), (int) ($entidadId ?? 0)] as $candidate) {
+            if ($candidate <= 0) {
+                continue;
+            }
+            $st = $pdo->prepare('SELECT id FROM clubes WHERE id = ? LIMIT 1');
+            $st->execute([$candidate]);
+            $id = (int) ($st->fetchColumn() ?: 0);
+            if ($id > 0) {
+                return $id;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{id: int, nombre: string}|null
+     */
+    public static function clubPorId(PDO $pdo, int $id): ?array
+    {
+        if ($id <= 0) {
+            return null;
+        }
+        $st = $pdo->prepare('SELECT id, nombre FROM clubes WHERE id = ? LIMIT 1');
+        $st->execute([$id]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+
+        return $row ? ['id' => (int) $row['id'], 'nombre' => (string) ($row['nombre'] ?? '')] : null;
+    }
+
+    /**
+     * Resuelve club del atleta (usuarios) contra clubes.id.
+     *
+     * @return array{club_id: int, club_nombre: string}
+     */
+    public static function resolverClubAtletaDesdeUsuario(PDO $pdo, array $usuarioRow): array
+    {
+        $clubId = self::resolverClubIdDesdeAtleta(
+            $pdo,
+            (int) ($usuarioRow['club_id'] ?? 0),
+            (int) ($usuarioRow['entidad'] ?? 0)
+        ) ?? 0;
+        $nombre = '';
+        if ($clubId > 0) {
+            $c = self::clubPorId($pdo, $clubId);
+            $nombre = $c['nombre'] ?? '';
+        }
+
+        return ['club_id' => $clubId, 'club_nombre' => $nombre];
+    }
+
+    /**
      * FVD: el selector de "asociación" envía entidad; en clubes id suele coincidir con entidad.
      */
     public static function resolverClubIdDesdeEntidad(PDO $pdo, int $entidadId): ?int
@@ -513,13 +576,13 @@ final class AsociacionAdminHelper
         if ($entidadId <= 0) {
             return null;
         }
-        $st = $pdo->prepare('SELECT id FROM clubes WHERE id = ? AND estatus = 1 LIMIT 1');
+        $st = $pdo->prepare('SELECT id FROM clubes WHERE id = ? LIMIT 1');
         $st->execute([$entidadId]);
         $id = (int) ($st->fetchColumn() ?: 0);
         if ($id > 0) {
             return $id;
         }
-        $st = $pdo->prepare('SELECT id FROM clubes WHERE entidad = ? AND estatus = 1 ORDER BY id ASC LIMIT 1');
+        $st = $pdo->prepare('SELECT id FROM clubes WHERE entidad = ? ORDER BY id ASC LIMIT 1');
         $st->execute([$entidadId]);
         $id = (int) ($st->fetchColumn() ?: 0);
 
@@ -537,6 +600,38 @@ final class AsociacionAdminHelper
     }
 
     /**
+     * Club de referencia para búsqueda/inscripción en sitio (operativo forzado o selector del panel).
+     */
+    public static function clubFiltroInscripcionSitio(PDO $pdo, ?int $clubIdPost = null): ?int
+    {
+        $forzado = self::idClubForzadoInscripcion($pdo);
+        if ($forzado !== null) {
+            return $forzado;
+        }
+        $clubIdPost = (int) ($clubIdPost ?? 0);
+
+        return $clubIdPost > 0 ? $clubIdPost : null;
+    }
+
+    /**
+     * Condición SQL: usuarios de la misma asociación (clubes.id = código).
+     *
+     * @return array{0: string, 1: list<int>}
+     */
+    public static function filtroSqlUsuariosPorClub(int $clubId, string $alias = 'u'): array
+    {
+        if ($clubId <= 0) {
+            return ['', []];
+        }
+        $a = preg_replace('/[^a-zA-Z0-9_]/', '', $alias) ?: 'u';
+
+        return [
+            " AND ({$a}.club_id = ? OR {$a}.entidad = ?) ",
+            [$clubId, $clubId],
+        ];
+    }
+
+    /**
      * Condición SQL para limitar usuarios al ámbito de la asociación (misma entidad).
      *
      * @return array{0: string, 1: list<int>}
@@ -544,28 +639,20 @@ final class AsociacionAdminHelper
     public static function filtroSqlUsuariosAsociacion(PDO $pdo, string $alias = 'u'): array
     {
         $ctx = self::contextoInscripcionOperativa($pdo);
-        if ($ctx === null || ($ctx['entidad_id'] ?? 0) <= 0) {
+        if ($ctx === null || ($ctx['club_id'] ?? 0) <= 0) {
             return ['', []];
         }
-        $a = preg_replace('/[^a-zA-Z0-9_]/', '', $alias) ?: 'u';
 
-        return [
-            " AND ({$a}.entidad = ? OR {$a}.club_id = ?) ",
-            [(int) $ctx['entidad_id'], (int) $ctx['club_id']],
-        ];
+        return self::filtroSqlUsuariosPorClub((int) $ctx['club_id'], $alias);
     }
 
     /**
-     * El usuario pertenece al ámbito de la asociación del operativo.
+     * El usuario pertenece a la asociación indicada (clubes.id).
      */
-    public static function usuarioEnAmbitoAsociacion(PDO $pdo, int $idUsuario): bool
+    public static function usuarioPerteneceAClub(PDO $pdo, int $idUsuario, int $clubId): bool
     {
-        if ($idUsuario <= 0) {
+        if ($idUsuario <= 0 || $clubId <= 0) {
             return false;
-        }
-        $ctx = self::contextoInscripcionOperativa($pdo);
-        if ($ctx === null) {
-            return true;
         }
         $st = $pdo->prepare('SELECT entidad, club_id FROM usuarios WHERE id = ? LIMIT 1');
         $st->execute([$idUsuario]);
@@ -573,9 +660,25 @@ final class AsociacionAdminHelper
         if (!$u) {
             return false;
         }
-        $ent = (int) ($u['entidad'] ?? 0);
-        $cid = (int) ($u['club_id'] ?? 0);
+        $resolved = self::resolverClubIdDesdeAtleta(
+            $pdo,
+            (int) ($u['club_id'] ?? 0),
+            (int) ($u['entidad'] ?? 0)
+        );
 
-        return $ent === (int) $ctx['entidad_id'] || $cid === (int) $ctx['club_id'];
+        return $resolved !== null && $resolved === $clubId;
+    }
+
+    /**
+     * El usuario pertenece al ámbito de la asociación del operativo.
+     */
+    public static function usuarioEnAmbitoAsociacion(PDO $pdo, int $idUsuario): bool
+    {
+        $ctx = self::contextoInscripcionOperativa($pdo);
+        if ($ctx === null) {
+            return true;
+        }
+
+        return self::usuarioPerteneceAClub($pdo, $idUsuario, (int) ($ctx['club_id'] ?? 0));
     }
 }

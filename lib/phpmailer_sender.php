@@ -13,18 +13,18 @@ class PHPMailerSender {
     private static $from_name = 'Sistema de Inscripciones - Mistorneos';
 
     /**
-     * Env�a un correo de invitaci�n usando PHPMailer
+     * Env�a un correo de invitación usando PHPMailer
      */
     public static function sendInvitationEmail(array $invitation_data): array {
         try {
-            // Verificar si PHPMailer est� disponible
+            // Verificar si PHPMailer est• disponible
             if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
-                return ['success' => false, 'error' => 'PHPMailer no est� instalado'];
+                return ['success' => false, 'error' => 'PHPMailer no est• instalado'];
             }
 
             $mail = new PHPMailer\PHPMailer\PHPMailer(true);
 
-            // Configuraci�n del servidor SMTP
+            // Configuración del servidor SMTP
             $mail->isSMTP();
             $mail->Host = self::$smtp_host;
             $mail->SMTPAuth = !empty(self::$smtp_username); // Solo autenticar si hay credenciales
@@ -36,18 +36,18 @@ class PHPMailerSender {
             $mail->Port = self::$smtp_port;
             $mail->CharSet = 'UTF-8';
 
-            // Configuraci�n del remitente
+            // Configuración del remitente
             $mail->setFrom(self::$from_email, self::$from_name);
             $mail->addReplyTo(self::$from_email, self::$from_name);
 
-            // Configuraci�n del destinatario
+            // Configuración del destinatario
             $to_email = $invitation_data['club_email'];
             $to_name = $invitation_data['club_delegado'] ?? 'Delegado del Club';
             $mail->addAddress($to_email, $to_name);
 
             // Contenido del correo
             $mail->isHTML(true);
-            $mail->Subject = "Invitaci�n al Torneo: " . $invitation_data['tournament_name'];
+            $mail->Subject = "Invitación al Torneo: " . $invitation_data['tournament_name'];
             
             $message = self::generateInvitationMessage($invitation_data);
             $mail->Body = $message;
@@ -65,7 +65,7 @@ class PHPMailerSender {
     }
 
     /**
-     * Genera el mensaje HTML de invitaci�n
+     * Genera el mensaje HTML de invitación
      */
     private static function generateInvitationMessage(array $data): string {
         require_once __DIR__ . '/invitation_helpers.php';
@@ -77,7 +77,7 @@ class PHPMailerSender {
         <head>
             <meta charset='UTF-8'>
             <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-            <title>Invitaci�n al Torneo</title>
+            <title>Invitación al Torneo</title>
             <style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
                 .container { max-width: 600px; margin: 0 auto; background: #fff; }
@@ -93,7 +93,7 @@ class PHPMailerSender {
         <body>
             <div class='container'>
                 <div class='header'>
-                    <h1>?? Invitaci�n al Torneo</h1>
+                    <h1>?? Invitación al Torneo</h1>
                     <p>Sistema de Inscripciones - Mistorneos</p>
                 </div>
                 
@@ -108,7 +108,7 @@ class PHPMailerSender {
                         <p><strong>?? Fecha del torneo:</strong> {$data['tournament_date']}</p>
                         <p><strong>?? Club organizador:</strong> {$data['organizer_club_name']}</p>
                         <p><strong>?? Delegado organizador:</strong> {$data['organizer_delegado']}</p>
-                        <p><strong>?? Tel�fono del club invitado:</strong> {$data['club_telefono']}</p>
+                        <p><strong>?? Teléfono del club invitado:</strong> {$data['club_telefono']}</p>
                     </div>
                     
                     <p>Se anexan datos para su acceso al sistema de inscripciones:</p>
@@ -117,12 +117,12 @@ class PHPMailerSender {
                         <h3>?? Datos de Acceso</h3>
                         <p><strong>URL de acceso:</strong> <a href='{$login_url}'>{$login_url}</a></p>
                         <p><strong>Usuario:</strong> {$data['usuario']}</p>
-                        <p><strong>Contrase�a:</strong> usuario</p>
+                        <p><strong>Contraseña:</strong> usuario</p>
                     </div>
                     
                     <p>Esperando su pronta y positiva respuesta se suscriben de usted:</p>
                     
-                    <p><strong>Por la comisi�n de Domin� del {$data['organizer_club_name']}</strong></p>
+                    <p><strong>Por la comisi�n de Domin• del {$data['organizer_club_name']}</strong></p>
                     <p><strong>{$data['organizer_delegado']}</strong></p>
                     
                     <div style='text-align: center; margin: 30px 0;'>
@@ -133,8 +133,8 @@ class PHPMailerSender {
                 </div>
                 
                 <div class='footer'>
-                    <p>� 2025 Sistema de Inscripciones - Mistorneos</p>
-                    <p>Este es un correo autom�tico, por favor no responda a este mensaje.</p>
+                    <p>• 2025 Sistema de Inscripciones - Mistorneos</p>
+                    <p>Este es un correo automático, por favor no responda a este mensaje.</p>
                 </div>
             </div>
         </body>
@@ -149,7 +149,7 @@ class PHPMailerSender {
         $login_url = InvitationHelpers::buildSimpleInvitationUrl((int)$data['torneo_id'], (int)$data['club_id']);
         
         return "
-INVITACI�N AL TORNEO
+INVITACIÓN AL TORNEO
 Sistema de Inscripciones - Mistorneos
 
 Apreciado: {$data['club_delegado']}
@@ -158,37 +158,37 @@ El {$data['organizer_club_name']} le invita a participar de nuestro magno evento
 
 {$data['tournament_name']}
 
-INFORMACI�N DEL EVENTO:
+INFORMACIÓN DEL EVENTO:
 - Fecha del torneo: {$data['tournament_date']}
 - Club organizador: {$data['organizer_club_name']}
 - Delegado organizador: {$data['organizer_delegado']}
-- Tel�fono del club invitado: {$data['club_telefono']}
+- Teléfono del club invitado: {$data['club_telefono']}
 
 DATOS DE ACCESO:
 - URL de acceso: {$login_url}
 - Usuario: {$data['usuario']}
-- Contrase�a: usuario
+- Contraseña: usuario
 
 Esperando su pronta y positiva respuesta se suscriben de usted:
 
-Por la comisi�n de Domin� del {$data['organizer_club_name']}
+Por la comisi�n de Domin• del {$data['organizer_club_name']}
 {$data['organizer_delegado']}
 
 ---
-� 2025 Sistema de Inscripciones - Mistorneos
-Este es un correo autom�tico, por favor no responda a este mensaje.
+• 2025 Sistema de Inscripciones - Mistorneos
+Este es un correo automático, por favor no responda a este mensaje.
         ";
     }
 
     /**
-     * Verifica si PHPMailer est� disponible
+     * Verifica si PHPMailer est• disponible
      */
     public static function isAvailable(): bool {
         return class_exists('PHPMailer\PHPMailer\PHPMailer');
     }
 
     /**
-     * Obtiene los datos completos de una invitaci�n para el correo
+     * Obtiene los datos completos de una invitación para el correo
      */
     public static function getInvitationDataForEmail(int $invitation_id): ?array {
         try {
@@ -215,7 +215,7 @@ Este es un correo autom�tico, por favor no responda a este mensaje.
             
             return $data ?: null;
         } catch (Exception $e) {
-            error_log("Error obteniendo datos de invitaci�n: " . $e->getMessage());
+            error_log("Error obteniendo datos de invitación: " . $e->getMessage());
             return null;
         }
     }

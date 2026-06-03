@@ -88,7 +88,7 @@ $user = Auth::user();
         </div>
         
         <h1 class="h2 mb-3 text-danger">Acceso Denegado</h1>
-        <p class="lead mb-4">No tienes permisos para acceder a esta secci�n del sistema.</p>
+        <p class="lead mb-4">No tienes permisos para acceder a esta sección del sistema.</p>
         
         <div class="user-info">
             <p class="mb-1"><strong>Usuario:</strong> <?= htmlspecialchars($user['username']) ?></p>
@@ -107,7 +107,7 @@ $user = Auth::user();
             <i class="fas fa-users me-2"></i>Ir a Inscripciones
         </a>
         <a href="<?= htmlspecialchars(AppHelpers::logout()) ?>" class="btn-custom">
-            <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesi�n
+            <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
         </a>
         </div>
         

@@ -66,7 +66,7 @@ try {
             @unlink(__DIR__ . '/../../' . $current_club['logo']);
         }
         
-        // Nombre �nico para el archivo
+        // Nombre único para el archivo
         $logo_name = 'logo_' . $id . '_' . time() . '.' . $extension;
         $logo_path = $upload_dir . '/' . $logo_name;
         
@@ -103,7 +103,7 @@ try {
         throw new Exception('Error al actualizar el club');
     }
     
-    // Redirigir con �xito
+    // Redirigir con éxito
     header('Location: index.php?page=clubs&success=' . urlencode('Club actualizado exitosamente'));
     exit;
     

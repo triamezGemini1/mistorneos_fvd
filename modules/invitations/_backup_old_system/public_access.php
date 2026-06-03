@@ -68,7 +68,7 @@ try {
     Auth::logout();
     
     // Redirigir al formulario de registro de invitación standalone
-    $standalone_url = app_base_url() . "/public/invitation_register_standalone.php?torneo=" . urlencode($torneo_id) . "&club=" . urlencode($club_id);
+    $standalone_url = AppHelpers::url("invitation_register_standalone.php?torneo=") . urlencode($torneo_id) . "&club=" . urlencode($club_id);
     
     // Si hay token, agregarlo también
     if (!empty($token)) {

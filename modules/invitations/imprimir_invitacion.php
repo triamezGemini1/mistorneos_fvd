@@ -1,6 +1,6 @@
 <?php
 /**
- * Invitaci�n Imprimible (Guardar como PDF)
+ * Invitación Imprimible (Guardar como PDF)
  */
 
 
@@ -17,7 +17,7 @@ $id = (int)$_GET['id'];
 try {
     $pdo = DB::pdo();
     
-    // Obtener datos de la invitaci�n
+    // Obtener datos de la invitación
     $stmt = $pdo->prepare("
         SELECT 
             i.*,
@@ -41,7 +41,7 @@ try {
     $inv = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$inv) {
-        die("Invitaci�n no encontrada");
+        die("Invitación no encontrada");
     }
     
     // Datos
@@ -53,7 +53,7 @@ try {
     // URL base del sistema
     $url_base = rtrim(FvdConfig::resolvePublicUrl(), '/') . '/';
     
-    // Limpiar n�mero para WhatsApp
+    // Limpiar número para WhatsApp
     $telefono_limpio = preg_replace('/[^0-9]/', '', $telefono);
     
     // Preparar logo del club responsable del torneo
@@ -77,7 +77,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invitaci�n - <?php echo htmlspecialchars($inv['torneo_nombre']); ?></title>
+    <title>Invitación - <?php echo htmlspecialchars($inv['torneo_nombre']); ?></title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -251,8 +251,8 @@ try {
                 <img src="<?php echo htmlspecialchars($logo_responsable_url); ?>" alt="Logo" class="header-logo">
             <?php endif; ?>
             
-            <h1>?? INVITACI�N A TORNEO</h1>
-            <p style="font-size: 1.1rem; margin: 10px 0;">Invitaci�n Oficial</p>
+            <h1>?? INVITACIÓN A TORNEO</h1>
+            <p style="font-size: 1.1rem; margin: 10px 0;">Invitación Oficial</p>
             
             <?php if (!empty($inv['club_responsable_nombre'])): ?>
                 <div class="organizacion-badge">
@@ -262,10 +262,10 @@ try {
         </div>
         
         <div class="section">
-            <div class="section-title">?? INFORMACI�N DEL TORNEO</div>
+            <div class="section-title">?? INFORMACIÓN DEL TORNEO</div>
             <?php if (!empty($inv['club_responsable_nombre'])): ?>
             <div class="field">
-                <span class="field-label">Organizaci�n:</span>
+                <span class="field-label">Organización:</span>
                 <span class="field-value"><?php echo htmlspecialchars($inv['club_responsable_nombre']); ?></span>
             </div>
             <?php endif; ?>
@@ -301,19 +301,19 @@ try {
                 <span class="field-value"><?php echo htmlspecialchars($delegado); ?></span>
             </div>
             <div class="field">
-                <span class="field-label">Tel�fono:</span>
+                <span class="field-label">Teléfono:</span>
                 <span class="field-value"><?php echo htmlspecialchars($telefono); ?></span>
             </div>
             <?php if (!empty($inv['club_direccion'])): ?>
             <div class="field">
-                <span class="field-label">Direcci�n:</span>
+                <span class="field-label">Dirección:</span>
                 <span class="field-value"><?php echo htmlspecialchars($inv['club_direccion']); ?></span>
             </div>
             <?php endif; ?>
         </div>
         
         <div class="section">
-            <div class="section-title">?? VIGENCIA DE LA INVITACI�N</div>
+            <div class="section-title">?? VIGENCIA DE LA INVITACIÓN</div>
             <div class="field">
                 <span class="field-label">Periodo de Acceso:</span>
                 <span class="field-value"><?php echo $vigencia; ?></span>
@@ -327,9 +327,9 @@ try {
         </div>
         
         <div class="credentials">
-            <h3>?? CREDENCIALES PARA INSCRIPCI�N DE JUGADORES</h3>
+            <h3>?? CREDENCIALES PARA INSCRIPCIÓN DE JUGADORES</h3>
             <p style="color: #721c24; font-weight: bold; margin-bottom: 15px;">
-                ?? INFORMACI�N IMPORTANTE: Guarde estas credenciales en un lugar seguro.
+                ?? INFORMACIÓN IMPORTANTE: Guarde estas credenciales en un lugar seguro.
             </p>
             
             <div style="margin: 20px 0;">
@@ -351,34 +351,34 @@ try {
                 <li>Entre a la <strong>URL DE ACCESO</strong> (arriba) en su navegador</li>
                 <li>Copie y pegue su <strong>TOKEN DE ACCESO</strong> en el formulario</li>
                 <li>Haga clic en "Ingresar"</li>
-                <li>Inscriba a sus jugadores ingresando su c�dula</li>
-                <li>Puede gestionar las inscripciones, actualizar datos y ver estad�sticas</li>
+                <li>Inscriba a sus jugadores ingresando su cédula</li>
+                <li>Puede gestionar las inscripciones, actualizar datos y ver estadísticas</li>
             </ol>
             <p style="margin-top: 15px; color: #721c24; font-weight: bold;">
-                ?? GUARDE ESTE TOKEN: Lo necesitar� cada vez que acceda al sistema de inscripci�n.
+                ?? GUARDE ESTE TOKEN: Lo necesitará cada vez que acceda al sistema de inscripción.
             </p>
         </div>
         
         <div class="footer">
-            <h3>?? INFORMACI�N DE CONTACTO</h3>
-            <p style="margin: 10px 0;">Sistema de Gesti�n de Torneos</p>
-            <p style="margin: 20px 0; font-style: italic;">�Esperamos contar con su participaci�n!</p>
+            <h3>?? INFORMACIÓN DE CONTACTO</h3>
+            <p style="margin: 10px 0;">Sistema de Gestión de Torneos</p>
+            <p style="margin: 20px 0; font-style: italic;">¡Esperamos contar con su participación!</p>
         </div>
     </div>
 
-    <!-- Modal de Confirmaci�n de WhatsApp -->
+    <!-- Modal de Confirmación de WhatsApp -->
     <div id="modalConfirmacionWhatsApp" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center;">
         <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; margin: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
             <div style="text-align: center; font-size: 4rem; margin-bottom: 20px;">??</div>
-            <h2 style="text-align: center; color: #25D366; margin-bottom: 10px;">Enviar Invitaci�n por WhatsApp</h2>
+            <h2 style="text-align: center; color: #25D366; margin-bottom: 10px;">Enviar Invitación por WhatsApp</h2>
             <p style="text-align: center; color: #666; margin-bottom: 20px;">
-                Se enviar� la invitaci�n a:<br>
+                Se enviar• la invitación a:<br>
                 <strong><?php echo htmlspecialchars($inv['club_nombre']); ?></strong>
             </p>
             
             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                 <div style="font-size: 0.9rem; color: #666;">
-                    <strong>?? Tel�fono:</strong> <?php echo htmlspecialchars($telefono_display); ?><br>
+                    <strong>?? Teléfono:</strong> <?php echo htmlspecialchars($telefono_display); ?><br>
                     <strong>?? Delegado:</strong> <?php echo htmlspecialchars($delegado); ?><br>
                     <strong>?? Torneo:</strong> <?php echo htmlspecialchars($inv['torneo_nombre']); ?>
                 </div>
@@ -388,8 +388,8 @@ try {
                 <div style="margin-bottom: 15px; padding: 10px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #28a745;">
                     <small style="color: #155724;">
                         ? El mensaje incluye el TOKEN de acceso para inscripciones.<br>
-                        ? WhatsApp se abrir� con el mensaje pre-cargado.<br>
-                        ? Solo confirme el env�o en WhatsApp.
+                        ? WhatsApp se abrió con el mensaje pre-cargado.<br>
+                        ? Solo confirme el envío en WhatsApp.
                     </small>
                 </div>
                 
@@ -404,7 +404,7 @@ try {
             <?php else: ?>
                 <div style="margin-bottom: 15px; padding: 10px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
                     <small style="color: #856404;">
-                        ?? El club no tiene tel�fono configurado.<br>
+                        ?? El club no tiene teléfono configurado.<br>
                         No se puede enviar por WhatsApp.
                     </small>
                 </div>
@@ -430,12 +430,12 @@ try {
         }
         
         function confirmarEnvioWhatsApp() {
-            // Redirigir a whatsapp.php que har� la redirecci�n autom�tica a WhatsApp
+            // Redirigir a whatsapp.php que har• la redirección automática a WhatsApp
             window.location.href = 'whatsapp.php?id=<?php echo $id; ?>';
             cerrarModalWhatsApp();
             
-            // Mostrar mensaje de confirmaci�n
-            alert('? WhatsApp se est� abriendo con el mensaje pre-cargado.\n\nConfirme el env�o en la ventana de WhatsApp.');
+            // Mostrar mensaje de confirmación
+            alert('✓ WhatsApp se est• abriendo con el mensaje pre-cargado.\n\nConfirme el envío en la ventana de WhatsApp.');
         }
         
         // Cerrar modal si se hace clic fuera
@@ -452,7 +452,7 @@ try {
             }
         });
         
-        // Imprimir autom�ticamente si se solicita
+        // Imprimir automáticamente si se solicita
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('auto') === '1') {
             setTimeout(() => window.print(), 500);

@@ -10,7 +10,7 @@ require_once __DIR__ . '/../../config/bootstrap.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/auth.php';
 
-// Verificar autenticaci�n
+// Verificar autenticación
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 
 try {
@@ -37,7 +37,7 @@ try {
     
     $where_clause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
     
-    // Consultar datos con el formato espec�fico
+    // Consultar datos con el formato específico
     $stmt = DB::pdo()->prepare("
         SELECT 
             r.club_id as id_club,
@@ -77,7 +77,7 @@ try {
     die('Error: ' . htmlspecialchars($e->getMessage()));
 }
 
-// Funci�n helper para convertir sexo
+// Función helper para convertir sexo
 function formatSexo($sexo) {
     if ($sexo === 'M' || $sexo == 1) return 'M';
     if ($sexo === 'F' || $sexo == 2) return 'F';
@@ -88,7 +88,7 @@ function formatSexo($sexo) {
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Exportaci�n de Jugadores</title>
+    <title>Exportación de Jugadores</title>
 </head>
 <body>
     <table border="1" cellpadding="5" cellspacing="0">
@@ -148,7 +148,7 @@ function formatSexo($sexo) {
     <table border="0" style="margin-top: 20px; width: 100%;">
         <tr>
             <td style="text-align: center; color: #666; font-size: 9pt;">
-                Serviclubes LED - Sistema de Gesti�n de Torneos
+                Serviclubes LED - Sistema de Gestión de Torneos
             </td>
         </tr>
         <tr>
@@ -158,7 +158,7 @@ function formatSexo($sexo) {
         </tr>
         <tr>
             <td style="text-align: center; color: #666; font-size: 8pt;">
-                Exportaci�n generada el <?= date('d/m/Y H:i:s') ?>
+                Exportación generada el <?= date('d/m/Y H:i:s') ?>
             </td>
         </tr>
     </table>

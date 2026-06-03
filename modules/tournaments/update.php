@@ -60,10 +60,10 @@ try {
         throw new Exception('La fecha del torneo es requerida');
     }
     if (empty($_POST['clase']) || !in_array((int)$_POST['clase'], [1, 2])) {
-        throw new Exception('La clase del torneo es inv�lida');
+        throw new Exception('La clase del torneo es inválida');
     }
     if (empty($_POST['modalidad']) || !in_array((int)$_POST['modalidad'], [1, 2, 3, 4])) {
-        throw new Exception('La modalidad del torneo es inv�lida');
+        throw new Exception('La modalidad del torneo es inválida');
     }
     
     // Verificar que el torneo existe y validar permisos (obtener archivos actuales y owner_user_id si existe)
@@ -248,7 +248,7 @@ try {
                 // Subir nuevo archivo
                 $file_paths[$field] = FileUpload::uploadTournamentFile($_FILES[$field], $field, $id);
             } catch (Exception $e) {
-                // Si falla la subida, continuar con los dem�s archivos
+                // Si falla la subida, continuar con los demás archivos
                 error_log("Error al subir $field para torneo $id: " . $e->getMessage());
             }
         }
@@ -334,7 +334,7 @@ try {
         throw new Exception('Error al actualizar el torneo');
     }
     
-    // Redirigir con �xito
+    // Redirigir con éxito
     $redirect_url = class_exists('AppHelpers') ? AppHelpers::dashboard('tournaments', ['success' => 'Torneo actualizado exitosamente']) : 'index.php?page=tournaments&success=' . urlencode('Torneo actualizado exitosamente');
     if (ob_get_level()) ob_end_clean();
     header('Location: ' . $redirect_url, true, 302);

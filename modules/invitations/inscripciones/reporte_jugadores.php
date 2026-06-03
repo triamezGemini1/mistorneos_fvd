@@ -16,12 +16,12 @@ try {
     $torneo_id = $_SESSION['torneo_id'];
     $club_id = $_SESSION['club_id'];
     
-    // Obtener informaci�n del torneo
+    // Obtener información del torneo
     $stmt = $pdo->prepare("SELECT * FROM tournaments WHERE id = ?");
     $stmt->execute([$torneo_id]);
     $torneo = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Obtener informaci�n del club
+    // Obtener información del club
     $stmt = $pdo->prepare("SELECT * FROM clubes WHERE id = ?");
     $stmt->execute([$club_id]);
     $club = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -35,7 +35,7 @@ try {
     $stmt->execute([$torneo_id, $club_id]);
     $inscritos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Estad�sticas
+    // Estadísticas
     $total = count($inscritos);
     $hombres = count(array_filter($inscritos, function($r) { 
         return $r['sexo'] == 1 || strtoupper($r['sexo']) === 'M'; 
@@ -158,7 +158,7 @@ header('Content-Disposition: inline; filename="jugadores_' . $club_id . '_' . $t
             <tr>
                 <td><strong>Delegado:</strong></td>
                 <td><?= htmlspecialchars($club['delegado'] ?? 'N/A') ?></td>
-                <td><strong>Tel�fono:</strong></td>
+                <td><strong>Teléfono:</strong></td>
                 <td><?= htmlspecialchars($club['telefono'] ?? 'N/A') ?></td>
             </tr>
         </table>
@@ -188,7 +188,7 @@ header('Content-Disposition: inline; filename="jugadores_' . $club_id . '_' . $t
             <thead>
                 <tr>
                     <th style="width: 5%;">#</th>
-                    <th style="width: 15%;">C�dula</th>
+                    <th style="width: 15%;">Cédula</th>
                     <th style="width: 35%;">Nombre Completo</th>
                     <th style="width: 8%;">Sexo</th>
                     <th style="width: 15%;">Fecha Nac.</th>

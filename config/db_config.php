@@ -15,6 +15,8 @@ if (!defined('APP_BOOTSTRAPPED')) {
     require_once __DIR__ . '/bootstrap.php';
 }
 
+require_once __DIR__ . '/persona_database.php';
+
 class DB {
     private static $pdo = null;
     private static $pdoSecondary = null;
@@ -30,14 +32,49 @@ class DB {
     }
 
     public static function pdoSecondary(): PDO {
+        if (!self::isSecondaryConfigured()) {
+            throw new PDOException(
+                'Base de datos de personas no configurada. Solo se usa en consultas puntuales (búsqueda por cédula).'
+            );
+        }
         if (self::$pdoSecondary === null) {
             self::$pdoSecondary = self::createConnection('secondary');
         }
+
         return self::$pdoSecondary;
     }
 
-    public static function mistorneos(): PDO {
-        return self::pdo();
+    /**
+     * Conexión secundaria opcional (null si no hay credenciales o falla).
+     */
+    public static function tryPdoSecondary(): ?PDO {
+        if (!self::isSecondaryConfigured()) {
+            return null;
+        }
+        try {
+            return self::pdoSecondary();
+        } catch (PDOException $e) {
+            return null;
+        }
+    }
+
+    public static function isSecondaryConfigured(): bool {
+        if (class_exists('PersonaDatabase', false)) {
+            return PersonaDatabase::isConfigured();
+        }
+        $cfg = $GLOBALS['APP_CONFIG']['db'] ?? [];
+        $persona = $GLOBALS['APP_CONFIG']['persona_db'] ?? [];
+        if (trim((string) ($persona['user'] ?? '')) !== '') {
+            return true;
+        }
+        if (trim((string) ($cfg['secondary_user'] ?? '')) !== '') {
+            return true;
+        }
+        if (class_exists('Env', false)) {
+            return trim((string) (Env::get('DB_SECONDARY_USERNAME') ?? '')) !== '';
+        }
+
+        return false;
     }
 
     public static function fvdadmin(): PDO {
@@ -48,11 +85,17 @@ class DB {
         $cfg = $GLOBALS['APP_CONFIG']['db'] ?? [];
 
         if ($type === 'secondary') {
-            $host = Env::getDbSecondary('HOST') ?: ($cfg['secondary_host'] ?? 'localhost');
-            $port = Env::getDbSecondary('PORT') ?: ($cfg['secondary_port'] ?? '3306');
-            $name = Env::getDbSecondary('DATABASE') ?: ($cfg['secondary_name'] ?? 'fvdadmin');
-            $user = Env::getDbSecondary('USERNAME') ?: ($cfg['secondary_user'] ?? 'root');
-            $pass = Env::getDbSecondary('PASSWORD') ?: ($cfg['secondary_pass'] ?? '');
+            $settings = PersonaDatabase::connectionSettings();
+            if ($settings === null) {
+                throw new PDOException(
+                    'Base de datos de personas no configurada. Solo se usa en consultas puntuales (búsqueda por cédula).'
+                );
+            }
+            $host = $settings['host'];
+            $port = (string) $settings['port'];
+            $name = $settings['dbname'];
+            $user = $settings['user'];
+            $pass = $settings['pass'];
             $charset = $cfg['secondary_charset'] ?? 'utf8mb4';
             $dbLabel = 'fvdadmin (secundaria)';
         } else {
@@ -133,12 +176,11 @@ class DB {
     }
 
     public static function isSecondaryConnected(): bool {
-        try {
-            self::pdoSecondary();
-            return true;
-        } catch (PDOException $e) {
+        if (!self::isSecondaryConfigured()) {
             return false;
         }
+
+        return self::tryPdoSecondary() !== null;
     }
 
     public static function queryBoth(string $sql, array $params = []): array {
@@ -150,12 +192,21 @@ class DB {
         } catch (PDOException $e) {
             $results['primary_error'] = $e->getMessage();
         }
-        try {
-            $stmt = self::pdoSecondary()->prepare($sql);
-            $stmt->execute($params);
-            $results['secondary'] = $stmt->fetchAll();
-        } catch (PDOException $e) {
-            $results['secondary_error'] = $e->getMessage();
+        if (self::isSecondaryConfigured()) {
+            try {
+                $pdoSecondary = self::tryPdoSecondary();
+                if ($pdoSecondary !== null) {
+                    $stmt = $pdoSecondary->prepare($sql);
+                    $stmt->execute($params);
+                    $results['secondary'] = $stmt->fetchAll();
+                } else {
+                    $results['secondary_error'] = 'Conexión secundaria no disponible';
+                }
+            } catch (PDOException $e) {
+                $results['secondary_error'] = $e->getMessage();
+            }
+        } else {
+            $results['secondary_skipped'] = true;
         }
         return $results;
     }

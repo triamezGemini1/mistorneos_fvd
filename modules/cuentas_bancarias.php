@@ -24,14 +24,10 @@ $torneo_action = $_GET['torneo_action'] ?? 'new';
 $torneo_id = isset($_GET['torneo_id']) ? (int)$_GET['torneo_id'] : 0;
 $url_retorno_torneo = '';
 if ($return_torneo) {
-    $base = function_exists('app_base_url') ? rtrim(app_base_url(), '/') : '';
-    if ($base === '') {
-        $base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-    }
-    $url_retorno_torneo = $base . '/public/index.php?page=tournaments&action=' . ($torneo_action === 'edit' ? 'edit' : 'new');
-    if ($torneo_action === 'edit' && $torneo_id > 0) {
-        $url_retorno_torneo .= '&id=' . $torneo_id;
-    }
+    $url_retorno_torneo = AppHelpers::dashboard('tournaments', array_filter([
+        'action' => $torneo_action === 'edit' ? 'edit' : 'new',
+        'id' => ($torneo_action === 'edit' && $torneo_id > 0) ? $torneo_id : null,
+    ]));
 }
 
 $error = '';
@@ -88,21 +84,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $torneo_action_post = $_POST['torneo_action'] ?? 'new';
                     $torneo_id_post = isset($_POST['torneo_id']) ? (int)$_POST['torneo_id'] : 0;
                     if ($return_torneo_post) {
-                        $base = function_exists('app_base_url') ? rtrim(app_base_url(), '/') : '';
-                        if ($base === '') {
-                            $base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-                        }
-                        $url = $base . '/public/index.php?page=tournaments&action=' . ($torneo_action_post === 'edit' ? 'edit' : 'new') . '&success=' . urlencode('Cuenta bancaria creada. Seleccione la cuenta en el torneo.');
+                        $params = [
+                            'action' => $torneo_action_post === 'edit' ? 'edit' : 'new',
+                            'success' => 'Cuenta bancaria creada. Seleccione la cuenta en el torneo.',
+                        ];
                         if ($torneo_action_post === 'edit' && $torneo_id_post > 0) {
-                            $url .= '&id=' . $torneo_id_post;
+                            $params['id'] = $torneo_id_post;
                         }
-                        header('Location: ' . $url);
+                        header('Location: ' . AppHelpers::dashboard('tournaments', $params));
                     } else {
-                        $base = function_exists('app_base_url') ? rtrim(app_base_url(), '/') : '';
-                        if ($base === '') {
-                            $base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-                        }
-                        header('Location: ' . $base . '/public/index.php?page=cuentas_bancarias&success=' . urlencode('Cuenta bancaria creada exitosamente'));
+                        header('Location: ' . AppHelpers::dashboard('cuentas_bancarias', ['success' => 'Cuenta bancaria creada exitosamente']));
                     }
                     exit;
                 } else {
@@ -133,21 +124,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $torneo_action_post = $_POST['torneo_action'] ?? 'new';
                     $torneo_id_post = isset($_POST['torneo_id']) ? (int)$_POST['torneo_id'] : 0;
                     if ($return_torneo_post) {
-                        $base = function_exists('app_base_url') ? rtrim(app_base_url(), '/') : '';
-                        if ($base === '') {
-                            $base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-                        }
-                        $url = $base . '/public/index.php?page=tournaments&action=' . ($torneo_action_post === 'edit' ? 'edit' : 'new') . '&success=' . urlencode('Cuenta bancaria actualizada.');
+                        $params = [
+                            'action' => $torneo_action_post === 'edit' ? 'edit' : 'new',
+                            'success' => 'Cuenta bancaria actualizada.',
+                        ];
                         if ($torneo_action_post === 'edit' && $torneo_id_post > 0) {
-                            $url .= '&id=' . $torneo_id_post;
+                            $params['id'] = $torneo_id_post;
                         }
-                        header('Location: ' . $url);
+                        header('Location: ' . AppHelpers::dashboard('tournaments', $params));
                     } else {
-                        $base = function_exists('app_base_url') ? rtrim(app_base_url(), '/') : '';
-                        if ($base === '') {
-                            $base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-                        }
-                        header('Location: ' . $base . '/public/index.php?page=cuentas_bancarias&success=' . urlencode('Cuenta bancaria actualizada exitosamente'));
+                        header('Location: ' . AppHelpers::dashboard('cuentas_bancarias', ['success' => 'Cuenta bancaria actualizada exitosamente']));
                     }
                     exit;
                 }

@@ -1,6 +1,6 @@
 <?php
 /**
- * Cambiar Estado de Invitaci�n
+ * Cambiar Estado de Invitación
  */
 
 

@@ -36,7 +36,7 @@ abstract class Component
     }
 
     /**
-     * Valida props seg�n schema del componente
+     * Valida props según schema del componente
      * 
      * @param array $props
      * @return array
@@ -66,7 +66,7 @@ abstract class Component
     }
 
     /**
-     * Castea prop seg�n tipo
+     * Castea prop según tipo
      * 
      * @param mixed $value
      * @param string $type

@@ -582,7 +582,7 @@ $url_base = 'evento_resultados.php?torneo_id=' . $torneo_id;
                 <i class="fas fa-images me-1"></i>Galería
             </a>
             <?php endif; ?>
-            <a href="<?= htmlspecialchars($base_url) ?>/public/landing-spa.php" class="btn btn-outline-dark btn-sm">
+            <a href="<?= htmlspecialchars(AppHelpers::url('landing-spa.php')) ?>" class="btn btn-outline-dark btn-sm">
                 <i class="fas fa-home me-1"></i>Inicio
             </a>
         </div>

@@ -8,7 +8,7 @@ if (!defined('APP_BOOTSTRAPPED')) {
 require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../config/auth.php';
 
-// Obtener par�metros de la URL de invitaci�n
+// Obtener parámetros de la URL de invitación
 $token = $_GET['token'] ?? '';
 $torneo_id = $_GET['torneo'] ?? '';
 $club_id = $_GET['club'] ?? '';
@@ -18,17 +18,17 @@ $invitation_data = null;
 $club_data = null;
 $tournament_data = null;
 
-// Validar par�metros de invitaci�n
+// Validar parámetros de invitación
 if (empty($token) || empty($torneo_id) || empty($club_id)) {
-    // Si no hay token, redirigir autom�ticamente al sistema simple (sin token)
+    // Si no hay token, redirigir automáticamente al sistema simple (sin token)
     if (empty($token) && !empty($torneo_id) && !empty($club_id)) {
         header("Location: simple_invitation_login.php?torneo=" . urlencode($torneo_id) . "&club=" . urlencode($club_id));
         exit;
     }
-    $error_message = "Par�metros de invitaci�n inv�lidos";
+    $error_message = "Parámetros de invitación inválidos";
 } else {
     try {
-        // Verificar invitaci�n v�lida
+        // Verificar invitación v�lida
         $stmt = DB::pdo()->prepare("
             SELECT i.*, t.nombre as tournament_name, t.fechator, t.clase, t.modalidad,
                    c.nombre as club_name, c.direccion, c.delegado, c.telefono, c.email, c.logo as club_logo
@@ -41,7 +41,7 @@ if (empty($token) || empty($torneo_id) || empty($club_id)) {
         $invitation_data = $stmt->fetch();
         
         if (!$invitation_data) {
-            $error_message = "Invitaci�n no v�lida o expirada";
+            $error_message = "Invitación no v�lida o expirada";
         } else {
             // Verificar fechas de acceso
             $now = new DateTime();
@@ -49,9 +49,9 @@ if (empty($token) || empty($torneo_id) || empty($club_id)) {
             $end_date = new DateTime($invitation_data['acceso2']);
             
             if ($now < $start_date) {
-                $error_message = "El per�odo de inscripci�n a�n no ha comenzado";
+                $error_message = "El per�odo de inscripción a�n no ha comenzado";
             } elseif ($now > $end_date) {
-                $error_message = "El per�odo de inscripci�n ha expirado";
+                $error_message = "El per�odo de inscripción ha expirado";
             } else {
                 // Preparar datos para mostrar
                 $club_data = [
@@ -74,7 +74,7 @@ if (empty($token) || empty($torneo_id) || empty($club_id)) {
             }
         }
     } catch (Exception $e) {
-        $error_message = "Error al validar invitaci�n: " . $e->getMessage();
+        $error_message = "Error al validar invitación: " . $e->getMessage();
     }
 }
 
@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message) {
     $password = $_POST['password'] ?? '';
     
     if (empty($username) || empty($password)) {
-        $error_message = "Usuario y contrase�a son requeridos";
+        $error_message = "Usuario y contraseña son requeridos";
     } else {
         try {
             // Verificar credenciales del usuario invitado
@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message) {
             
             require_once __DIR__ . '/../lib/security.php';
             
-            // Usar autenticaci�n centralizada para admin_club
+            // Usar autenticación centralizada para admin_club
             $authenticatedUser = Security::authenticateClubAdmin($username, $password, $club_data['email']);
             
             if ($authenticatedUser) {
@@ -117,15 +117,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message) {
                 }
                 session_regenerate_id(true);
                 
-                // Redirigir al formulario de inscripci�n independiente
-                $redirect_url = app_base_url() . "/public/invitation_register_standalone.php?torneo=" . urlencode($torneo_id) . "&club=" . urlencode($club_id);
+                // Redirigir al formulario de inscripción independiente
+                $redirect_url = AppHelpers::url("invitation_register_standalone.php?torneo=") . urlencode($torneo_id) . "&club=" . urlencode($club_id);
                 header('Location: ' . $redirect_url);
                 exit;
             } else {
-                $error_message = "Usuario o contrase�a incorrectos";
+                $error_message = "Usuario o contraseña incorrectos";
             }
         } catch (Exception $e) {
-            $error_message = "Error en la autenticaci�n: " . $e->getMessage();
+            $error_message = "Error en la autenticación: " . $e->getMessage();
         }
     }
 }
@@ -240,14 +240,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message) {
                         <div class="card-body text-center py-5">
                             <i class="fas fa-lock text-danger fs-1 mb-3"></i>
                             <h5 class="text-danger"><?= htmlspecialchars($error_message) ?></h5>
-                            <p class="text-muted">Por favor, verifica que tienes acceso v�lido a esta p�gina.</p>
+                            <p class="text-muted">Por favor, verifica que tienes acceso válido a esta página.</p>
                             <a href="javascript:history.back()" class="btn btn-outline-secondary">
                                 <i class="fas fa-arrow-left me-2"></i>Volver
                             </a>
                         </div>
                     </div>
                 <?php else: ?>
-                    <!-- Header con Informaci�n del Torneo -->
+                    <!-- Header con Información del Torneo -->
                     <div class="header-section p-4">
                         <div class="row align-items-center">
                             <!-- Logo del club invitado -->
@@ -263,7 +263,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message) {
                                 </div>
                             </div>
                             
-                            <!-- Informaci�n central -->
+                            <!-- Información central -->
                             <div class="col-md-6 text-center">
                                 <h2 class="h3 text-primary mb-2">
                                     <?= htmlspecialchars($club_data['nombre']) ?>
@@ -285,10 +285,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message) {
                                 </div>
                             </div>
                             
-                            <!-- Informaci�n del per�odo -->
+                            <!-- Información del per�odo -->
                             <div class="col-md-3">
                                 <div class="text-center">
-                                    <h6 class="text-muted">Per�odo de Inscripci�n</h6>
+                                    <h6 class="text-muted">Per�odo de Inscripción</h6>
                                     <small class="text-muted">
                                         Desde: <?= date('d/m/Y', strtotime($invitation_data['acceso1'])) ?><br>
                                         Hasta: <?= date('d/m/Y', strtotime($invitation_data['acceso2'])) ?>
@@ -307,12 +307,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message) {
                             </h3>
                         </div>
                         <div class="card-body">
-                            <!-- Informaci�n del club -->
+                            <!-- Información del club -->
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle me-2"></i>
                                 <strong>Club:</strong> <?= htmlspecialchars($club_data['nombre']) ?><br>
                                 <strong>Delegado:</strong> <?= htmlspecialchars($club_data['delegado']) ?><br>
-                                <strong>Tel�fono:</strong> <?= htmlspecialchars($club_data['telefono']) ?>
+                                <strong>Teléfono:</strong> <?= htmlspecialchars($club_data['telefono']) ?>
                             </div>
                             
                             <!-- Credenciales de acceso -->
@@ -326,7 +326,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message) {
                                     <span class="credential-value"><?= htmlspecialchars($invitation_data['usuario']) ?></span>
                                 </div>
                                 <div class="credential-item">
-                                    <span class="credential-label">Contrase�a:</span>
+                                    <span class="credential-label">Contraseña:</span>
                                     <span class="credential-value">usuario</span>
                                 </div>
                             </div>
@@ -346,14 +346,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message) {
                                     </div>
                                     
                                     <div class="col-12">
-                                        <label for="password" class="form-label">Contrase�a</label>
+                                        <label for="password" class="form-label">Contraseña</label>
                                         <div class="input-group">
                                             <input type="password" 
                                                    class="form-control" 
                                                    id="password" 
                                                    name="password" 
                                                    value="usuario"
-                                                   placeholder="Ingrese la contrase�a"
+                                                   placeholder="Ingrese la contraseña"
                                                    required>
                                             <button type="button" 
                                                     class="btn btn-outline-secondary" 
@@ -371,11 +371,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message) {
                                 </div>
                             </form>
                             
-                            <!-- Informaci�n adicional -->
+                            <!-- Información adicional -->
                             <div class="mt-4 text-center">
                                 <small class="text-muted">
                                     <i class="fas fa-shield-alt me-1"></i>
-                                    Despu�s de autenticarse, ser� redirigido al formulario de inscripci�n de jugadores.
+                                    Despu�s de autenticarse, ser• redirigido al formulario de inscripción de jugadores.
                                 </small>
                             </div>
                         </div>
@@ -401,7 +401,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error_message) {
             }
         }
         
-        // Auto-focus en el campo de contrase�a si el usuario ya est� pre-cargado
+        // Auto-focus en el campo de contraseña si el usuario ya est• pre-cargado
         document.addEventListener('DOMContentLoaded', function() {
             const usernameInput = document.getElementById('username');
             const passwordInput = document.getElementById('password');

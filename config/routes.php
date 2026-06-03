@@ -152,7 +152,7 @@ return function (Router $router) {
     
     $router->group(['middleware' => [new AuthMiddleware(['admin_general', 'admin_torneo'])]], function($router) {
         
-        // Dashboard principal
+        // Dashboard con estadísticas
         $router->get('/dashboard', function() {
             include __DIR__ . '/../modules/home.php';
             return '';

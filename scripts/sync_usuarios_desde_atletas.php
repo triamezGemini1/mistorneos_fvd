@@ -11,6 +11,7 @@ declare(strict_types=1);
  * - usuarios.celular <- atletas.celular
  * - usuarios.email   <- atletas.email
  * - usuarios.fechnac <- atletas.fechnac
+ * - usuarios.posi_rnk <- atletas.categ (si existe la columna posi_rnk)
  *
  * Uso:
  *   php scripts/sync_usuarios_desde_atletas.php
@@ -59,6 +60,8 @@ function normalizarFecha($fecha): ?string
 $pdo = DB::pdo();
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+$tienePosiRnk = (bool) $pdo->query("SHOW COLUMNS FROM usuarios LIKE 'posi_rnk'")->fetch(PDO::FETCH_ASSOC);
+
 echo "═══════════════════════════════════════════════════════════════\n";
 echo "  Sincronización usuarios <- atletas (por cédula)\n";
 echo "═══════════════════════════════════════════════════════════════\n";
@@ -76,10 +79,11 @@ try {
         }
     }
 
-    $stmtAtletas = $pdo->query(
-        "SELECT cedula, sexo, numfvd, asociacion, celular, email, fechnac
-         FROM atletas"
-    );
+    $colsAtletas = 'cedula, sexo, numfvd, asociacion, celular, email, fechnac';
+    if ($tienePosiRnk) {
+        $colsAtletas .= ', categ';
+    }
+    $stmtAtletas = $pdo->query("SELECT {$colsAtletas} FROM atletas");
     $atletas = $stmtAtletas->fetchAll(PDO::FETCH_ASSOC);
 
     $totalAtletas = count($atletas);
@@ -91,11 +95,11 @@ try {
         $pdo->beginTransaction();
     }
 
-    $upd = $pdo->prepare(
-        "UPDATE usuarios
-         SET sexo = ?, numfvd = ?, club_id = ?, celular = ?, email = ?, fechnac = ?
-         WHERE id = ?"
-    );
+    $setSql = 'sexo = ?, numfvd = ?, club_id = ?, celular = ?, email = ?, fechnac = ?';
+    if ($tienePosiRnk) {
+        $setSql .= ', posi_rnk = ?';
+    }
+    $upd = $pdo->prepare("UPDATE usuarios SET {$setSql} WHERE id = ?");
 
     foreach ($atletas as $a) {
         $ced = normalizarCedula((string)($a['cedula'] ?? ''));
@@ -118,15 +122,19 @@ try {
             continue;
         }
 
-        $upd->execute([
+        $params = [
             $sexo,
             $numfvd,
             $clubId,
             $celular === '' ? null : $celular,
             $email === '' ? null : $email,
             $fechnac,
-            $uid,
-        ]);
+        ];
+        if ($tienePosiRnk) {
+            $params[] = (int) ($a['categ'] ?? 0);
+        }
+        $params[] = $uid;
+        $upd->execute($params);
         $actualizados += $upd->rowCount() > 0 ? 1 : 0;
     }
 

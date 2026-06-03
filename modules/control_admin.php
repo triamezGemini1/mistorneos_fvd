@@ -1,7 +1,7 @@
 <?php
 /**
  * Panel de Control Especial - Solo Admin General
- * Incluye: Exportaciones avanzadas, Credenciales por lote, Numeraci�n
+ * Incluye: Exportaciones avanzadas, Credenciales por lote, Numeración
  */
 
 require_once __DIR__ . '/../config/auth.php';
@@ -74,7 +74,7 @@ if ($action === 'preview_credentials') {
                     <i class="fas fa-shield-alt me-1"></i>Solo Admin General
                 </span>
             </div>
-            <p class="text-muted">Herramientas avanzadas para gesti�n de inscritos, exportaciones y credenciales</p>
+            <p class="text-muted">Herramientas avanzadas para gestión de inscritos, exportaciones y credenciales</p>
         </div>
     </div>
 
@@ -95,7 +95,7 @@ if ($action === 'preview_credentials') {
     <?php if ($action === 'main'): ?>
         <!-- Panel Principal -->
         <div class="row g-4">
-            <!-- Secci�n: Exportaciones Avanzadas -->
+            <!-- Sección: Exportaciones Avanzadas -->
             <div class="col-lg-4">
                 <div class="card h-100 border-success">
                     <div class="card-header bg-success text-white">
@@ -127,7 +127,7 @@ if ($action === 'preview_credentials') {
                                         <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['nombre']) ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <small class="text-muted">Mant�n Ctrl para seleccionar m�ltiples</small>
+                                <small class="text-muted">Mant�n Ctrl para seleccionar múltiples</small>
                             </div>
                         </form>
                         
@@ -149,7 +149,7 @@ if ($action === 'preview_credentials') {
                 </div>
             </div>
 
-            <!-- Secci�n: Credenciales Masivas -->
+            <!-- Sección: Credenciales Masivas -->
             <div class="col-lg-4">
                 <div class="card h-100 border-info">
                     <div class="card-header bg-info text-white">
@@ -196,16 +196,16 @@ if ($action === 'preview_credentials') {
                 </div>
             </div>
 
-            <!-- Secci�n: Numeraci�n -->
+            <!-- Sección: Numeración -->
             <div class="col-lg-4">
                 <div class="card h-100 border-primary">
                     <div class="card-header bg-primary text-white">
                         <h5 class="card-title mb-0">
-                            <i class="fas fa-sort-numeric-down me-2"></i>Numeraci�n de Inscritos
+                            <i class="fas fa-sort-numeric-down me-2"></i>Numeración de Inscritos
                         </h5>
                     </div>
                     <div class="card-body">
-                        <p class="text-muted">Asignar n�meros identificadores a los inscritos del torneo</p>
+                        <p class="text-muted">Asignar números identificadores a los inscritos del torneo</p>
                         
                         <form id="formNumeracion">
                             <div class="mb-3">
@@ -227,7 +227,7 @@ if ($action === 'preview_credentials') {
                                         <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['nombre']) ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <small class="text-muted">Dejar vac�o para numerar todos</small>
+                                <small class="text-muted">Dejar vacío para numerar todos</small>
                             </div>
                         </form>
                         
@@ -241,13 +241,13 @@ if ($action === 'preview_credentials') {
                         </div>
                         
                         <div class="alert alert-warning mt-3 mb-0">
-                            <strong><i class="fas fa-info-circle me-2"></i>Informaci�n de Numeraci�n:</strong>
+                            <strong><i class="fas fa-info-circle me-2"></i>Información de Numeración:</strong>
                             <hr class="my-2">
                             <small>
-                                <strong>?? Consecutivo:</strong> Numeraci�n global (1, 2, 3...) para todo el torneo. 
+                                <strong>?? Consecutivo:</strong> Numeración global (1, 2, 3...) para todo el torneo. 
                                 Los clubs normales se numeran primero, el club responsable al final.<br><br>
-                                <strong>?? Por Club:</strong> Cada club tendr� su propia numeraci�n independiente (1, 2, 3...). 
-                                Los jugadores se ordenan alfab�ticamente dentro de cada club.<br><br>
+                                <strong>?? Por Club:</strong> Cada club tendrá su propia numeración independiente (1, 2, 3...). 
+                                Los jugadores se ordenan alfabéticamente dentro de cada club.<br><br>
                                 <strong>?? IMPORTANTE:</strong> Estas acciones actualizan la columna IDENTIFICADOR directamente en la base de datos.
                             </small>
                         </div>
@@ -282,13 +282,13 @@ if ($action === 'preview_credentials') {
                         <strong>Torneo:</strong> <?= htmlspecialchars($preview_registrants[0]['torneo_nombre'] ?? '') ?>
                     </div>
                     
-                    <!-- Previsualizaci�n en grid -->
+                    <!-- Previsualización en grid -->
                     <div class="row g-3">
                         <?php foreach ($preview_inscripciones AS $player): ?>
                             <div class="col-md-4">
                                 <div class="card shadow-sm border">
                                     <div class="card-body p-2">
-                                        <!-- Mini versi�n de la credencial -->
+                                        <!-- Mini versión de la credencial -->
                                         <div class="credential-mini" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; font-size: 0.75rem;">
                                             <div class="text-center mb-2">
                                                 <strong style="font-size: 0.9rem;"><?= htmlspecialchars($player['club_nombre']) ?></strong>
@@ -296,8 +296,8 @@ if ($action === 'preview_credentials') {
                                             <div style="background: white; color: #333; padding: 10px; border-radius: 5px;">
                                                 <div><strong>ID:</strong> <?= $player['identificador'] ?></div>
                                                 <div><strong>Nombre:</strong> <?= htmlspecialchars($player['nombre']) ?></div>
-                                                <div><strong>C�dula:</strong> <?= htmlspecialchars($player['cedula']) ?></div>
-                                                <div><strong>Categor�a:</strong> 
+                                                <div><strong>Cédula:</strong> <?= htmlspecialchars($player['cedula']) ?></div>
+                                                <div><strong>Categoría:</strong> 
                                                     <?php
                                                     $cat_names = [1 => 'JUNIOR', 2 => 'LIBRE', 3 => 'MASTER'];
                                                     echo $cat_names[$player['categ']] ?? '';
@@ -330,7 +330,7 @@ if ($action === 'preview_credentials') {
 </div>
 
 <script>
-// Funci�n para exportar inscritos formato completo
+// Función para exportar inscritos formato completo
 function exportarInscritosCompleto() {
     const form = document.getElementById('formExportacion');
     const formData = new FormData(form);
@@ -344,7 +344,7 @@ function exportarInscritosCompleto() {
     window.location.href = '../modules/registrants/export_inscritos_formato.php?' + params.toString();
 }
 
-// Funci�n para exportar jugadores en formato espec�fico
+// Función para exportar jugadores en formato específico
 async function exportarJugadoresFormato() {
     const form = document.getElementById('formExportacion');
     const formData = new FormData(form);
@@ -356,7 +356,7 @@ async function exportarJugadoresFormato() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Verificando...';
     
-    // Construir par�metros para verificaci�n
+    // Construir parámetros para verificación
     const verifyParams = new URLSearchParams();
     if (torneoId) verifyParams.append('torneo_id', torneoId);
     clubs.forEach(club => verifyParams.append('club_ids[]', club));
@@ -374,13 +374,13 @@ async function exportarJugadoresFormato() {
         }
         
         if (data.sin_identificador > 0) {
-            alert(`? ERROR: Hay ${data.sin_identificador} jugador(es) sin identificador v�lido\n\nTodos los jugadores deben tener un n�mero identificador antes de exportar.\n\n?? Use la opci�n "Numeraci�n de Inscritos" para asignar identificadores.\n\nTotal de jugadores: ${data.total}\nCon identificador: ${data.con_identificador}\nSin identificador: ${data.sin_identificador}`);
+            alert(`? ERROR: Hay ${data.sin_identificador} jugador(es) sin identificador válido\n\nTodos los jugadores deben tener un número identificador antes de exportar.\n\n?? Use la opción "Numeración de Inscritos" para asignar identificadores.\n\nTotal de jugadores: ${data.total}\nCon identificador: ${data.con_identificador}\nSin identificador: ${data.sin_identificador}`);
             btn.disabled = false;
             btn.innerHTML = originalHTML;
             return;
         }
         
-        // Todo OK, proceder con exportaci�n
+        // Todo OK, proceder con exportación
         const params = new URLSearchParams();
         params.append('torneo_id', torneoId);
         clubs.forEach(club => params.append('club_ids[]', club));
@@ -394,18 +394,18 @@ async function exportarJugadoresFormato() {
         
     } catch (error) {
         console.error('Error:', error);
-        alert('? Error al verificar identificadores');
+        alert('✓ Error al verificar identificadores');
         btn.disabled = false;
         btn.innerHTML = originalHTML;
     }
 }
 
-// Funci�n para exportar clubes
+// Función para exportar clubes
 function exportarClubes() {
     window.location.href = '../modules/registrants/export_clubes.php';
 }
 
-// Funci�n para previsualizar credenciales
+// Función para previsualizar credenciales
 async function previsualizarCredenciales() {
     const torneoSelect = document.getElementById('cred_torneo');
     const clubSelect = document.getElementById('cred_club');
@@ -413,18 +413,18 @@ async function previsualizarCredenciales() {
     const clubId = clubSelect.value;
     
     if (!torneoId || !clubId) {
-        alert('? ERROR: Debe seleccionar torneo y club');
+        alert('✓ ERROR: Debe seleccionar torneo y club');
         if (!torneoId) torneoSelect.focus();
         else clubSelect.focus();
         return;
     }
     
-    // Verificar si el torneo est� activo
+    // Verificar si el torneo est• activo
     const selectedOption = torneoSelect.options[torneoSelect.selectedIndex];
     const torneoText = selectedOption.text;
     
     if (torneoText.includes('(Pasado)')) {
-        alert('? ERROR: No se pueden generar credenciales de un torneo finalizado\n\nSolo torneos activos o futuros.');
+        alert('✓ ERROR: No se pueden generar credenciales de un torneo finalizado\n\nSolo torneos activos o futuros.');
         return;
     }
     
@@ -446,7 +446,7 @@ async function previsualizarCredenciales() {
         }
         
         if (data.sin_identificador > 0) {
-            alert(`? ERROR: Hay ${data.sin_identificador} jugador(es) sin identificador\n\nTodos los jugadores deben tener un n�mero identificador antes de generar credenciales.\n\n?? Use la opci�n "Numeraci�n de Inscritos" para asignar identificadores.`);
+            alert(`? ERROR: Hay ${data.sin_identificador} jugador(es) sin identificador\n\nTodos los jugadores deben tener un número identificador antes de generar credenciales.\n\n?? Use la opción "Numeración de Inscritos" para asignar identificadores.`);
             btn.disabled = false;
             btn.innerHTML = originalHTML;
             return;
@@ -457,13 +457,13 @@ async function previsualizarCredenciales() {
         
     } catch (error) {
         console.error('Error:', error);
-        alert('? Error al verificar identificadores');
+        alert('✓ Error al verificar identificadores');
         btn.disabled = false;
         btn.innerHTML = originalHTML;
     }
 }
 
-// Funci�n para generar credenciales en ZIP
+// Función para generar credenciales en ZIP
 async function generarCredencialesZip() {
     const torneoSelect = document.getElementById('cred_torneo');
     const clubSelect = document.getElementById('cred_club');
@@ -471,18 +471,18 @@ async function generarCredencialesZip() {
     const clubId = clubSelect.value;
     
     if (!torneoId || !clubId) {
-        alert('? ERROR: Debe seleccionar torneo y club');
+        alert('✓ ERROR: Debe seleccionar torneo y club');
         if (!torneoId) torneoSelect.focus();
         else clubSelect.focus();
         return;
     }
     
-    // Verificar si el torneo est� activo
+    // Verificar si el torneo est• activo
     const selectedOption = torneoSelect.options[torneoSelect.selectedIndex];
     const torneoText = selectedOption.text;
     
     if (torneoText.includes('(Pasado)')) {
-        alert('? ERROR: No se pueden generar credenciales de un torneo finalizado\n\nSolo torneos activos o futuros.');
+        alert('✓ ERROR: No se pueden generar credenciales de un torneo finalizado\n\nSolo torneos activos o futuros.');
         return;
     }
     
@@ -504,14 +504,14 @@ async function generarCredencialesZip() {
         }
         
         if (data.sin_identificador > 0) {
-            alert(`? ERROR: Hay ${data.sin_identificador} jugador(es) sin identificador\n\nTodos los jugadores deben tener un n�mero identificador antes de generar credenciales.\n\n?? Use la opci�n "Numeraci�n de Inscritos" para asignar identificadores.`);
+            alert(`? ERROR: Hay ${data.sin_identificador} jugador(es) sin identificador\n\nTodos los jugadores deben tener un número identificador antes de generar credenciales.\n\n?? Use la opción "Numeración de Inscritos" para asignar identificadores.`);
             btn.disabled = false;
             btn.innerHTML = originalHTML;
             return;
         }
         
         // Confirmar y generar
-        if (!confirm(`? Validaci�n exitosa: ${data.total} jugador(es) con identificador\n\n�Desea generar todas las credenciales del club en un archivo ZIP?`)) {
+        if (!confirm(`? Validación exitosa: ${data.total} jugador(es) con identificador\n\n¿Desea generar todas las credenciales del club en un archivo ZIP?`)) {
             btn.disabled = false;
             btn.innerHTML = originalHTML;
             return;
@@ -526,33 +526,33 @@ async function generarCredencialesZip() {
         
     } catch (error) {
         console.error('Error:', error);
-        alert('? Error al verificar identificadores');
+        alert('✓ Error al verificar identificadores');
         btn.disabled = false;
         btn.innerHTML = originalHTML;
     }
 }
 
-// Funci�n para numerar consecutivamente
+// Función para numerar consecutivamente
 function numerarConsecutivo() {
     const torneoSelect = document.getElementById('num_torneo');
     const torneoId = torneoSelect.value;
     
     if (!torneoId) {
-        alert('? ERROR: Debe seleccionar un torneo obligatoriamente');
+        alert('✓ ERROR: Debe seleccionar un torneo obligatoriamente');
         torneoSelect.focus();
         return;
     }
     
-    // Verificar si el torneo est� activo (no finalizado)
+    // Verificar si el torneo est• activo (no finalizado)
     const selectedOption = torneoSelect.options[torneoSelect.selectedIndex];
     const torneoText = selectedOption.text;
     
     if (torneoText.includes('(Pasado)')) {
-        alert('? ERROR: No se puede numerar un torneo finalizado\n\nSolo se permite numerar torneos activos o futuros.');
+        alert('✓ ERROR: No se puede numerar un torneo finalizado\n\nSolo se permite numerar torneos activos o futuros.');
         return;
     }
     
-    if (!confirm('�Desea asignar n�meros consecutivos (1, 2, 3...) a los inscritos del torneo seleccionado?\n\n?? Esta acci�n actualizar� la base de datos.\n? El torneo est� activo.')) {
+    if (!confirm('¿Desea asignar números consecutivos (1, 2, 3...) a los inscritos del torneo seleccionado?\n\n⚠ Esta acción actualizará la base de datos.\n? El torneo est• activo.')) {
         return;
     }
     
@@ -565,7 +565,7 @@ function numerarConsecutivo() {
     const clubs = formData.getAll('club_ids[]');
     clubs.forEach(club => params.append('club_ids[]', club));
     
-    // Deshabilitar bot�n
+    // Deshabilitar botón
     const btn = event.target;
     const originalHTML = btn.innerHTML;
     btn.disabled = true;
@@ -577,15 +577,15 @@ function numerarConsecutivo() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('? ' + data.message + '\n\nRegistros numerados: ' + data.registros_actualizados);
+            alert('✓ ' + data.message + '\n\nRegistros numerados: ' + data.registros_actualizados);
             location.reload();
         } else {
-            alert('? Error: ' + (data.message || 'Error desconocido'));
+            alert('✓ Error: ' + (data.message || 'Error desconocido'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('? Error de conexi�n');
+        alert('✓ Error de conexión');
     })
     .finally(() => {
         btn.disabled = false;
@@ -593,27 +593,27 @@ function numerarConsecutivo() {
     });
 }
 
-// Funci�n para numerar por club
+// Función para numerar por club
 function numerarPorClub() {
     const torneoSelect = document.getElementById('num_torneo');
     const torneoId = torneoSelect.value;
     
     if (!torneoId) {
-        alert('? ERROR: Debe seleccionar un torneo obligatoriamente');
+        alert('✓ ERROR: Debe seleccionar un torneo obligatoriamente');
         torneoSelect.focus();
         return;
     }
     
-    // Verificar si el torneo est� activo (no finalizado)
+    // Verificar si el torneo est• activo (no finalizado)
     const selectedOption = torneoSelect.options[torneoSelect.selectedIndex];
     const torneoText = selectedOption.text;
     
     if (torneoText.includes('(Pasado)')) {
-        alert('? ERROR: No se puede numerar un torneo finalizado\n\nSolo se permite numerar torneos activos o futuros.');
+        alert('✓ ERROR: No se puede numerar un torneo finalizado\n\nSolo se permite numerar torneos activos o futuros.');
         return;
     }
     
-    if (!confirm('�Desea numerar los inscritos por club del torneo seleccionado?\n\n� Cada club tendr� su propia numeraci�n (1, 2, 3...)\n?? Esta acci�n actualizar� la base de datos.\n? El torneo est� activo.')) {
+    if (!confirm('¿Desea numerar los inscritos por club del torneo seleccionado?\n\n• Cada club tendrá su propia numeración (1, 2, 3...)\n⚠ Esta acción actualizará la base de datos.\n? El torneo est• activo.')) {
         return;
     }
     
@@ -626,7 +626,7 @@ function numerarPorClub() {
     const clubs = formData.getAll('club_ids[]');
     clubs.forEach(club => params.append('club_ids[]', club));
     
-    // Deshabilitar bot�n
+    // Deshabilitar botón
     const btn = event.target;
     const originalHTML = btn.innerHTML;
     btn.disabled = true;
@@ -638,15 +638,15 @@ function numerarPorClub() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('? ' + data.message + '\n\nClubs numerados: ' + data.clubs_numerados + '\nRegistros numerados: ' + data.registros_actualizados);
+            alert('✓ ' + data.message + '\n\nClubs numerados: ' + data.clubs_numerados + '\nRegistros numerados: ' + data.registros_actualizados);
             location.reload();
         } else {
-            alert('? Error: ' + (data.message || 'Error desconocido'));
+            alert('✓ Error: ' + (data.message || 'Error desconocido'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('? Error de conexi�n');
+        alert('✓ Error de conexión');
     })
     .finally(() => {
         btn.disabled = false;

@@ -28,38 +28,37 @@ La lógica está centralizada en **`config/MesaAsignacionService.php`** (torneos
 
 ---
 
-### Primera ronda
+### Primera ronda (torneo individual por posición)
 
-- **Método:** `generarPrimeraRonda($torneoId)`.
-- **Orden:** Inscritos ordenados por `id_club`, luego `id_usuario` (dispersión por clubes).
-- **Asignación:** Se forman vectores V1, V2, V3, V4; cada mesa = [V1[i], V2[i], V3[i], V4[i]] (Pareja AC = pos 0,1; Pareja BD = pos 2,3). Mesas completas; los sobrantes (hasta 3) → BYE.
-- **BYE:** Se llama `aplicarBye($torneoId, 1, $jugadoresBye)`: se insertan en `partiresul` con `mesa=0`, `registrado=0` inicialmente; luego se hace UPDATE con **partida ganada** (resultado1 = 100% puntos del torneo, resultado2 = 0), **efectividad = 50%** del puntaje del torneo, **registrado = 1**. Así se cumple: ganados (implícito por resultado1 > resultado2), efectividad y resultado1 en `partiresul`.
+- **Método:** `generarPrimeraRondaPorPosicion($torneoId)` cuando `modalidad = 1` y no es interclub RR.
+- **Orden:** `posi_rnk` del atleta (copiado a `inscritos.posicion` al inscribir) — orden lineal ascendente.
+- **Asignación:** Vector ordenado por `posi_rnk`. Se forman parejas consecutivas: (1,2), (3,4), (5,6)… **Primera pasada:** pareja 1 → mesa 1 (A,C), pareja 2 → mesa 2, … hasta mesa *n*. **Segunda pasada:** siguientes parejas del vector, otra vez desde mesa 1 hasta *n* (B,D de cada mesa). Ejemplo 20 mesas / 80 jugadores: mesa 1 = (1,2) vs (41,42); mesa 2 = (3,4) vs (43,44). Sobrantes → retirados/BYE.
+- **Dispersión por clubes:** Solo si no aplica modo por posición (interclub u otra estrategia).
 
 ---
 
 ### Segunda ronda
 
-- **Método:** `generarSegundaRonda($torneoId)`.
-- **Orden para la asignación:** En la segunda ronda se usa clasificación específica: jugadores con **BYE en ronda 1** = **peores ganadores** (justo después de los ganadores de r1). **bye_r1 = 1** para quien tuvo BYE en r1, **0** para el resto (solo en ronda 2). Orden: ganadores r1 sin BYE → ganadores r1 con BYE → perdedores r1; dentro de cada grupo por efectividad y puntos. Método: `obtenerClasificacionInscritosParaRonda2($torneoId)`.
-- **Patrón:** “Separación de líderes” 1-5-3-7: Mesa 1 = (1,5) vs (3,7), Mesa 2 = (2,6) vs (4,8), etc. Se valida/rota si AC o BD ya fueron compañeros en ronda 1 (`validarYRotarRonda2`).
-- **BYE:** Mismo criterio: sobrantes (hasta 3) → `aplicarBye($torneoId, 2, $jugadoresBye)` con misma regla (partida ganada, 100% puntos, 50% efectividad).
+- **Método:** `generarRondaGreedyPorClasificacion($torneoId, 2)`.
+- **Orden (máxima):** Solo **ganados DESC → efectividad DESC → puntos DESC** (`sqlOrderClasificacionEstricta`).
+- **Asignación greedy (mesa a mesa):** El mejor disponible encabeza **A** de la siguiente mesa; se recorre el ranking para **C** (primer válido: no fue pareja de A); luego **B** y **D** de la pareja opuesta con las mismas reglas. Ejemplo: si #1 y #2 ya jugaron de pareja, #3 va de compañero de #1 en mesa 1 y #2 pasa a ser **A** de mesa 2.
+- **Restricciones:** (1) No repetir pareja en todo el historial. (2) No enfrentar en la misma mesa a quienes fueron **compañeros ganadores en R1** (cruzados A–B, A–D, C–B, C–D).
+- **Cierre:** `finalizarAsignacionRespetandoHistorial` completa sobrantes e intercambia si hace falta.
 
 ---
 
-### Rondas intermedias (3 a N-1)
+### Rondas intermedias (3 a N−1)
 
-- **Método:** `generarRondaIntermedia($torneoId, $numRonda)`.
-- **Orden:** Clasificación actual.
-- **Restricciones:** Matriz de compañeros (historial_parejas o partiresul) y matriz de enfrentamientos para evitar repetir compañeros y oponentes cuando sea posible.
-- **BYE:** Jugadores que no se puedan asignar sin violar restricciones → `aplicarBye()` con la misma regla.
+- **Método:** `generarRondaIntermedia` → mismo greedy G/E/P; **solo** no repetir pareja (sin restricción de enfrento R1).
 
 ---
 
 ### Última ronda (N)
 
-- **Método:** `generarUltimaRonda($torneoId, $numRonda)`.
-- **Patrón:** Intercalado 1+3 vs 2+4 por mesa (posición 1 con 3 vs 2 con 4, luego 5+7 vs 6+8, etc.).
-- **BYE:** Sobrantes → `aplicarBye()` igual que en el resto.
+- **Método:** `generarRondaPatronIntercalado($torneoId, $numRonda)`.
+- **Orden:** Clasificación estricta G/E/P.
+- **Patrón:** 1+3 vs 2+4 fluido por bloques de 4 en el ranking (sin importar parejas anteriores).
+- **BYE:** Sobrantes según reglas habituales del servicio.
 
 ---
 

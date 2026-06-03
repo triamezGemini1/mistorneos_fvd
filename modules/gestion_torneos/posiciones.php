@@ -35,7 +35,7 @@ $genero_ranking = $genero_ranking ?? 'M';
                 $cu = function_exists('Auth') ? Auth::user() : null;
                 $rol = $cu ? ($cu['role'] ?? '') : '';
                 if ($rol === 'usuario') {
-                    $urlVolver = rtrim(AppHelpers::getBaseUrl(), '/') . '/public/user_portal.php?section=notificaciones';
+                    $urlVolver = AppHelpers::url('user_portal.php', ['section' => 'notificaciones']);
                 } else {
                     $urlVolver = AppHelpers::dashboard('user_notificaciones');
                 }

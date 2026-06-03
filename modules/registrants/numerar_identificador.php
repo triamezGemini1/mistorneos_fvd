@@ -13,7 +13,7 @@ require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/auth.php';
 
 try {
-    // Verificar autenticaci�n
+    // Verificar autenticación
     Auth::requireRole(['admin_general', 'admin_torneo']);
     
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -28,7 +28,7 @@ try {
         throw new Exception('Debe seleccionar un torneo obligatoriamente para numerar');
     }
     
-    // Obtener datos del torneo y validar que no est� finalizado
+    // Obtener datos del torneo y validar que no est• finalizado
     $stmt = DB::pdo()->prepare("
         SELECT club_responsable, fechator, 
                CASE WHEN fechator < CURDATE() THEN 1 ELSE 0 END as pasado
@@ -100,7 +100,7 @@ try {
     
     echo json_encode([
         'success' => true,
-        'message' => 'Numeraci�n asignada exitosamente',
+        'message' => 'Numeración asignada exitosamente',
         'registros_actualizados' => count($registrants)
     ], JSON_UNESCAPED_UNICODE);
     

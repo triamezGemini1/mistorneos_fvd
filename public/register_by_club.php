@@ -567,7 +567,7 @@ $landing_url = AppHelpers::url('go_landing.php');
         if (!cedula || !cedula.value.trim()) { if (resultadoDiv) resultadoDiv.innerHTML = ''; return; }
         resultadoDiv.innerHTML = '<span class="text-info"><i class="fas fa-spinner fa-spin me-1"></i>Buscando...</span>';
         const nacionalidad = (document.getElementById('nacionalidad') || {}).value || 'V';
-        fetch('<?= htmlspecialchars(rtrim($base_url ?? app_base_url(), '/')) ?>/public/api/search_user_persona.php?cedula=' + encodeURIComponent(cedula.value) + '&nacionalidad=' + encodeURIComponent(nacionalidad))
+        fetch('<?= htmlspecialchars(AppHelpers::url('api/search_user_persona.php')) ?>?cedula=' + encodeURIComponent(cedula.value) + '&nacionalidad=' + encodeURIComponent(nacionalidad))
             .then(r => r.json())
             .then(data => {
                 if (data?.success && data?.data?.encontrado) {

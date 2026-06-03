@@ -137,7 +137,10 @@ if ($torneo_id > 0) {
             $error = 'Las inscripciones en línea están deshabilitadas el día del torneo. Los interesados deben inscribirse antes o presentarse al sitio del evento para formalizar su participación.';
         } elseif (strtotime($torneo['fechator']) < strtotime('today')) {
             // Torneo ya finalizado: redirigir a resultados con mensaje informativo
-            $resultados_url = app_base_url() . '/public/evento_resultados.php?torneo_id=' . $torneo_id . '&msg=' . urlencode('Este torneo ha finalizado. Consulta los resultados oficiales aquí.');
+            $resultados_url = AppHelpers::url('evento_resultados.php', [
+                'torneo_id' => $torneo_id,
+                'msg' => 'Este torneo ha finalizado. Consulta los resultados oficiales aquí.',
+            ]);
             header('Location: ' . $resultados_url);
             exit;
         } elseif ((int)($torneo['permite_inscripcion_linea'] ?? 1) !== 1) {
@@ -882,7 +885,7 @@ $torneo_nombre_limpio = $torneo ? limpiarNombreTorneo((string)($torneo['nombre']
     </div>
     
     <script>
-    const baseUrl = '<?= app_base_url() ?>';
+    const baseUrl = '<?= rtrim(AppHelpers::getPublicUrl(), '/') ?>/';
     const torneoId = <?= (int)$torneo_id ?>;
 
     function setCampo(id, valor) {
@@ -955,7 +958,7 @@ $torneo_nombre_limpio = $torneo ? limpiarNombreTorneo((string)($torneo['nombre']
 
         try {
             const verificarResponse = await fetch(
-                baseUrl + '/public/api/verificar_inscripcion.php?cedula=' + encodeURIComponent(cedula_limpia)
+                baseUrl + 'api/verificar_inscripcion.php?cedula=' + encodeURIComponent(cedula_limpia)
                 + '&nacionalidad=' + encodeURIComponent(nacionalidad)
                 + '&torneo_id=' + torneoId
             );
@@ -985,7 +988,7 @@ $torneo_nombre_limpio = $torneo ? limpiarNombreTorneo((string)($torneo['nombre']
             // 2) Si no está en usuarios (o faltan datos), buscar en padrón personas (BD externa)
             if (!verificarResult.usuario_existe) {
                 const responsePersona = await fetch(
-                    baseUrl + '/public/api/search_persona.php?cedula=' + encodeURIComponent(cedula_limpia)
+                    baseUrl + 'api/search_persona.php?cedula=' + encodeURIComponent(cedula_limpia)
                     + '&nacionalidad=' + encodeURIComponent(nacionalidad)
                     + '&torneo_id=' + torneoId
                 );
