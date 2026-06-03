@@ -247,7 +247,7 @@ if ($current_page === 'home') {
     
     <?php if (empty($layout_hide_sidebar)): ?>
     <!-- Sidebar -->
-    <nav id="sidebar" class="bg-dark text-white border-end shadow d-flex flex-column">
+    <nav id="sidebar" class="fvd-sidebar-nav text-white border-end shadow d-flex flex-column">
       <div class="sidebar-header p-3 border-bottom">
         <h4 class="mb-0 text-center d-flex align-items-center justify-content-center flex-nowrap">
           <?= AppHelpers::appLogo('me-2', $fvd_nombre_layout, 35, true, $layout_logo_href) ?>
@@ -257,17 +257,10 @@ if ($current_page === 'home') {
       
       <ul class="list-unstyled px-2 py-2 flex-grow-1 overflow-y-auto min-h-0">
         <?php if ($user['role'] !== 'admin_general'): ?>
-        <!-- Inicio (estadísticas) y Calendario -->
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('home')) ?>" class="nav-link <?= $current_page === 'home' ? 'active' : '' ?>">
-            <i class="fas fa-chart-line me-3"></i>
-            <span class="nav-text">Estadísticas</span>
-          </a>
-        </li>
-        <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('calendario')) ?>" class="nav-link <?= $current_page === 'calendario' ? 'active' : '' ?>">
-            <i class="fas fa-calendar-alt me-3"></i>
-            <span class="nav-text">Calendario</span>
+            <i class="fas fa-home me-3"></i>
+            <span class="nav-text">Inicio</span>
           </a>
         </li>
         <?php endif; ?>
@@ -334,22 +327,60 @@ if ($current_page === 'home') {
           </a>
         </li>
         <?php endif; ?>
+        <?php
+        $is_complementos_club_open = in_array($current_page, ['calendario', 'bannerclock', 'directorio_clubes', 'notificaciones_masivas', 'comments_public'], true);
+        ?>
         <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('bannerclock')) ?>" class="nav-link <?= $current_page === 'bannerclock' ? 'active' : '' ?>">
-            <i class="fas fa-bullhorn me-3"></i>
-            <span class="nav-text">Banner Reloj</span>
+          <a href="#" class="nav-link <?= $is_complementos_club_open ? 'active' : '' ?>"
+             onclick="event.preventDefault(); toggleSubmenu('complementos-club-submenu', this);"
+             style="cursor: pointer;">
+            <i class="fas fa-puzzle-piece me-3"></i>
+            <span class="nav-text">Complementos</span>
+            <i class="fas fa-chevron-<?= $is_complementos_club_open ? 'up' : 'down' ?> ms-auto submenu-icon"></i>
           </a>
+          <ul class="list-unstyled ps-4 mt-1 collapse-submenu <?= $is_complementos_club_open ? 'show' : '' ?>" id="complementos-club-submenu">
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('calendario')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'calendario' ? 'active' : '' ?>">
+                <i class="fas fa-calendar-alt me-2"></i>
+                <span>Calendario</span>
+              </a>
+            </li>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('bannerclock')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'bannerclock' ? 'active' : '' ?>">
+                <i class="fas fa-bullhorn me-2"></i>
+                <span>Banner Reloj</span>
+              </a>
+            </li>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('notificaciones_masivas')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'notificaciones_masivas' ? 'active' : '' ?>">
+                <i class="fas fa-bell me-2"></i>
+                <span>Comunicación</span>
+              </a>
+            </li>
+            <?php if ($layout_modulos_extendidos): ?>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('comments_public')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'comments_public' ? 'active' : '' ?>">
+                <i class="fas fa-comment-dots me-2"></i>
+                <span>Comentarios</span>
+              </a>
+            </li>
+            <?php endif; ?>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('directorio_clubes')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'directorio_clubes' ? 'active' : '' ?>">
+                <i class="fas fa-address-book me-2"></i>
+                <span>Directorio de asociaciones</span>
+              </a>
+            </li>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($menu_url('manuales_web/manual_usuario.php')) ?>" class="nav-link nav-sub-sub-link" target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-book me-2"></i>
+                <span>Manual de Usuario</span>
+                <i class="fas fa-external-link-alt ms-1" style="font-size: 0.65rem;"></i>
+              </a>
+            </li>
+          </ul>
         </li>
-        <?php if ($layout_modulos_extendidos): ?>
-        <!-- Comentarios -->
-        <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('comments_public')) ?>" class="nav-link <?= $current_page === 'comments_public' ? 'active' : '' ?>">
-            <i class="fas fa-comment-dots me-3"></i>
-            <span class="nav-text">Comentarios</span>
-          </a>
-        </li>
-        <?php endif; ?>
-        <!-- 1. Portal Público -->
+        <!-- Portal Público -->
         <li class="mb-2">
           <a href="<?= htmlspecialchars($menu_url('landing-spa.php')) ?>" class="nav-link">
             <i class="fas fa-id-card me-3"></i>
@@ -357,22 +388,23 @@ if ($current_page === 'home') {
             <i class="fas fa-external-link-alt ms-auto" style="font-size: 0.75rem;"></i>
           </a>
         </li>
-        <!-- 1. Manual de Usuario -->
-        <li class="mb-2">
-          <a href="<?= htmlspecialchars($menu_url('manuales_web/manual_usuario.php')) ?>" class="nav-link">
-            <i class="fas fa-book me-3"></i>
-            <span class="nav-text">Manual de Usuario</span>
-            <i class="fas fa-external-link-alt ms-auto" style="font-size: 0.75rem;"></i>
-          </a>
-        </li>
         <?php endif; ?>
         
         <?php if (Auth::isAdminGeneral()): ?>
         <?php
-        $is_inicio_open = in_array($current_page, ['home', 'calendario']);
-        $is_estructura_open = in_array($current_page, ['clubs', 'directorio_clubes']);
-        $is_comunicacion_open = in_array($current_page, ['notificaciones_masivas', 'whatsapp_config', 'comments']);
-        $is_integraciones_open = in_array($current_page, ['admin_atletas_sync', 'importacion_torneo_externo', 'torneo_split_ranking']);
+        $is_inicio_open = ($current_page === 'home');
+        $is_complementos_open = in_array($current_page, [
+            'calendario', 'bannerclock', 'directorio_clubes',
+            'notificaciones_masivas', 'whatsapp_config', 'comments', 'comments_public',
+        ], true);
+        $is_recursos_open = in_array($current_page, [
+            'control_admin', 'admin_atletas_sync', 'importacion_torneo_externo',
+            'torneo_split_ranking', 'archivos_web',
+        ], true);
+        $nav_fvd_org_id = class_exists('FvdConfig') ? FvdConfig::ORGANIZACION_ID : 1;
+        $nav_mi_org_href = $dashboard_href('organizaciones', ['id' => $nav_fvd_org_id]);
+        $nav_mi_org_active = in_array($current_page, ['organizaciones', 'mi_organizacion'], true)
+            && (int) ($_GET['id'] ?? $nav_fvd_org_id) === $nav_fvd_org_id;
         ?>
         <li class="mb-2">
           <a href="#" class="nav-link <?= $is_inicio_open ? 'active' : '' ?>"
@@ -385,61 +417,18 @@ if ($current_page === 'home') {
           <ul class="list-unstyled ps-4 mt-1 collapse-submenu <?= $is_inicio_open ? 'show' : '' ?>" id="inicio-submenu">
             <li class="mb-1">
               <a href="<?= htmlspecialchars($dashboard_href('home')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'home' ? 'active' : '' ?>">
-                <i class="fas fa-chart-line me-2"></i>
-                <span>Estadísticas</span>
-              </a>
-            </li>
-            <li class="mb-1">
-              <a href="<?= htmlspecialchars($dashboard_href('calendario')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'calendario' ? 'active' : '' ?>">
-                <i class="fas fa-calendar-alt me-2"></i>
-                <span>Calendario</span>
+                <i class="fas fa-tachometer-alt me-2"></i>
+                <span>Dashboard</span>
               </a>
             </li>
           </ul>
         </li>
-        <?php
-        $nav_fvd_org_id = class_exists('FvdConfig') ? FvdConfig::ORGANIZACION_ID : 1;
-        $nav_mi_org_href = $dashboard_href('organizaciones', ['id' => $nav_fvd_org_id]);
-        $nav_mi_org_active = in_array($current_page, ['organizaciones', 'mi_organizacion'], true)
-            && (int) ($_GET['id'] ?? $nav_fvd_org_id) === $nav_fvd_org_id;
-        ?>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($nav_mi_org_href) ?>" class="nav-link <?= $nav_mi_org_active ? 'active' : '' ?>">
             <i class="fas fa-building me-3"></i>
             <span class="nav-text">Mi organización</span>
           </a>
         </li>
-        <!-- 2. Estructura (acordeón: entidades / asociaciones) -->
-        <li class="mb-2">
-          <a href="#" class="nav-link <?= $is_estructura_open ? 'active' : '' ?>"
-             onclick="event.preventDefault(); toggleSubmenu('estructura-submenu', this);"
-             style="cursor: pointer;">
-            <i class="fas fa-sitemap me-3"></i>
-            <span class="nav-text">Estructura</span>
-            <i class="fas fa-chevron-<?= $is_estructura_open ? 'up' : 'down' ?> ms-auto submenu-icon"></i>
-          </a>
-          <ul class="list-unstyled ps-4 mt-1 collapse-submenu <?= $is_estructura_open ? 'show' : '' ?>" id="estructura-submenu">
-            <li class="mb-1">
-              <a href="<?= htmlspecialchars($dashboard_href('clubs')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'clubs' ? 'active' : '' ?>">
-                <i class="fas fa-building me-2"></i>
-                <span>Asociaciones</span>
-              </a>
-            </li>
-            <li class="mb-1">
-              <a href="<?= htmlspecialchars($dashboard_href('clubs', ['action' => 'new'])) ?>" class="nav-link nav-sub-sub-link <?= ($current_page === 'clubs' && ($_GET['action'] ?? '') === 'new') ? 'active' : '' ?>">
-                <i class="fas fa-plus-circle me-2"></i>
-                <span>Nueva asociación</span>
-              </a>
-            </li>
-            <li class="nav-item mb-1">
-              <a href="<?= htmlspecialchars($dashboard_href('directorio_clubes')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'directorio_clubes' ? 'active' : '' ?>">
-                <i class="fas fa-address-book me-2"></i>
-                <span>Directorio de asociaciones</span>
-              </a>
-            </li>
-          </ul>
-        </li>
-        <!-- Torneos -->
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('torneo_gestion', ['action' => 'index'])) ?>" class="nav-link <?= ($current_page === 'torneo_gestion' && ($_GET['action'] ?? '') === 'index') ? 'active' : '' ?>">
             <i class="fas fa-trophy me-3"></i>
@@ -455,21 +444,97 @@ if ($current_page === 'home') {
         </li>
         <?php endif; ?>
         <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('bannerclock')) ?>" class="nav-link <?= $current_page === 'bannerclock' ? 'active' : '' ?>">
-            <i class="fas fa-bullhorn me-3"></i>
-            <span class="nav-text">Banner Reloj</span>
+          <a href="<?= htmlspecialchars($dashboard_href('users')) ?>" class="nav-link <?= $current_page === 'users' ? 'active' : '' ?>">
+            <i class="fas fa-user-cog me-3"></i>
+            <span class="nav-text">Gestión de Usuarios y Roles</span>
           </a>
         </li>
-        <?php if (($user['role'] ?? '') === 'admin_general'): ?>
         <li class="mb-2">
-          <a href="#" class="nav-link <?= $is_integraciones_open ? 'active' : '' ?>"
-             onclick="event.preventDefault(); toggleSubmenu('integraciones-submenu', this);"
-             style="cursor: pointer;">
-            <i class="fas fa-plug me-3"></i>
-            <span class="nav-text">Integraciones</span>
-            <i class="fas fa-chevron-<?= $is_integraciones_open ? 'up' : 'down' ?> ms-auto submenu-icon"></i>
+          <a href="<?= htmlspecialchars($dashboard_href('auditoria')) ?>" class="nav-link <?= $current_page === 'auditoria' ? 'active' : '' ?>">
+            <i class="fas fa-clipboard-list me-3"></i>
+            <span class="nav-text">Reporte de actividad</span>
           </a>
-          <ul class="list-unstyled ps-4 mt-1 collapse-submenu <?= $is_integraciones_open ? 'show' : '' ?>" id="integraciones-submenu">
+        </li>
+        <li class="mb-2">
+          <a href="#" class="nav-link <?= $is_complementos_open ? 'active' : '' ?>"
+             onclick="event.preventDefault(); toggleSubmenu('complementos-submenu', this);"
+             style="cursor: pointer;">
+            <i class="fas fa-puzzle-piece me-3"></i>
+            <span class="nav-text">Complementos</span>
+            <i class="fas fa-chevron-<?= $is_complementos_open ? 'up' : 'down' ?> ms-auto submenu-icon"></i>
+          </a>
+          <ul class="list-unstyled ps-4 mt-1 collapse-submenu <?= $is_complementos_open ? 'show' : '' ?>" id="complementos-submenu">
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('calendario')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'calendario' ? 'active' : '' ?>">
+                <i class="fas fa-calendar-alt me-2"></i>
+                <span>Calendario</span>
+              </a>
+            </li>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('bannerclock')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'bannerclock' ? 'active' : '' ?>">
+                <i class="fas fa-bullhorn me-2"></i>
+                <span>Banner Reloj</span>
+              </a>
+            </li>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('notificaciones_masivas')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'notificaciones_masivas' ? 'active' : '' ?>">
+                <i class="fas fa-bell me-2"></i>
+                <span>Notificaciones masivas</span>
+              </a>
+            </li>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('whatsapp_config')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'whatsapp_config' ? 'active' : '' ?>">
+                <i class="fab fa-whatsapp me-2"></i>
+                <span>Mensajes WhatsApp</span>
+              </a>
+            </li>
+            <?php if ($layout_modulos_extendidos): ?>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('comments')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'comments' ? 'active' : '' ?>">
+                <i class="fas fa-comments me-2"></i>
+                <span>Comentarios (aprobación)</span>
+                <?php
+                try {
+                    $pendientes = DB::pdo()->query("SELECT COUNT(*) FROM comentariossugerencias WHERE estatus = 'pendiente'")->fetchColumn();
+                    if ($pendientes > 0):
+                ?>
+                  <span class="badge bg-danger rounded-pill ms-2"><?= $pendientes ?></span>
+                <?php endif;
+                } catch (Exception $e) {}
+                ?>
+              </a>
+            </li>
+            <?php endif; ?>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('directorio_clubes')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'directorio_clubes' ? 'active' : '' ?>">
+                <i class="fas fa-address-book me-2"></i>
+                <span>Directorio de asociaciones</span>
+              </a>
+            </li>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($menu_url('manuales_web/manual_usuario.php')) ?>" class="nav-link nav-sub-sub-link" target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-book me-2"></i>
+                <span>Manual de Usuario</span>
+                <i class="fas fa-external-link-alt ms-1" style="font-size: 0.65rem;"></i>
+              </a>
+            </li>
+          </ul>
+        </li>
+        <li class="mb-2">
+          <a href="#" class="nav-link <?= $is_recursos_open ? 'active' : '' ?>"
+             onclick="event.preventDefault(); toggleSubmenu('recursos-submenu', this);"
+             style="cursor: pointer;">
+            <i class="fas fa-toolbox me-3"></i>
+            <span class="nav-text">Recursos adicionales</span>
+            <i class="fas fa-chevron-<?= $is_recursos_open ? 'up' : 'down' ?> ms-auto submenu-icon"></i>
+          </a>
+          <ul class="list-unstyled ps-4 mt-1 collapse-submenu <?= $is_recursos_open ? 'show' : '' ?>" id="recursos-submenu">
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('control_admin')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'control_admin' ? 'active' : '' ?>">
+                <i class="fas fa-tools me-2"></i>
+                <span>Control Especial</span>
+              </a>
+            </li>
             <?php if ($layout_modulos_extendidos): ?>
             <li class="mb-1">
               <a href="<?= htmlspecialchars($dashboard_href('admin_atletas_sync')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'admin_atletas_sync' ? 'active' : '' ?>">
@@ -490,93 +555,18 @@ if ($current_page === 'home') {
                 <span>Segmentar torneo (equipos)</span>
               </a>
             </li>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('archivos_web')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'archivos_web' ? 'active' : '' ?>">
+                <i class="fas fa-folder-open me-2"></i>
+                <span>Archivos descargables</span>
+              </a>
+            </li>
           </ul>
         </li>
-        <?php endif; ?>
-        <!-- Usuarios -->
-        <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('users')) ?>" class="nav-link <?= $current_page === 'users' ? 'active' : '' ?>">
-            <i class="fas fa-user-cog me-3"></i>
-            <span class="nav-text">Gestión de Usuarios y Roles</span>
-          </a>
-        </li>
-        <?php if (($user['role'] ?? '') === 'admin_general'): ?>
-        <!-- Archivos descargables: documentos, logos clientes, invitaciones FVD -->
-        <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('archivos_web')) ?>" class="nav-link <?= $current_page === 'archivos_web' ? 'active' : '' ?>">
-            <i class="fas fa-folder-open me-3"></i>
-            <span class="nav-text">Archivos descargables</span>
-          </a>
-        </li>
-        <!-- Reporte de actividad (Auditoría) - Solo Super Admin -->
-        <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('auditoria')) ?>" class="nav-link <?= $current_page === 'auditoria' ? 'active' : '' ?>">
-            <i class="fas fa-clipboard-list me-3"></i>
-            <span class="nav-text">Reporte de actividad</span>
-          </a>
-        </li>
-        <?php endif; ?>
-        <!-- 4. Comunicación (acordeón) -->
-        <li class="mb-2">
-          <a href="#" class="nav-link <?= $is_comunicacion_open ? 'active' : '' ?>"
-             onclick="event.preventDefault(); toggleSubmenu('comunicacion-submenu', this);"
-             style="cursor: pointer;">
-            <i class="fas fa-bullhorn me-3"></i>
-            <span class="nav-text">Comunicación</span>
-            <i class="fas fa-chevron-<?= $is_comunicacion_open ? 'up' : 'down' ?> ms-auto submenu-icon"></i>
-          </a>
-          <ul class="list-unstyled ps-4 mt-1 collapse-submenu <?= $is_comunicacion_open ? 'show' : '' ?>" id="comunicacion-submenu">
-            <li class="mb-1">
-              <a href="<?= htmlspecialchars($dashboard_href('notificaciones_masivas')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'notificaciones_masivas' ? 'active' : '' ?>">
-                <i class="fas fa-bell me-2"></i>
-                <span>Notificaciones Masivas</span>
-              </a>
-            </li>
-            <li class="mb-1">
-              <a href="<?= htmlspecialchars($dashboard_href('whatsapp_config')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'whatsapp_config' ? 'active' : '' ?>">
-                <i class="fab fa-whatsapp me-2"></i>
-                <span>Mensajes WhatsApp</span>
-              </a>
-            </li>
-            <?php if ($layout_modulos_extendidos): ?>
-            <li class="mb-1">
-              <a href="<?= htmlspecialchars($dashboard_href('comments')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'comments' ? 'active' : '' ?>">
-                <i class="fas fa-comments me-2"></i>
-                <span>Comentarios (Aprobación)</span>
-                <?php
-                try {
-                    $pendientes = DB::pdo()->query("SELECT COUNT(*) FROM comentariossugerencias WHERE estatus = 'pendiente'")->fetchColumn();
-                    if ($pendientes > 0):
-                ?>
-                  <span class="badge bg-danger rounded-pill ms-2"><?= $pendientes ?></span>
-                <?php endif;
-                } catch (Exception $e) {}
-                ?>
-              </a>
-            </li>
-            <?php endif; ?>
-          </ul>
-        </li>
-        <!-- Herramientas -->
-        <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('control_admin')) ?>" class="nav-link <?= $current_page === 'control_admin' ? 'active' : '' ?>">
-            <i class="fas fa-tools me-3"></i>
-            <span class="nav-text">Control Especial</span>
-            <span class="badge bg-danger ms-2" style="font-size: 0.65rem;">Admin</span>
-          </a>
-        </li>
-        <!-- Enlaces -->
         <li class="mb-2">
           <a href="<?= htmlspecialchars($menu_url('landing-spa.php')) ?>" class="nav-link">
             <i class="fas fa-id-card me-3"></i>
             <span class="nav-text">Portal Público</span>
-            <i class="fas fa-external-link-alt ms-auto" style="font-size: 0.75rem;"></i>
-          </a>
-        </li>
-        <li class="mb-2">
-          <a href="<?= htmlspecialchars($menu_url('manuales_web/manual_usuario.php')) ?>" class="nav-link">
-            <i class="fas fa-book me-3"></i>
-            <span class="nav-text">Manual de Usuario</span>
             <i class="fas fa-external-link-alt ms-auto" style="font-size: 0.75rem;"></i>
           </a>
         </li>
@@ -609,23 +599,49 @@ if ($current_page === 'home') {
           </a>
         </li>
         <?php endif; ?>
+        <?php
+        $is_complementos_at_open = in_array($current_page, ['calendario', 'bannerclock', 'notificaciones_masivas'], true);
+        ?>
         <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('notificaciones_masivas')) ?>" class="nav-link <?= $current_page === 'notificaciones_masivas' ? 'active' : '' ?>">
-            <i class="fas fa-bell me-3"></i>
-            <span class="nav-text">Notificaciones</span>
+          <a href="#" class="nav-link <?= $is_complementos_at_open ? 'active' : '' ?>"
+             onclick="event.preventDefault(); toggleSubmenu('complementos-at-submenu', this);"
+             style="cursor: pointer;">
+            <i class="fas fa-puzzle-piece me-3"></i>
+            <span class="nav-text">Complementos</span>
+            <i class="fas fa-chevron-<?= $is_complementos_at_open ? 'up' : 'down' ?> ms-auto submenu-icon"></i>
           </a>
+          <ul class="list-unstyled ps-4 mt-1 collapse-submenu <?= $is_complementos_at_open ? 'show' : '' ?>" id="complementos-at-submenu">
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('calendario')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'calendario' ? 'active' : '' ?>">
+                <i class="fas fa-calendar-alt me-2"></i>
+                <span>Calendario</span>
+              </a>
+            </li>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('bannerclock')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'bannerclock' ? 'active' : '' ?>">
+                <i class="fas fa-bullhorn me-2"></i>
+                <span>Banner Reloj</span>
+              </a>
+            </li>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('notificaciones_masivas')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'notificaciones_masivas' ? 'active' : '' ?>">
+                <i class="fas fa-bell me-2"></i>
+                <span>Comunicación</span>
+              </a>
+            </li>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($menu_url('manuales_web/manual_usuario.php')) ?>" class="nav-link nav-sub-sub-link" target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-book me-2"></i>
+                <span>Manual de Usuario</span>
+                <i class="fas fa-external-link-alt ms-1" style="font-size: 0.65rem;"></i>
+              </a>
+            </li>
+          </ul>
         </li>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($menu_url('landing-spa.php')) ?>" class="nav-link">
             <i class="fas fa-id-card me-3"></i>
             <span class="nav-text">Portal Público</span>
-            <i class="fas fa-external-link-alt ms-auto" style="font-size: 0.75rem;"></i>
-          </a>
-        </li>
-        <li class="mb-2">
-          <a href="<?= htmlspecialchars($menu_url('manuales_web/manual_usuario.php')) ?>" class="nav-link">
-            <i class="fas fa-book me-3"></i>
-            <span class="nav-text">Manual de Usuario</span>
             <i class="fas fa-external-link-alt ms-auto" style="font-size: 0.75rem;"></i>
           </a>
         </li>

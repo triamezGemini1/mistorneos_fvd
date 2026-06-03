@@ -6,6 +6,7 @@
 :root {
   --fvd-topbar-h: 3.25rem;
   --fvd-sidebar-w: 260px;
+  --fvd-sidebar-bg: #173B7E;
 }
 
 body.fvd-dashboard-compact {
@@ -29,6 +30,28 @@ body.fvd-dashboard-compact #sidebar {
   position: fixed;
   top: 0;
   left: 0;
+}
+
+body.fvd-dashboard-compact #sidebar.fvd-sidebar-nav {
+  background-color: var(--fvd-sidebar-bg) !important;
+  background-image: none !important;
+}
+
+body.fvd-dashboard-compact #sidebar.fvd-sidebar-nav::before {
+  display: none;
+}
+
+body.fvd-dashboard-compact #sidebar.fvd-sidebar-nav .sidebar-header {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+body.fvd-dashboard-compact #sidebar.fvd-sidebar-nav .nav-link {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+body.fvd-dashboard-compact #sidebar.fvd-sidebar-nav .nav-link:hover,
+body.fvd-dashboard-compact #sidebar.fvd-sidebar-nav .nav-link.active {
+  color: #fff;
 }
 
 body.fvd-dashboard-compact #wrapper.toggled #sidebar {
