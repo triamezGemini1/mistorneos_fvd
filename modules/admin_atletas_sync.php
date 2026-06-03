@@ -6,6 +6,9 @@ require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../config/csrf.php';
 require_once __DIR__ . '/../lib/AtletasAdminSyncService.php';
+require_once __DIR__ . '/../lib/FvdAdminGate.php';
+
+FvdAdminGate::rejectPageIfDisabled('admin_atletas_sync');
 
 Auth::requireRole(['admin_general']);
 

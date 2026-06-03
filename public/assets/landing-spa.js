@@ -30,7 +30,12 @@ function esHoy(fechator) {
 
 const LandingContent = {
     name: 'LandingContent',
-    props: ['data', 'baseUrl', 'logoUrl'],
+    props: {
+        data: { type: Object, default: null },
+        baseUrl: { type: String, default: '' },
+        logoUrl: { type: String, default: '' },
+        inscripcionLineaPublica: { type: Boolean, default: true },
+    },
     emits: ['refresh-comentarios'],
     setup(props, { emit }) {
         const mobileMenuOpen = ref(false);
@@ -92,10 +97,10 @@ const LandingContent = {
 
             if (esPasado) {
                 html += `<a href="${base}evento_resultados.php?torneo_id=${ev.id}" class="block w-full px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-all text-center shadow-lg"><i class="fas fa-trophy mr-2"></i>Ver Resultados</a>`;
-            } else if (permiteOnline && !esHoyEv) {
+            } else if (props.inscripcionLineaPublica && permiteOnline && !esHoyEv) {
                 const urlInsc = esMasivo ? `${base}inscribir_evento_masivo.php?torneo_id=${ev.id}` : `${base}tournament_register.php?torneo_id=${ev.id}`;
                 html += `<a href="${urlInsc}" class="block w-full px-4 py-3 bg-gradient-to-r ${btnColor} font-bold rounded-lg hover:from-yellow-500 hover:to-orange-600 transition-all text-center shadow-lg hover:shadow-xl transform hover:scale-105"><i class="fas fa-mobile-alt mr-2"></i>Inscribirme Ahora</a>`;
-            } else if (permiteOnline && esHoyEv) {
+            } else if (props.inscripcionLineaPublica && permiteOnline && esHoyEv) {
                 html += `<div class="bg-yellow-400/20 rounded-lg p-3 border border-yellow-400/50"><p class="text-xs text-center"><i class="fas fa-info-circle mr-1"></i>Inscripción deshabilitada el día del torneo.</p></div>`;
             } else {
                 html += `<div class="bg-yellow-400/20 rounded-lg p-3 mb-3 border border-yellow-400/50"><p class="text-xs text-purple-900 text-center mb-2"><i class="fas fa-info-circle mr-1"></i>Inscripción en sitio. Contacta al organizador.</p>`;
@@ -204,6 +209,7 @@ const LandingContent = {
             commentSending,
             commentSuccess,
             commentErrors,
+            inscripcionLineaPublica: computed(() => props.inscripcionLineaPublica !== false),
             scrollToSection,
             renderTarjetaEvento,
             viewEventPhotos,
@@ -247,6 +253,8 @@ createApp({
         };
 
         const logoUrl = ref(window.APP_CONFIG?.logoUrl || '');
+        const inscripcionLineaPublica = ref(window.APP_CONFIG?.inscripcionLineaPublica !== false);
+
         const effectiveLogoUrl = computed(() => {
             if (logoUrl.value) return logoUrl.value;
             const b = (baseUrl.value || '').replace(/\/$/, '');
@@ -258,7 +266,7 @@ createApp({
             cargarDatos();
         });
 
-        return { loading, error, data, baseUrl, logoUrl: effectiveLogoUrl, cargarDatos };
+        return { loading, error, data, baseUrl, logoUrl: effectiveLogoUrl, inscripcionLineaPublica, cargarDatos };
     },
     components: { LandingContent }
 }).mount('#app');

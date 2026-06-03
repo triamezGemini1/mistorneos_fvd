@@ -8,4 +8,9 @@ declare(strict_types=1);
 if (!defined('APP_BOOTSTRAPPED')) {
     require_once __DIR__ . '/../config/bootstrap.php';
 }
+require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../lib/FvdAdminGate.php';
+
+FvdAdminGate::rejectPageIfDisabled('solicitudes_asociacion');
+
 require_once __DIR__ . '/solicitudes_asociacion/list.php';

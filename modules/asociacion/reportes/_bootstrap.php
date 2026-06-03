@@ -12,6 +12,10 @@ require_once __DIR__ . '/../../../lib/AsociacionAdminHelper.php';
 require_once __DIR__ . '/../../../lib/FvdDelegadoReporteService.php';
 require_once __DIR__ . '/../../../lib/FvdMovimientoTorneoHelper.php';
 require_once __DIR__ . '/../../../lib/app_helpers.php';
+require_once __DIR__ . '/../../../lib/FvdAdminGate.php';
+
+$pageGate = trim((string) ($_GET['page'] ?? 'asociacion/reportes'));
+FvdAdminGate::rejectPageIfDisabled($pageGate);
 
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 

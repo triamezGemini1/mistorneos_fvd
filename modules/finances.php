@@ -9,8 +9,12 @@
 require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/csrf.php';
 require_once __DIR__ . '/../lib/Pagination.php';
+
+require_once __DIR__ . '/../lib/FvdAdminGate.php';
+FvdAdminGate::rejectPageIfDisabled('finances');
 
 // Verificar permisos
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);

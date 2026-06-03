@@ -15,6 +15,8 @@ require_once __DIR__ . '/../../config/auth.php';
 if (!class_exists('FvdConfig', false) && is_file(__DIR__ . '/../../lib/FvdConfig.php')) {
     require_once __DIR__ . '/../../lib/FvdConfig.php';
 }
+require_once __DIR__ . '/../../lib/FvdAdminGate.php';
+$layout_modulos_extendidos = FvdAdminGate::isEnabled();
 $current_page = (isset($page) && $page !== '') ? $page : ($_GET['page'] ?? 'home');
 /** Panel operativo asociación: sin barra lateral (ancho completo) */
 $layout_operativo_asoc = Auth::isOperativoSoloAsociacion();
@@ -98,7 +100,8 @@ $show_link_panel_asociacion = false;
 try {
     require_once __DIR__ . '/../../config/db.php';
     require_once __DIR__ . '/../../lib/AsociacionAdminHelper.php';
-    $show_link_panel_asociacion = (Auth::isOperativoSoloAsociacion() || AsociacionAdminHelper::usuarioEsDelegadoAsociacion(DB::pdo(), (int) ($user['id'] ?? 0)))
+    $show_link_panel_asociacion = FvdConfig::adminModuleEnabled()
+        && (Auth::isOperativoSoloAsociacion() || AsociacionAdminHelper::usuarioEsDelegadoAsociacion(DB::pdo(), (int) ($user['id'] ?? 0)))
         && ($current_page ?? '') !== 'asociacion_panel';
 } catch (Throwable $e) {
     $show_link_panel_asociacion = false;
@@ -309,7 +312,7 @@ if ($current_page === 'home') {
             <span class="nav-text">Torneos</span>
           </a>
         </li>
-        <?php if (!empty($show_link_panel_asociacion) || (($user['role'] ?? '') === 'admin_club' && (int) ($user['entidad'] ?? 0) > 0)): ?>
+        <?php if ($layout_modulos_extendidos && (!empty($show_link_panel_asociacion) || (($user['role'] ?? '') === 'admin_club' && (int) ($user['entidad'] ?? 0) > 0))): ?>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('finanzas/resumen_asociacion')) ?>" class="nav-link <?= $current_page === 'finanzas/resumen_asociacion' ? 'active' : '' ?>">
             <i class="fas fa-coins me-3"></i>
@@ -323,18 +326,21 @@ if ($current_page === 'home') {
             <span class="nav-text">Admin Torneo y Operadores</span>
           </a>
         </li>
+        <?php if ($layout_modulos_extendidos): ?>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('cuentas_bancarias')) ?>" class="nav-link <?= $current_page === 'cuentas_bancarias' ? 'active' : '' ?>">
             <i class="fas fa-university me-3"></i>
             <span class="nav-text">Cuentas Bancarias</span>
           </a>
         </li>
+        <?php endif; ?>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('bannerclock')) ?>" class="nav-link <?= $current_page === 'bannerclock' ? 'active' : '' ?>">
             <i class="fas fa-bullhorn me-3"></i>
             <span class="nav-text">Banner Reloj</span>
           </a>
         </li>
+        <?php if ($layout_modulos_extendidos): ?>
         <!-- Comentarios -->
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('comments_public')) ?>" class="nav-link <?= $current_page === 'comments_public' ? 'active' : '' ?>">
@@ -342,6 +348,7 @@ if ($current_page === 'home') {
             <span class="nav-text">Comentarios</span>
           </a>
         </li>
+        <?php endif; ?>
         <!-- 1. Portal Público -->
         <li class="mb-2">
           <a href="<?= htmlspecialchars($menu_url('landing-spa.php')) ?>" class="nav-link">
@@ -439,12 +446,14 @@ if ($current_page === 'home') {
             <span class="nav-text">Torneos</span>
           </a>
         </li>
+        <?php if ($layout_modulos_extendidos): ?>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('finanzas/resumen_asociacion')) ?>" class="nav-link <?= $current_page === 'finanzas/resumen_asociacion' ? 'active' : '' ?>">
             <i class="fas fa-coins me-3"></i>
             <span class="nav-text">Finanzas por asociación</span>
           </a>
         </li>
+        <?php endif; ?>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('bannerclock')) ?>" class="nav-link <?= $current_page === 'bannerclock' ? 'active' : '' ?>">
             <i class="fas fa-bullhorn me-3"></i>
@@ -461,12 +470,14 @@ if ($current_page === 'home') {
             <i class="fas fa-chevron-<?= $is_integraciones_open ? 'up' : 'down' ?> ms-auto submenu-icon"></i>
           </a>
           <ul class="list-unstyled ps-4 mt-1 collapse-submenu <?= $is_integraciones_open ? 'show' : '' ?>" id="integraciones-submenu">
+            <?php if ($layout_modulos_extendidos): ?>
             <li class="mb-1">
               <a href="<?= htmlspecialchars($dashboard_href('admin_atletas_sync')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'admin_atletas_sync' ? 'active' : '' ?>">
                 <i class="fas fa-database me-2"></i>
                 <span>Atletas → Usuarios</span>
               </a>
             </li>
+            <?php endif; ?>
             <li class="mb-1">
               <a href="<?= htmlspecialchars($dashboard_href('importacion_torneo_externo')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'importacion_torneo_externo' ? 'active' : '' ?>">
                 <i class="fas fa-file-import me-2"></i>
@@ -527,6 +538,7 @@ if ($current_page === 'home') {
                 <span>Mensajes WhatsApp</span>
               </a>
             </li>
+            <?php if ($layout_modulos_extendidos): ?>
             <li class="mb-1">
               <a href="<?= htmlspecialchars($dashboard_href('comments')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'comments' ? 'active' : '' ?>">
                 <i class="fas fa-comments me-2"></i>
@@ -542,6 +554,7 @@ if ($current_page === 'home') {
                 ?>
               </a>
             </li>
+            <?php endif; ?>
           </ul>
         </li>
         <!-- Herramientas -->
@@ -588,12 +601,14 @@ if ($current_page === 'home') {
             <span class="nav-text">Torneos</span>
           </a>
         </li>
+        <?php if ($layout_modulos_extendidos): ?>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('cuentas_bancarias')) ?>" class="nav-link <?= $current_page === 'cuentas_bancarias' ? 'active' : '' ?>">
             <i class="fas fa-university me-3"></i>
             <span class="nav-text">Cuentas Bancarias</span>
           </a>
         </li>
+        <?php endif; ?>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('notificaciones_masivas')) ?>" class="nav-link <?= $current_page === 'notificaciones_masivas' ? 'active' : '' ?>">
             <i class="fas fa-bell me-3"></i>

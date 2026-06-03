@@ -24,6 +24,21 @@ final class FvdConfig
      */
     public const INSCRITO_POR_LANDING_PUBLICO = 9999;
 
+    /**
+     * Modo restringido (FVD_ADMIN_ENABLED=false): apaga afiliación, finanzas, supervisión
+     * e inscripción en línea. Activos: estadísticas (home) y torneo_gestion.
+     * Env: FVD_ADMIN_ENABLED=true reactiva todo lo anterior.
+     */
+    public static function adminModuleEnabled(): bool
+    {
+        $raw = $_ENV['FVD_ADMIN_ENABLED'] ?? getenv('FVD_ADMIN_ENABLED');
+        if ($raw === false || $raw === null || $raw === '') {
+            return false;
+        }
+
+        return filter_var($raw, FILTER_VALIDATE_BOOLEAN);
+    }
+
     /** Carpeta del proyecto bajo el document root (WAMP: /mistorneos_fvd). */
     public const APP_FOLDER = 'mistorneos_fvd';
 

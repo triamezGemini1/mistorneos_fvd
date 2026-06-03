@@ -24,6 +24,7 @@ $b = static function (int $n): string {
 
 $link = 'admin-general-panel-operativo__link';
 $linkDestacado = 'admin-general-panel-operativo__link admin-general-panel-operativo__link--highlight';
+$modulosExtendidos = class_exists('FvdConfig', false) && FvdConfig::adminModuleEnabled();
 ?>
 <section class="admin-general-panel-operativo">
     <header>
@@ -57,6 +58,7 @@ $linkDestacado = 'admin-general-panel-operativo__link admin-general-panel-operat
             </div>
         </div>
 
+        <?php if ($modulosExtendidos): ?>
         <div class="admin-general-panel-operativo__card">
             <div class="admin-general-panel-operativo__card-head">
                 <i class="fas fa-eye me-1"></i>Supervisión
@@ -88,6 +90,7 @@ $linkDestacado = 'admin-general-panel-operativo__link admin-general-panel-operat
                 </a>
             </div>
         </div>
+        <?php endif; ?>
 
         <div class="admin-general-panel-operativo__card">
             <div class="admin-general-panel-operativo__card-head">
@@ -110,9 +113,15 @@ $linkDestacado = 'admin-general-panel-operativo__link admin-general-panel-operat
                     <i class="fas fa-bell"></i>
                     <span>Notificaciones masivas</span>
                 </a>
+                <a href="<?= $u('torneo_gestion', ['action' => 'verificar_actas_index']) ?>" class="<?= $link ?>" title="Actas / QR pendientes">
+                    <i class="fas fa-id-card"></i>
+                    <span>Carnets / actas QR</span>
+                    <?= $b($actasP) ?>
+                </a>
             </div>
         </div>
 
+        <?php if ($modulosExtendidos): ?>
         <div class="admin-general-panel-operativo__card">
             <div class="admin-general-panel-operativo__card-head">
                 <i class="fas fa-coins me-1"></i>Finanzas
@@ -128,5 +137,6 @@ $linkDestacado = 'admin-general-panel-operativo__link admin-general-panel-operat
                 </a>
             </div>
         </div>
+        <?php endif; ?>
     </div>
 </section>

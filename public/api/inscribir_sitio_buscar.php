@@ -9,6 +9,9 @@ require_once __DIR__ . '/../../config/db_config.php';
 require_once __DIR__ . '/../../config/auth.php';
 require_once __DIR__ . '/../../lib/AsociacionAdminHelper.php';
 require_once __DIR__ . '/../../lib/InscribirSitioBusquedaService.php';
+require_once __DIR__ . '/../../lib/FvdAdminGate.php';
+
+FvdAdminGate::rejectApiIfDisabled();
 
 $input = array_merge($_GET, $_POST);
 $torneoId = (int) ($input['torneo_id'] ?? 0);

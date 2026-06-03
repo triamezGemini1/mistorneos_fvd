@@ -3,6 +3,9 @@ require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../config/csrf.php';
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../lib/FvdAdminGate.php';
+
+FvdAdminGate::rejectPublicScriptIfDisabled();
 
 $pdo = DB::pdo();
 $base_url = app_base_url();

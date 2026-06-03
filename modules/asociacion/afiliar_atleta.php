@@ -12,6 +12,9 @@ require_once __DIR__ . '/../../lib/AsociacionAdminHelper.php';
 require_once __DIR__ . '/../../lib/FvdAfiliacionAtletaService.php';
 require_once __DIR__ . '/../../lib/FvdMovimientoTorneoHelper.php';
 require_once __DIR__ . '/../../lib/app_helpers.php';
+require_once __DIR__ . '/../../lib/FvdAdminGate.php';
+
+FvdAdminGate::rejectPageIfDisabled('asociacion/afiliar_atleta');
 
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 

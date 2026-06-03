@@ -11,6 +11,9 @@ require_once __DIR__ . '/../../config/csrf.php';
 require_once __DIR__ . '/../../lib/AsociacionAdminHelper.php';
 require_once __DIR__ . '/../../lib/FvdDelegadoMovimientoService.php';
 require_once __DIR__ . '/../../lib/FvdMovimientoTorneoHelper.php';
+require_once __DIR__ . '/../../lib/FvdAdminGate.php';
+
+FvdAdminGate::rejectApiIfDisabled();
 
 if (!Auth::user()) {
     http_response_code(401);

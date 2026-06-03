@@ -12,6 +12,9 @@ require_once __DIR__ . '/../lib/BankValidator.php';
 require_once __DIR__ . '/../lib/ReportePagoUsuarioService.php';
 require_once __DIR__ . '/../lib/app_helpers.php';
 require_once __DIR__ . '/../config/deploy_build.php';
+require_once __DIR__ . '/../lib/FvdAdminGate.php';
+
+FvdAdminGate::rejectPageIfDisabled('reportes_pago_usuarios');
 
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 

@@ -1,5 +1,8 @@
 <?php
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../lib/FvdAdminGate.php';
+
+FvdAdminGate::rejectPageIfDisabled('payments');
 
 // Verificar que solo admin_general y admin_torneo pueden acceder
 Auth::requireRole(['admin_general', 'admin_torneo']);

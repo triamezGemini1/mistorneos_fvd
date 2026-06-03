@@ -8,8 +8,10 @@
 try {
     require_once __DIR__ . '/../config/bootstrap.php';
     require_once __DIR__ . '/../lib/app_helpers.php';
+    require_once __DIR__ . '/../lib/FvdConfig.php';
     $base_url = rtrim(class_exists('AppHelpers') ? AppHelpers::getPublicUrl() : (rtrim(app_base_url(), '/') . '/public'), '/') . '/';
     $api_url = $base_url . 'api/landing_data.php';
+    $landing_inscripcion_linea_publica = FvdConfig::adminModuleEnabled();
     // Logo institucional: archivo estático en public/assets/img/ (no view_image ni getPublicUrl)
     $entidad_param = isset($_GET['entidad']) ? (int)$_GET['entidad'] : 0;
     if ($entidad_param > 0) {
@@ -352,7 +354,7 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                 </div>
             </div>
         </div>
-        <landing-content v-else :data="data" :base-url="baseUrl" :logo-url="logoUrl" @refresh-comentarios="cargarDatos"></landing-content>
+        <landing-content v-else :data="data" :base-url="baseUrl" :logo-url="logoUrl" :inscripcion-linea-publica="inscripcionLineaPublica" @refresh-comentarios="cargarDatos"></landing-content>
     </div>
 
     <script type="text/x-template" id="landing-template">
@@ -477,7 +479,7 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                     <div class="text-center mb-12">
                         <p class="fvd-section-label mb-3 justify-center"><i class="fas fa-flag" aria-hidden="true"></i> Torneos activos</p>
                         <h2 class="fvd-font-title text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4"><i class="fas fa-users-cog mr-2 text-amber-400"></i>Eventos Nacionales</h2>
-                        <p class="text-lg md:text-xl text-white/90 max-w-3xl mx-auto">Inscríbete desde tu dispositivo móvil en estos eventos. Abierto a jugadores de todas las entidades.</p>
+                        <p class="text-lg md:text-xl text-white/90 max-w-3xl mx-auto">{{ inscripcionLineaPublica ? 'Inscríbete desde tu dispositivo móvil en estos eventos. Abierto a jugadores de todas las entidades.' : 'Consulta fechas y datos de contacto. La inscripción en línea no está disponible; coordina tu participación en sitio con el organizador.' }}</p>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                         <div v-for="ev in data.eventos_masivos" :key="ev.id" class="fvd-event-card-dark rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden transform hover:-translate-y-1 text-center">
@@ -495,8 +497,8 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                                     <span v-if="ev.costo > 0" class="px-3 py-1 bg-green-500/80 text-white rounded-full text-xs font-semibold">${{ parseFloat(ev.costo).toFixed(2) }}</span>
                                     <span class="px-3 py-1 bg-amber-400 text-blue-900 rounded-full text-xs font-bold"><i class="fas fa-users mr-1"></i>{{ ev.total_inscritos||0 }} inscritos</span>
                                 </div>
-                                <a v-if="parseInt(ev.permite_inscripcion_linea||1)===1 && !esHoy(ev.fechator)" :href="baseUrl + 'inscribir_evento_masivo.php?torneo_id=' + ev.id" class="block w-full px-4 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-blue-900 font-bold rounded-lg hover:from-yellow-500 hover:to-orange-600 transition-all text-center shadow-lg"><i class="fas fa-mobile-alt mr-2"></i>Inscribirme Ahora</a>
-                                <div v-else-if="parseInt(ev.permite_inscripcion_linea||1)===1 && esHoy(ev.fechator)" class="bg-yellow-400/20 rounded-lg p-3 border border-yellow-400/50"><p class="text-xs text-blue-900 text-center mb-0"><i class="fas fa-info-circle mr-1"></i>Inscripción deshabilitada el día del torneo.</p></div>
+                                <a v-if="inscripcionLineaPublica && parseInt(ev.permite_inscripcion_linea||1)===1 && !esHoy(ev.fechator)" :href="baseUrl + 'inscribir_evento_masivo.php?torneo_id=' + ev.id" class="block w-full px-4 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-blue-900 font-bold rounded-lg hover:from-yellow-500 hover:to-orange-600 transition-all text-center shadow-lg"><i class="fas fa-mobile-alt mr-2"></i>Inscribirme Ahora</a>
+                                <div v-else-if="inscripcionLineaPublica && parseInt(ev.permite_inscripcion_linea||1)===1 && esHoy(ev.fechator)" class="bg-yellow-400/20 rounded-lg p-3 border border-yellow-400/50"><p class="text-xs text-blue-900 text-center mb-0"><i class="fas fa-info-circle mr-1"></i>Inscripción deshabilitada el día del torneo.</p></div>
                                 <div v-else class="bg-yellow-400/20 rounded-lg p-3 border border-yellow-400/50">
                                     <p class="text-xs text-blue-900 text-center mb-2"><i class="fas fa-info-circle mr-1"></i>Inscripción en sitio. Contacta al organizador.</p>
                                     <a v-if="ev.admin_celular || ev.club_telefono" :href="'tel:' + (ev.admin_celular || ev.club_telefono || '').replace(/\D/g,'')" class="block w-full px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg text-center shadow-lg"><i class="fas fa-phone mr-2"></i>Contactar administración</a>
@@ -530,8 +532,8 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                                         <span class="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-xs font-semibold">{{ MODALIDADES[parseInt(ev.modalidad)||1] || 'Individual' }}</span>
                                         <span v-if="ev.costo > 0" class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">${{ parseFloat(ev.costo).toFixed(2) }}</span>
                                     </div>
-                                    <a v-if="parseInt(ev.permite_inscripcion_linea||1)===1 && !esHoy(ev.fechator)" :href="baseUrl + 'tournament_register.php?torneo_id=' + ev.id" class="block w-full px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-all text-center mb-2"><i class="fas fa-sign-in-alt mr-2"></i>Inscribirme</a>
-                                    <p v-else-if="parseInt(ev.permite_inscripcion_linea||1)===1 && esHoy(ev.fechator)" class="text-xs text-gray-500 text-center mb-2">Inscripción deshabilitada el día del torneo.</p>
+                                    <a v-if="inscripcionLineaPublica && parseInt(ev.permite_inscripcion_linea||1)===1 && !esHoy(ev.fechator)" :href="baseUrl + 'tournament_register.php?torneo_id=' + ev.id" class="block w-full px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-all text-center mb-2"><i class="fas fa-sign-in-alt mr-2"></i>Inscribirme</a>
+                                    <p v-else-if="inscripcionLineaPublica && parseInt(ev.permite_inscripcion_linea||1)===1 && esHoy(ev.fechator)" class="text-xs text-gray-500 text-center mb-2">Inscripción deshabilitada el día del torneo.</p>
                                     <a v-else-if="ev.admin_celular || ev.club_telefono" :href="'tel:' + (ev.admin_celular || ev.club_telefono || '').replace(/\D/g,'')" class="block w-full px-4 py-2 bg-green-500 text-white font-semibold rounded-lg text-center mb-2"><i class="fas fa-phone mr-2"></i>Contactar</a>
                                     <a :href="baseUrl + 'consulta_credencial.php'" class="block w-full px-4 py-2 fvd-btn-primary rounded-lg font-semibold text-blue-900 transition-all text-center"><i class="fas fa-info-circle mr-2"></i>Ver Información</a>
                                 </div>
@@ -623,7 +625,8 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                                 <span><i class="fas fa-question-circle text-primary-500 mr-3"></i>¿Cómo me inscribo en un torneo?</span>
                                 <i class="fas fa-chevron-down text-primary-500 group-open:rotate-180 transition-transform"></i>
                             </summary>
-                            <p class="mt-4 text-gray-600 pl-10 leading-relaxed">En la sección <strong>Próximos eventos</strong> o <strong>Eventos nacionales</strong> elige el torneo y sigue el enlace de inscripción cuando esté habilitada la inscripción en línea; si no, contacta al organizador con los datos indicados en la ficha.</p>
+                            <p class="mt-4 text-gray-600 pl-10 leading-relaxed" v-if="inscripcionLineaPublica">En la sección <strong>Próximos eventos</strong> o <strong>Eventos nacionales</strong> elige el torneo y sigue el enlace de inscripción cuando esté habilitada la inscripción en línea; si no, contacta al organizador con los datos indicados en la ficha.</p>
+                            <p class="mt-4 text-gray-600 pl-10 leading-relaxed" v-else>Consulta la ficha del torneo en <strong>Próximos eventos</strong> y contacta al organizador con los datos indicados para inscribirte en sitio el día del evento.</p>
                         </details>
                         <details class="group bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-all border border-gray-200">
                             <summary class="flex items-center justify-between cursor-pointer font-bold text-lg text-gray-900 list-none">
@@ -800,7 +803,8 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
             apiUrl: <?= json_encode($api_url) ?>,
             baseUrl: <?= json_encode($base_url) ?>,
             logoUrl: <?= json_encode($landing_logo_href) ?>,
-            estacionLogoUrl: <?= json_encode($landing_estacion_logo_href) ?>
+            estacionLogoUrl: <?= json_encode($landing_estacion_logo_href) ?>,
+            inscripcionLineaPublica: <?= json_encode($landing_inscripcion_linea_publica) ?>
         };
     </script>
     <script src="<?= htmlspecialchars($landing_asset_href('assets/vendor/vue/vue.global.prod.js')) ?>"></script>

@@ -206,6 +206,9 @@ $page = $_GET['page'] ?? 'home';
 // Sanitizar nombre de página (solo letras, números, guiones y barras)
 $page = preg_replace('/[^a-zA-Z0-9_\/\-]/', '', $page);
 
+require_once APP_ROOT . '/lib/FvdAdminGate.php';
+FvdAdminGate::rejectPageIfDisabled($page);
+
 // Admin operativo de asociación: inicio = panel acotado (sin dashboard general)
 if (Auth::isOperativoSoloAsociacion()) {
     require_once __DIR__ . '/../lib/app_helpers.php';

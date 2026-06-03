@@ -9,6 +9,9 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/csrf.php';
 require_once __DIR__ . '/../lib/app_helpers.php';
+require_once __DIR__ . '/../lib/FvdAdminGate.php';
+
+FvdAdminGate::rejectPageIfDisabled('cuentas_bancarias');
 
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 

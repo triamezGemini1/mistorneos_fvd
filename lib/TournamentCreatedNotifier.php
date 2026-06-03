@@ -18,7 +18,7 @@ final class TournamentCreatedNotifier
      */
     public static function notifyAssociationDelegates(PDO $pdo, int $tournamentId, int $excludeUserId = 0): void
     {
-        if ($tournamentId <= 0) {
+        if (!FvdConfig::adminModuleEnabled() || $tournamentId <= 0) {
             return;
         }
 

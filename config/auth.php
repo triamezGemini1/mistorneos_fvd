@@ -288,6 +288,9 @@ class Auth {
    */
   public static function isOperativoSoloAsociacion(): bool
   {
+    if (!FvdConfig::adminModuleEnabled()) {
+      return false;
+    }
     if (self::isAdminGeneral()) {
       return false;
     }

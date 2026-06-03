@@ -7,6 +7,10 @@
 require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../lib/app_helpers.php';
+require_once __DIR__ . '/../lib/FvdAdminGate.php';
+
+FvdAdminGate::rejectPublicScriptIfDisabled('inscribir_evento_masivo.php');
+
 require_once __DIR__ . '/../lib/security.php';
 require_once __DIR__ . '/../lib/RateLimiter.php';
 require_once __DIR__ . '/../lib/TournamentScopeHelper.php';

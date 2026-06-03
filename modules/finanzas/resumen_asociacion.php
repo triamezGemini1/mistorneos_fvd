@@ -17,6 +17,9 @@ require_once __DIR__ . '/../../lib/FvdConfig.php';
 require_once __DIR__ . '/../../lib/app_helpers.php';
 require_once __DIR__ . '/../../lib/AsociacionAdminHelper.php';
 require_once __DIR__ . '/../../lib/FinanzasAsociacionData.php';
+require_once __DIR__ . '/../../lib/FvdAdminGate.php';
+
+FvdAdminGate::rejectPageIfDisabled('finanzas/resumen_asociacion');
 
 $pdo = DB::pdo();
 $user = Auth::user();

@@ -9,6 +9,9 @@ require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/csrf.php';
 require_once __DIR__ . '/../lib/TournamentScopeHelper.php';
+require_once __DIR__ . '/../lib/FvdAdminGate.php';
+
+FvdAdminGate::rejectPublicScriptIfDisabled('tournament_register.php');
 
 $torneo_id = (int)($_GET['torneo_id'] ?? 0);
 $user_id = (int)($_GET['user_id'] ?? 0);
