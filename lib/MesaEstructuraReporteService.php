@@ -8,6 +8,7 @@ require_once __DIR__ . '/InscritosHelper.php';
 require_once __DIR__ . '/PartiresulEstatusSql.php';
 require_once __DIR__ . '/Core/MesaRepository.php';
 require_once __DIR__ . '/Core/TorneoMesaAsignacionResolver.php';
+require_once __DIR__ . '/ResultadosReportePaginacion.php';
 
 /**
  * Reporte consultable: estructura de mesas por ronda, procedimiento aplicado
@@ -33,8 +34,10 @@ final class MesaEstructuraReporteService
      *   leyenda: array<string, string>
      * }
      */
-    public function construirReporte(int $torneoId, PDO $pdo, int $rondaFiltro = 0, int $pagina = 1, int $porPagina = 10): array
+    public function construirReporte(int $torneoId, PDO $pdo, int $rondaFiltro = 0, int $pagina = 1, ?int $porPagina = null): array
     {
+        $porPagina = ResultadosReportePaginacion::PER_PAGE;
+        $pagina = max(1, $pagina);
         $torneo = $this->cargarTorneo($torneoId, $pdo);
         if ($torneo === null) {
             return [
@@ -49,8 +52,6 @@ final class MesaEstructuraReporteService
             ];
         }
 
-        $porPagina = max(4, min(40, $porPagina));
-        $pagina = max(1, $pagina);
         $totalRondas = max(1, (int) ($torneo['rondas'] ?? 0));
         $modalidad = (int) ($torneo['modalidad'] ?? 0);
         $opciones = (new MesaRepository($pdo))->obtenerOpcionesAsignacionTorneo($torneoId);

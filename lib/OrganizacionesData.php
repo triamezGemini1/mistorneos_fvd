@@ -281,6 +281,7 @@ class OrganizacionesData
      */
     public static function loadResumenEntidades(): array
     {
+        require_once __DIR__ . '/EntidadFvdCatalogo.php';
         try {
             $pdo = DB::pdo();
         } catch (Exception $e) {
@@ -297,7 +298,7 @@ class OrganizacionesData
             $resumen[] = array_merge([
                 'entidad_id' => $cod,
                 'entidad_codigo' => $cod,
-                'entidad_nombre' => (string)($e['nombre'] ?? ('Entidad ' . $cod)),
+                'entidad_nombre' => EntidadFvdCatalogo::normalizarNombre($cod, (string)($e['nombre'] ?? '')),
                 'estado' => (int)($e['estado'] ?? 1),
             ], $atletas);
         }

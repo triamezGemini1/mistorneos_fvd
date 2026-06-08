@@ -3,10 +3,11 @@
  * Reportes segmentados. PDF/Excel vía public/export_*.php (modules/ no es público).
  */
 require_once __DIR__ . '/../../lib/app_helpers.php';
+require_once __DIR__ . '/../../lib/ResultadosReporteData.php';
 
 $torneo_id = (int)($torneo_id ?? 0);
 $esEquipos = (int)($torneo['modalidad'] ?? 0) === 3;
-$generoRep = (isset($_GET['genero']) && $_GET['genero'] === 'F') ? 'F' : 'M';
+$generoRep = ResultadosReporteData::generoFiltroDesdeParametro(isset($_GET['genero']) ? (string) $_GET['genero'] : null);
 
 $tg = static function (string $action, array $extra = []) use ($torneo_id): string {
     return AppHelpers::url('index.php', array_merge([
@@ -60,6 +61,14 @@ $bloques = [
         <h1 class="text-2xl font-bold text-gray-900"><i class="fas fa-file-alt text-amber-600 mr-2"></i> Reportes de resultados</h1>
         <p class="text-gray-700 font-medium"><?= htmlspecialchars($torneo['nombre'] ?? '') ?></p>
         <p class="text-sm text-gray-600 mt-2">Impresión y PDF en formato <strong class="text-black">Letter</strong>. Cada bloque es un reporte independiente.</p>
+        <?php
+        $urlGenRep = static function (string $g) use ($tg): string {
+            return $tg('resultados_reportes', ['genero' => $g]);
+        };
+        $urlGeneroFn = $urlGenRep;
+        $generoActual = $generoRep;
+        include __DIR__ . '/../../public/includes/partials/fvd_reporte_genero_iconos.php';
+        ?>
         <div class="mt-4 p-4 bg-green-50 border border-green-300 rounded-lg">
             <strong class="text-black">Excel (varias hojas):</strong>
             <a href="<?= htmlspecialchars($urlExcel) ?>" class="ml-2 text-black font-bold underline">Descargar Excel</a>
@@ -78,12 +87,20 @@ $bloques = [
         </div>
     </div>
 
+    <div class="bg-white rounded-xl shadow-lg p-6 max-w-5xl mx-auto mb-4 border-2 border-amber-300">
+        <h2 class="text-lg font-bold text-gray-900 mb-1"><i class="fas fa-id-card text-amber-600 mr-2"></i>Sanciones por ronda (tarjetas)</h2>
+        <p class="text-sm text-gray-600 mb-4">Listado de jugadores con tarjeta amarilla, roja o negra, indicando la ronda en que ocurrió (A / R / N).</p>
+        <a href="<?= htmlspecialchars($tg('reporte_sanciones_ronda')) ?>" class="inline-flex items-center px-4 py-2 bg-amber-200 text-black font-bold rounded-lg border border-amber-700 text-sm">
+            <i class="fas fa-table mr-2"></i> Ver reporte
+        </a>
+    </div>
+
     <?php foreach ($bloques as $b):
         if (!$b['siempre'] && !$esEquipos && in_array($b['tipo'], ['general', 'equipos_resumido', 'equipos_detallado'], true)) {
             continue;
         }
         $origen = $tg($b['action_origen']);
-        $idx = $tg('resultados_reportes');
+        $idx = $tg('resultados_reportes', ['genero' => $generoRep]);
     ?>
     <div class="bg-white rounded-xl shadow-lg p-6 max-w-5xl mx-auto mb-4 border-2 border-gray-200">
         <h2 class="text-lg font-bold text-gray-900 mb-1"><?= htmlspecialchars($b['titulo']) ?></h2>

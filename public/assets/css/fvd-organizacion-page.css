@@ -1,0 +1,196 @@
+/**
+ * Mi organización — formulario edición y ajustes puntuales.
+ * Shell, listados, KPIs y tipografía: fvd-app-page.css
+ */
+.fvd-org-form-3col .form-control,
+.fvd-org-form-3col .form-select {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.fvd-org-form-3col .fvd-org-field-readonly[readonly] {
+  background: rgba(255, 255, 255, 0.55);
+  cursor: default;
+}
+
+.fvd-org-form-3col .fvd-org-col-actions {
+  min-height: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.fvd-org-logo-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.fvd-org-logo-panel .form-control[type="file"] {
+  max-width: 100%;
+}
+
+.fvd-org-logo-preview img {
+  max-height: 140px;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 0.375rem;
+  padding: 0.25rem;
+}
+
+body.fvd-dashboard-compact.page-mi-organizacion .fvd-org-page h1,
+body.fvd-dashboard-compact.page-mi-organizacion .fvd-org-page h4,
+body.fvd-dashboard-compact.page-mi-organizacion .fvd-org-page .form-label {
+  color: #fff;
+}
+
+body.fvd-dashboard-compact.page-mi-organizacion .fvd-org-page .text-muted {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+/* ========== Detalle organización (page=organizaciones&id=N) ========== */
+.fvd-org-page--compact {
+  --fvd-org-ink: var(--fvd-app-ink, #0a3d47);
+  --fvd-org-ink-muted: var(--fvd-app-ink-muted, #155a66);
+  --fvd-org-border-info: #93c5fd;
+  --fvd-org-border-stats: #6ee7b7;
+  --fvd-org-border-list: #d8b4fe;
+  --fvd-org-header-info: #dbeafe;
+  --fvd-org-header-stats: #d1fae5;
+  --fvd-org-header-list: #ede9fe;
+}
+
+.fvd-org-page--compact.fvd-app-page--glass {
+  color: var(--fvd-org-ink);
+}
+
+.fvd-org-page--compact.fvd-app-page--glass .breadcrumb-item a {
+  color: var(--fvd-org-ink-muted);
+}
+
+.fvd-org-page--compact.fvd-app-page--glass .breadcrumb-item.active,
+.fvd-org-page--compact.fvd-app-page--glass .breadcrumb-item + .breadcrumb-item::before {
+  color: #6b7280;
+}
+
+.fvd-org-page--compact .fvd-org-card-compact {
+  background: rgba(255, 255, 255, 0.97) !important;
+  backdrop-filter: none;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.07) !important;
+}
+
+.fvd-org-page--compact .fvd-org-card--info {
+  border: 1px solid var(--fvd-org-border-info) !important;
+}
+
+.fvd-org-page--compact .fvd-org-card--stats {
+  border: 1px solid var(--fvd-org-border-stats) !important;
+}
+
+.fvd-org-page--compact .fvd-org-card--list {
+  border: 1px solid var(--fvd-org-border-list) !important;
+}
+
+.fvd-org-page--compact .fvd-org-card-header {
+  font-size: calc(0.8125rem * var(--fvd-app-scale, 1.25));
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  border-bottom: 1px solid rgba(17, 24, 39, 0.08) !important;
+}
+
+.fvd-org-page--compact .fvd-org-card-header,
+.fvd-org-page--compact .fvd-org-card-header h6 {
+  color: var(--fvd-org-ink) !important;
+}
+
+.fvd-org-page--compact .fvd-org-card-header--info {
+  background: var(--fvd-org-header-info) !important;
+}
+
+.fvd-org-page--compact .fvd-org-card-header--stats {
+  background: var(--fvd-org-header-stats) !important;
+}
+
+.fvd-org-page--compact .fvd-org-card-header--list {
+  background: var(--fvd-org-header-list) !important;
+}
+
+.fvd-org-page--compact.fvd-app-page--glass .fvd-org-card-compact > .card-body {
+  color: var(--fvd-org-ink) !important;
+}
+
+.fvd-org-page--compact .fvd-org-logo-sm {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  padding: 3px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.fvd-org-page--compact .fvd-org-title {
+  font-size: calc(1.02rem * var(--fvd-app-scale, 1.25));
+  font-weight: 700;
+  color: var(--fvd-org-ink);
+  letter-spacing: -0.01em;
+  line-height: 1.28;
+}
+
+.fvd-org-page--compact .fvd-org-meta {
+  color: var(--fvd-org-ink-muted) !important;
+  font-size: calc(0.72rem * var(--fvd-app-scale, 1.25));
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.fvd-org-page--compact .fvd-org-contact-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  margin-top: 0.15rem;
+  font-size: calc(0.78rem * var(--fvd-app-scale, 1.25));
+  color: var(--fvd-org-ink);
+  line-height: 1.4;
+}
+
+.fvd-org-page--compact .fvd-org-contact-lines span {
+  color: var(--fvd-org-ink);
+}
+
+.fvd-org-page--compact .fvd-org-contact-lines i {
+  color: #4b5563;
+  width: 1rem;
+  text-align: center;
+}
+
+.fvd-org-page--compact .fvd-org-kpi-pastel strong,
+.fvd-org-page--compact .fvd-org-kpi-pastel .fvd-org-kpi-num,
+.fvd-org-page--compact .fvd-org-kpi-pastel span,
+.fvd-org-page--compact .fvd-org-kpi-pastel small {
+  color: var(--fvd-org-ink);
+}
+
+.fvd-org-page--compact .fvd-org-kpi-pastel span,
+.fvd-org-page--compact .fvd-org-kpi-pastel small {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+
+.fvd-org-page--compact.fvd-app-page--glass .text-muted {
+  color: var(--fvd-org-ink-muted) !important;
+}
+
+.fvd-org-page--compact .fvd-org-table-compact thead th {
+  background: #f3f4f6 !important;
+  color: var(--fvd-org-ink) !important;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.fvd-org-page--compact .fvd-org-table-compact tbody td {
+  color: var(--fvd-org-ink);
+}
+
+.fvd-org-page--compact .fvd-org-table-compact tbody td.text-muted {
+  color: var(--fvd-org-ink-muted) !important;
+}

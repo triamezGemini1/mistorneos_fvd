@@ -64,6 +64,11 @@ final class OpEspecialesHelper
         if (\function_exists('actualizarEstadisticasInscritos')) {
             actualizarEstadisticasInscritos($torneoId);
 
+            if (! \class_exists(\RankingTorneoRecalc::class, false)) {
+                require_once __DIR__ . '/../RankingTorneoRecalc.php';
+            }
+            \RankingTorneoRecalc::reclasificarSiUltimaRondaTorneoCompleta($torneoId);
+
             return;
         }
         $pdo = \DB::pdo();

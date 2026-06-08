@@ -29,7 +29,7 @@ $org_join = $has_cod_org
 
 // Paginación
 $current_page = isset($_GET['p']) ? max(1, (int)$_GET['p']) : 1;
-$per_page = isset($_GET['per_page']) ? max(10, min(100, (int)$_GET['per_page'])) : 20;
+$per_page = Pagination::DEFAULT_PER_PAGE;
 
 // Obtener total de torneos
 $total_torneos = 0;

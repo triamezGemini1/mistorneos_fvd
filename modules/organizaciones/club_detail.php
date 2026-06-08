@@ -1,80 +1,91 @@
 <?php
-$logo_club = $club['logo']
-    ? AppHelpers::url('view_image.php', ['path' => $club['logo']])
+require_once __DIR__ . '/../../lib/FvdPaginacionCompacta.php';
+
+$logo_club = !empty($club['logo']) && class_exists('AppHelpers')
+    ? AppHelpers::imageUrl($club['logo'])
     : null;
-$afiliados_page = isset($afiliados_page) ? (int)$afiliados_page : 1;
-$afiliados_per_page = isset($afiliados_per_page) ? (int)$afiliados_per_page : 15;
-$afiliados_total_rows = isset($afiliados_total_rows) ? (int)$afiliados_total_rows : count($afiliados ?? []);
-$afiliados_total_pages = isset($afiliados_total_pages) ? (int)$afiliados_total_pages : 1;
-$sexo = isset($sexo) ? (string)$sexo : 'todos';
+$afiliados_page = isset($afiliados_page) ? (int) $afiliados_page : 1;
+$afiliados_per_page = isset($afiliados_per_page) ? (int) $afiliados_per_page : FvdPaginacionCompacta::PER_PAGE_DEFAULT;
+$afiliados_total_rows = isset($afiliados_total_rows) ? (int) $afiliados_total_rows : count($afiliados ?? []);
+$afiliados_total_pages = isset($afiliados_total_pages) ? (int) $afiliados_total_pages : 1;
+$sexo = isset($sexo) ? (string) $sexo : 'todos';
 $afiliados_resumen = $afiliados_resumen ?? ['total' => 0, 'hombres' => 0, 'mujeres' => 0];
-$qsBase = 'index.php?page=organizaciones&id=' . (int)$organizacion['id'] . '&club_id=' . (int)$club['id'] . '&sexo=' . urlencode($sexo);
+$entidad_cod = (int) ($club['entidad'] ?? 0);
+$qsOrg = 'index.php?page=organizaciones&id=' . (int) $organizacion['id'];
+$club_pk = (int) ($club['id'] ?? 0);
+if ($club_pk > 0) {
+    $qsBase = $qsOrg . '&club_id=' . $club_pk;
+} else {
+    $qsBase = $qsOrg . '&entidad_id=' . $entidad_cod;
+}
+$pag_base_url = $qsBase . '&sexo=' . urlencode($sexo);
 ?>
-<div class="container-fluid py-4" id="top-page">
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb">
+<div class="container-fluid fvd-listado-page py-2" id="top-page">
+    <nav aria-label="breadcrumb" class="mb-1">
+        <ol class="breadcrumb mb-0">
             <li class="breadcrumb-item"><a href="index.php?page=home">Inicio</a></li>
-            <li class="breadcrumb-item"><a href="index.php?page=organizaciones">Organizaciones</a></li>
-            <li class="breadcrumb-item"><a href="index.php?page=organizaciones&id=<?= (int)$organizacion['id'] ?>"><?= htmlspecialchars($organizacion['nombre']) ?></a></li>
+            <li class="breadcrumb-item"><a href="<?= htmlspecialchars($qsOrg) ?>"><?= htmlspecialchars($organizacion['nombre']) ?></a></li>
             <li class="breadcrumb-item active"><?= htmlspecialchars($club['nombre']) ?></li>
         </ol>
     </nav>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="row align-items-center">
-                <?php if ($logo_club): ?>
-                    <div class="col-auto">
-                        <img src="<?= htmlspecialchars($logo_club) ?>" alt="" class="rounded" style="width: 80px; height: 80px; object-fit: cover;">
-                    </div>
+    <div class="fvd-listado-toolbar">
+        <a href="<?= htmlspecialchars($qsOrg) ?>" class="btn btn-outline-secondary btn-sm btn-volver">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+        <div class="fvd-listado-toolbar-main">
+            <div class="min-w-0">
+                <h1 class="fvd-listado-title">
+                    <i class="fas fa-sitemap me-1 opacity-75"></i><?= htmlspecialchars($club['nombre']) ?>
+                </h1>
+                <?php if ($entidad_cod > 0): ?>
+                    <p class="fvd-listado-subtitle mb-0">ID entidad: <?= $entidad_cod ?></p>
                 <?php endif; ?>
-                <div class="col">
-                    <h2 class="h4 mb-2"><?= htmlspecialchars($club['nombre']) ?></h2>
-                    <p class="text-muted mb-1">Club de <?= htmlspecialchars($organizacion['nombre']) ?></p>
-                    <?php if (!empty($club['delegado'])): ?>
-                        <p class="mb-1"><i class="fas fa-user me-1"></i>Delegado: <?= htmlspecialchars($club['delegado']) ?></p>
-                    <?php endif; ?>
-                    <?php if (!empty($club['telefono'])): ?>
-                        <p class="mb-1"><i class="fas fa-phone me-1"></i><?= htmlspecialchars($club['telefono']) ?></p>
-                    <?php endif; ?>
-                    <?php if (!empty($club['direccion'])): ?>
-                        <p class="mb-0 small"><i class="fas fa-address-card me-1"></i><?= htmlspecialchars($club['direccion']) ?></p>
-                    <?php endif; ?>
-                </div>
+            </div>
+            <div class="btn-group fvd-listado-filtros" role="group" aria-label="Filtro por género">
+                <a href="<?= htmlspecialchars($qsBase . '&sexo=todos') ?>" class="btn btn-sm <?= $sexo === 'todos' ? 'btn-primary' : 'btn-outline-primary' ?>">Todos</a>
+                <a href="<?= htmlspecialchars($qsBase . '&sexo=m') ?>" class="btn btn-sm <?= $sexo === 'm' ? 'btn-primary' : 'btn-outline-primary' ?>">Hombres</a>
+                <a href="<?= htmlspecialchars($qsBase . '&sexo=f') ?>" class="btn btn-sm <?= $sexo === 'f' ? 'btn-primary' : 'btn-outline-primary' ?>">Mujeres</a>
             </div>
         </div>
     </div>
 
-    <div class="card shadow-sm">
-        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Afiliados (<?= (int)$afiliados_total_rows ?>)</h5>
-            <div class="btn-group btn-group-sm" role="group" aria-label="Filtro por género">
-                <a href="index.php?page=organizaciones&id=<?= (int)$organizacion['id'] ?>&club_id=<?= (int)$club['id'] ?>&sexo=todos" class="btn <?= $sexo === 'todos' ? 'btn-primary' : 'btn-outline-primary' ?>">Todo</a>
-                <a href="index.php?page=organizaciones&id=<?= (int)$organizacion['id'] ?>&club_id=<?= (int)$club['id'] ?>&sexo=m" class="btn <?= $sexo === 'm' ? 'btn-primary' : 'btn-outline-primary' ?>">Hombres</a>
-                <a href="index.php?page=organizaciones&id=<?= (int)$organizacion['id'] ?>&club_id=<?= (int)$club['id'] ?>&sexo=f" class="btn <?= $sexo === 'f' ? 'btn-primary' : 'btn-outline-primary' ?>">Mujeres</a>
+    <div class="row g-2 fvd-listado-kpis mb-2">
+        <div class="col-4">
+            <div class="fvd-listado-kpi fvd-listado-kpi--sky">
+                <strong><?= (int) ($afiliados_resumen['total'] ?? 0) ?></strong>
+                <span>Total</span>
             </div>
         </div>
-        <div class="card-body p-0">
-            <div class="p-3 border-bottom bg-light">
-                <span class="badge bg-secondary me-2">Total: <?= (int)($afiliados_resumen['total'] ?? 0) ?></span>
-                <span class="badge bg-primary me-2">Hombres: <?= (int)($afiliados_resumen['hombres'] ?? 0) ?></span>
-                <span class="badge bg-danger">Mujeres: <?= (int)($afiliados_resumen['mujeres'] ?? 0) ?></span>
+        <div class="col-4">
+            <div class="fvd-listado-kpi fvd-listado-kpi--blue">
+                <strong><?= (int) ($afiliados_resumen['hombres'] ?? 0) ?></strong>
+                <span>Hombres</span>
             </div>
+        </div>
+        <div class="col-4">
+            <div class="fvd-listado-kpi fvd-listado-kpi--rose">
+                <strong><?= (int) ($afiliados_resumen['mujeres'] ?? 0) ?></strong>
+                <span>Mujeres</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card fvd-listado-card">
+        <div class="card-header"><i class="fas fa-users me-1"></i>Afiliados</div>
+        <div class="card-body">
             <?php if (empty($afiliados)): ?>
-                <div class="text-center py-4 text-muted">
-                    <i class="fas fa-users fa-2x mb-2"></i>
-                    <p class="mb-0">
-                        <?php if ($sexo !== 'todos'): ?>
-                            No se encontraron afiliados con el filtro seleccionado. Pruebe con «Todo» o revise los criterios.
-                        <?php else: ?>
-                            No se encontraron afiliados para este club.
-                        <?php endif; ?>
-                    </p>
+                <div class="fvd-listado-empty">
+                    <?php if ($sexo !== 'todos'): ?>
+                        No hay afiliados con el filtro seleccionado.
+                    <?php else: ?>
+                        No se encontraron afiliados para esta asociación.
+                    <?php endif; ?>
                 </div>
             <?php else: ?>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
-                        <thead class="table-light">
+                        <thead>
                             <tr>
                                 <th>Nombre</th>
                                 <th>Cédula</th>
@@ -87,13 +98,13 @@ $qsBase = 'index.php?page=organizaciones&id=' . (int)$organizacion['id'] . '&clu
                                 <tr>
                                     <td><strong><?= htmlspecialchars($a['nombre']) ?></strong></td>
                                     <td><?= htmlspecialchars($a['cedula'] ?? '-') ?></td>
-                                    <td>
-                                        <?php if (!empty($a['email'])): ?><i class="fas fa-envelope me-1"></i><?= htmlspecialchars($a['email']) ?><br><?php endif; ?>
-                                        <?php if (!empty($a['celular'])): ?><i class="fas fa-phone me-1"></i><?= htmlspecialchars($a['celular']) ?><?php endif; ?>
+                                    <td class="small">
+                                        <?php if (!empty($a['email'])): ?><?= htmlspecialchars($a['email']) ?><br><?php endif; ?>
+                                        <?php if (!empty($a['celular'])): ?><?= htmlspecialchars($a['celular']) ?><?php endif; ?>
                                     </td>
                                     <td>
-                                        <span class="badge bg-<?= (int)($a['status'] ?? 1) === 0 ? 'success' : 'secondary' ?>">
-                                            <?= (int)($a['status'] ?? 1) === 0 ? 'Activo' : 'Inactivo' ?>
+                                        <span class="badge bg-<?= (int) ($a['status'] ?? 1) === 0 ? 'success' : 'secondary' ?>">
+                                            <?= (int) ($a['status'] ?? 1) === 0 ? 'Activo' : 'Inactivo' ?>
                                         </span>
                                     </td>
                                 </tr>
@@ -101,45 +112,16 @@ $qsBase = 'index.php?page=organizaciones&id=' . (int)$organizacion['id'] . '&clu
                         </tbody>
                     </table>
                 </div>
-                <?php if ($afiliados_total_pages > 1): ?>
-                    <div class="border-top p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
-                        <small class="text-muted">
-                            Mostrando <?= (int)(($afiliados_page - 1) * $afiliados_per_page + 1) ?>-<?= (int)min($afiliados_page * $afiliados_per_page, $afiliados_total_rows) ?>
-                            de <?= (int)$afiliados_total_rows ?> afiliados
-                        </small>
-                        <nav aria-label="Paginación de afiliados">
-                            <ul class="pagination pagination-sm mb-0">
-                                <li class="page-item <?= $afiliados_page <= 1 ? 'disabled' : '' ?>">
-                                    <a class="page-link" href="<?= htmlspecialchars($qsBase . '&afiliados_page=1') ?>">«</a>
-                                </li>
-                                <li class="page-item <?= $afiliados_page <= 1 ? 'disabled' : '' ?>">
-                                    <a class="page-link" href="<?= htmlspecialchars($qsBase . '&afiliados_page=' . max(1, $afiliados_page - 1)) ?>">‹</a>
-                                </li>
-                                <li class="page-item disabled"><span class="page-link"><?= (int)$afiliados_page ?> / <?= (int)$afiliados_total_pages ?></span></li>
-                                <li class="page-item <?= $afiliados_page >= $afiliados_total_pages ? 'disabled' : '' ?>">
-                                    <a class="page-link" href="<?= htmlspecialchars($qsBase . '&afiliados_page=' . min($afiliados_total_pages, $afiliados_page + 1)) ?>">›</a>
-                                </li>
-                                <li class="page-item <?= $afiliados_page >= $afiliados_total_pages ? 'disabled' : '' ?>">
-                                    <a class="page-link" href="<?= htmlspecialchars($qsBase . '&afiliados_page=' . $afiliados_total_pages) ?>">»</a>
-                                </li>
-                            </ul>
-                        </nav>
-                    </div>
-                <?php endif; ?>
+                <?= FvdPaginacionCompacta::render(
+                    $afiliados_page,
+                    $afiliados_total_pages,
+                    $afiliados_total_rows,
+                    $afiliados_per_page,
+                    $pag_base_url,
+                    'afiliados_page',
+                    'afiliados'
+                ) ?>
             <?php endif; ?>
         </div>
-    </div>
-
-    <div class="mt-3" id="bottom-page">
-        <a href="index.php?page=organizaciones&id=<?= (int)$organizacion['id'] ?>" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Volver a la organización</a>
-        <button type="button" class="btn btn-outline-dark ms-2" onclick="window.scrollTo({top:0,behavior:'smooth'})">
-            <i class="fas fa-arrow-up me-1"></i>Primera página
-        </button>
-        <button type="button" class="btn btn-outline-dark ms-2" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})">
-            <i class="fas fa-arrow-down me-1"></i>Última página
-        </button>
-        <button type="button" class="btn btn-outline-secondary ms-2" onclick="history.back()">
-            <i class="fas fa-reply me-1"></i>Regresar
-        </button>
     </div>
 </div>

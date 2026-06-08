@@ -7,13 +7,6 @@
 
 require_once __DIR__ . '/../../lib/app_helpers.php';
 
-// Asegurar que las posiciones estén actualizadas
-if (function_exists('recalcularRankingSegunModalidad')) {
-    recalcularRankingSegunModalidad($torneo_id);
-} elseif (function_exists('recalcularPosiciones')) {
-    recalcularPosiciones($torneo_id);
-}
-
 $pdo = DB::pdo();
 
 // Obtener información del club responsable con logo

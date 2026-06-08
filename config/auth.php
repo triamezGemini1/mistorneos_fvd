@@ -138,7 +138,8 @@ class Auth {
   public static function requireRole(array $roles): void {
     $u = self::user();
     $ok = $u && in_array($u['role'], $roles, true);
-    if (!$ok && $u && in_array('admin_general', $roles, true) && self::isAdminGeneral()) {
+    // Cuenta admin_general (incl. modo prueba de rol): acceso a módulos restringidos por rol activo.
+    if (!$ok && $u && self::isAdminGeneral()) {
       $ok = true;
     }
     if (!$ok) {
@@ -178,7 +179,7 @@ class Auth {
       exit;
     }
     $ok = in_array($u['role'], $roles, true);
-    if (!$ok && in_array('admin_general', $roles, true) && self::isAdminGeneral()) {
+    if (!$ok && self::isAdminGeneral()) {
       $ok = true;
     }
     if (!$ok) {
@@ -201,7 +202,7 @@ class Auth {
     if ($u && in_array($u['role'], $roles, true)) {
       return;
     }
-    if ($u && in_array('admin_general', $roles, true) && self::isAdminGeneral()) {
+    if ($u && self::isAdminGeneral()) {
       return;
     }
     

@@ -1996,7 +1996,7 @@ final class ImportacionTorneoExternoService
     }
 
     /**
-     * Marca administrativa (tarjeta amarilla/roja/negra) → código TorneoCampoNumerico (0/1/3/4).
+     * Marca administrativa Access: solo 5/6/8 (→ 1/3/4 FVD). Texto amarilla/roja/negra admitido.
      */
     /** @param mixed $v */
     private static function parseMarcaTarjeta($v): int
@@ -2006,7 +2006,7 @@ final class ImportacionTorneoExternoService
             return 0;
         }
         if (is_numeric($v) && trim((string) $v) !== '') {
-            return \TorneoCampoNumerico::codigoTarjeta($v);
+            return \TorneoCampoNumerico::codigoTarjetaDesdeAccess($v);
         }
         $s = trim(strtolower((string) $v));
         if ($s === '' || $s === '-' || $s === 'no' || $s === 'ninguna' || $s === 'n' || $s === 'sin') {
@@ -2022,7 +2022,7 @@ final class ImportacionTorneoExternoService
             return 1;
         }
 
-        return \TorneoCampoNumerico::codigoTarjeta($v);
+        return \TorneoCampoNumerico::codigoTarjetaDesdeAccess($v);
     }
 
     /**

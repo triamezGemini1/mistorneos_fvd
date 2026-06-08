@@ -4,30 +4,43 @@
 body.page-panel-control-torneos .tw-panel {
   --panel-font-scale: 1.3;
   --panel-card-font-scale: 1.35;
-  --panel-card-width-scale: 0.8;
-  font-size: calc(14px * var(--panel-font-scale));
+  --panel-text-scale: 0.85;
+  --panel-cards-row-width: 95%;
+  --panel-card-gap: 0.48rem;
+  --panel-btn-font-scale: 0.8;
+  --panel-btn-height-scale: 0.85;
+  --panel-pastel-ink: #0a3d47;
+  --panel-pastel-muted: #155a66;
+  font-size: calc(14px * var(--panel-font-scale) * var(--panel-text-scale));
   max-width: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Cabecera torneo: azul institucional, texto blanco */
+/* Cabecera torneo: pastel institucional (sin fondos oscuros) */
 body.page-panel-control-torneos .tw-panel .fvd-panel-header,
-body.page-panel-control-torneos .tw-panel .panel-header.fvd-panel-header {
-  background: linear-gradient(135deg, #1e40af 0%, #1a365d 100%) !important;
-  border: 1px solid #1e3a8a !important;
-  color: #fff !important;
+body.page-panel-control-torneos .tw-panel .panel-header.fvd-panel-header,
+body.page-panel-control-torneos .tw-panel .panel-header {
+  background: linear-gradient(135deg, #dbeafe 0%, #e8d4f5 100%) !important;
+  border: 1px solid #93c5fd !important;
+  color: #0a3d47 !important;
+  box-shadow: 0 1px 4px rgba(14, 133, 163, 0.12) !important;
 }
 
 body.page-panel-control-torneos .tw-panel .fvd-panel-header .titulo-torneo,
 body.page-panel-control-torneos .tw-panel .fvd-panel-header .meta,
 body.page-panel-control-torneos .tw-panel .fvd-panel-header .meta span,
-body.page-panel-control-torneos .tw-panel .fvd-panel-header .meta i {
-  color: #fff !important;
+body.page-panel-control-torneos .tw-panel .fvd-panel-header .meta i,
+body.page-panel-control-torneos .tw-panel .panel-header .titulo-torneo,
+body.page-panel-control-torneos .tw-panel .panel-header .meta,
+body.page-panel-control-torneos .tw-panel .panel-header .meta span,
+body.page-panel-control-torneos .tw-panel .panel-header .meta i {
+  color: #0a3d47 !important;
 }
 
-body.page-panel-control-torneos .tw-panel .fvd-panel-header .meta {
-  border-top-color: rgba(255, 255, 255, 0.45) !important;
+body.page-panel-control-torneos .tw-panel .fvd-panel-header .meta,
+body.page-panel-control-torneos .tw-panel .panel-header .meta {
+  border-top-color: rgba(10, 61, 71, 0.18) !important;
 }
 
 /* Auditoría: QR + ADM en una sola fila */
@@ -45,7 +58,8 @@ body.page-panel-control-torneos .tw-panel .panel-top-strip__audit-row .panel-bad
 }
 
 body.page-panel-control-torneos .tw-panel .panel-top-strip__label {
-  font-size: calc(0.78rem * var(--panel-font-scale, 1.3)) !important;
+  font-size: calc(0.78rem * var(--panel-font-scale, 1.3) * var(--panel-text-scale, 0.85)) !important;
+  color: var(--panel-pastel-muted) !important;
 }
 
 body.page-panel-control-torneos .tw-panel .panel-top-strip .panel-badge-med {
@@ -54,7 +68,7 @@ body.page-panel-control-torneos .tw-panel .panel-top-strip .panel-badge-med {
 }
 
 body.page-panel-control-torneos .tw-panel .panel-top-strip {
-  font-size: calc(0.9rem * var(--panel-font-scale, 1.3));
+  font-size: calc(0.9rem * var(--panel-font-scale, 1.3) * var(--panel-text-scale, 0.85));
 }
 
 body.page-panel-control-torneos .tw-panel .tw-columns,
@@ -64,45 +78,52 @@ body.page-panel-control-torneos .tw-panel .tw-column {
   min-width: 0;
 }
 
-/* Tres tarjetas (Gestión de Mesas, Operaciones, Resultados): −20% ancho, centradas */
+/* Tres tarjetas: 95% del ancho de pantalla, reparto equitativo */
 body.page-panel-control-torneos .tw-panel .tw-columns {
-  justify-content: center;
-  gap: calc(0.45rem * var(--panel-card-width-scale, 0.8)) !important;
+  width: var(--panel-cards-row-width, 95%);
+  max-width: var(--panel-cards-row-width, 95%);
+  margin-left: auto;
+  margin-right: auto;
+  justify-content: stretch;
+  align-items: stretch;
+  gap: 0.65rem !important;
 }
 
 body.page-panel-control-torneos .tw-panel .tw-column {
-  flex: 0 1 calc(33.333% * var(--panel-card-width-scale, 0.8)) !important;
-  max-width: calc(33.333% * var(--panel-card-width-scale, 0.8)) !important;
-  width: calc(33.333% * var(--panel-card-width-scale, 0.8)) !important;
-  font-size: calc(1em * var(--panel-card-font-scale, 1.35));
+  flex: 1 1 0 !important;
+  max-width: none !important;
+  width: auto !important;
+  min-width: 0;
+  font-size: calc(1em * var(--panel-card-font-scale, 1.35) * var(--panel-text-scale, 0.85));
 }
 
 /* Nombre del torneo (+30% sobre escala panel) */
 body.page-panel-control-torneos .tw-panel .panel-header .titulo-torneo,
 body.page-panel-control-torneos .tw-panel h2.titulo-torneo {
-  font-size: calc(1.5rem * var(--panel-font-scale, 1.3) * 1.15) !important;
+  font-size: calc(1.5rem * var(--panel-font-scale, 1.3) * 1.15 * var(--panel-text-scale, 0.85)) !important;
   font-weight: 700 !important;
   line-height: 1.3 !important;
-  color: #fff !important;
+  color: #0a3d47 !important;
 }
 
 /* Títulos de tarjetas / columnas (+30% panel + 35% tarjeta) */
 body.page-panel-control-torneos .tw-panel .tw-column h3,
 body.page-panel-control-torneos .tw-panel .panel-card-header,
 body.page-panel-control-torneos .tw-panel .tw-column > .bg-white > div[class*="bg-gradient-to-r"] h3 {
-  font-size: calc(1.05rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35)) !important;
+  font-size: calc(1.05rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35) * var(--panel-text-scale, 0.85)) !important;
   font-weight: 600 !important;
   line-height: 1.35 !important;
   letter-spacing: 0.02em;
 }
 
-/* Botones de tarjetas: misma anchura (80% tarjeta), tipografía +35% */
+/* Botones de tarjetas: misma anchura (80% tarjeta), espaciado uniforme */
 body.page-panel-control-torneos .tw-panel .tw-column > div > div.p-5,
 body.page-panel-control-torneos .tw-panel .tw-column .panel-card-body,
 body.page-panel-control-torneos .tw-panel .tw-column .space-y-4 {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: var(--panel-card-gap, 0.48rem) !important;
 }
 
 /* Carril único: todos los controles ocupan el mismo ancho */
@@ -121,12 +142,12 @@ body.page-panel-control-torneos .tw-panel .tw-column span.tw-btn[role="text"] {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box;
-  font-size: calc(0.8625rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35)) !important;
+  font-size: calc(0.8625rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35) * var(--panel-btn-font-scale, 0.8) * var(--panel-text-scale, 0.85)) !important;
   font-weight: 600 !important;
   line-height: 1.3 !important;
   letter-spacing: 0.015em;
-  min-height: calc(2.25rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35)) !important;
-  padding: 0.42rem 0.55rem !important;
+  min-height: calc(2.25rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35) * var(--panel-btn-height-scale, 0.85)) !important;
+  padding: calc(0.42rem * var(--panel-btn-height-scale, 0.85)) calc(0.55rem * var(--panel-btn-height-scale, 0.85)) !important;
   white-space: normal !important;
   text-align: center;
   hyphens: auto;
@@ -139,7 +160,9 @@ body.page-panel-control-torneos .tw-panel .tw-column form {
   align-items: stretch;
 }
 
-body.page-panel-control-torneos .tw-panel .tw-column .d-flex.flex-column {
+body.page-panel-control-torneos .tw-panel .tw-column .d-flex.flex-column,
+body.page-panel-control-torneos .tw-panel .tw-column .panel-card-actions {
+  gap: var(--panel-card-gap, 0.48rem) !important;
   align-items: stretch;
 }
 
@@ -180,11 +203,22 @@ body.page-panel-control-torneos .tw-panel .panel-btn-group {
 }
 
 body.page-panel-control-torneos .tw-panel .tw-columns {
-  gap: calc(0.45rem * var(--panel-card-width-scale, 0.8)) !important;
+  gap: 0.65rem !important;
 }
 
 body.page-panel-control-torneos .tw-panel .space-y-4 > :not([hidden]) ~ :not([hidden]) {
-  margin-top: 0.4rem !important;
+  margin-top: 0 !important;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-column .p-5.space-y-4 > *,
+body.page-panel-control-torneos .tw-panel .tw-column hr {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-column hr {
+  width: 80%;
+  border-color: #e2e8f0 !important;
 }
 
 /* Selects y etiquetas auxiliares en tarjetas */
@@ -203,31 +237,31 @@ body.page-panel-control-torneos .tw-panel .tw-column select {
 
 body.page-panel-control-torneos .tw-panel .panel-top-strip__cerrar-btn,
 body.page-panel-control-torneos .tw-panel .panel-top-strip__cron-btn {
-  font-size: 0.95rem !important;
+  font-size: calc(0.95rem * var(--panel-text-scale, 0.85)) !important;
   font-weight: 600;
 }
 
 /* Laptop 14" típico (≥1280px): doble tamaño de botón */
 @media (min-width: 1280px) {
   body.page-panel-control-torneos .tw-panel {
-    font-size: 15px;
+    font-size: calc(15px * var(--panel-text-scale, 0.85));
   }
 
   body.page-panel-control-torneos .tw-panel .tw-column h3,
   body.page-panel-control-torneos .tw-panel .panel-card-header,
   body.page-panel-control-torneos .tw-panel .tw-column > .bg-white > div[class*="bg-gradient-to-r"] h3 {
-    font-size: calc(1.05rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35)) !important;
+    font-size: calc(1.05rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35) * var(--panel-text-scale, 0.85)) !important;
   }
 
   body.page-panel-control-torneos .tw-panel .tw-column .tw-btn,
   body.page-panel-control-torneos .tw-panel .tw-column a.tw-btn,
   body.page-panel-control-torneos .tw-panel .tw-column button.tw-btn,
   body.page-panel-control-torneos .tw-panel .tw-column span.tw-btn[role="text"] {
-    font-size: calc(1.05rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35)) !important;
+    font-size: calc(1.05rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35) * var(--panel-btn-font-scale, 0.8) * var(--panel-text-scale, 0.85)) !important;
     width: 100% !important;
     max-width: 100% !important;
-    min-height: calc(2.7rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35)) !important;
-    padding: 0.48rem 0.6rem !important;
+    min-height: calc(2.7rem * var(--panel-font-scale, 1.3) * var(--panel-card-font-scale, 1.35) * var(--panel-btn-height-scale, 0.85)) !important;
+    padding: calc(0.48rem * var(--panel-btn-height-scale, 0.85)) calc(0.6rem * var(--panel-btn-height-scale, 0.85)) !important;
     line-height: 1.28 !important;
   }
 
@@ -244,16 +278,218 @@ body.page-panel-control-torneos .tw-panel .panel-top-strip__cron-btn {
   body.page-panel-control-torneos .tw-panel .tw-column a.tw-btn,
   body.page-panel-control-torneos .tw-panel .tw-column button.tw-btn,
   body.page-panel-control-torneos .tw-panel .tw-column span.tw-btn[role="text"] {
-    font-size: calc(1.0875rem * var(--panel-card-font-scale, 1.35)) !important;
-    min-height: calc(2.45rem * var(--panel-card-font-scale, 1.35)) !important;
+    font-size: calc(1.0875rem * var(--panel-card-font-scale, 1.35) * var(--panel-btn-font-scale, 0.8) * var(--panel-text-scale, 0.85)) !important;
+    min-height: calc(2.45rem * var(--panel-card-font-scale, 1.35) * var(--panel-btn-height-scale, 0.85)) !important;
   }
 }
 
-/* Móvil: tarjetas a ancho completo */
+/* Móvil: tarjetas apiladas dentro del 95% */
 @media (max-width: 1023px) {
+  body.page-panel-control-torneos .tw-panel .tw-columns {
+    width: var(--panel-cards-row-width, 95%);
+    max-width: var(--panel-cards-row-width, 95%);
+  }
+
   body.page-panel-control-torneos .tw-panel .tw-column {
     flex: 1 1 100% !important;
     max-width: 100% !important;
     width: 100% !important;
   }
+}
+
+/* ========== Pasteles: badges, contenedores y cabeceras de tarjetas ========== */
+body.page-panel-control-torneos .tw-panel .panel-top-strip__col {
+  background: linear-gradient(165deg, #f8fafc 0%, #eef6ff 100%);
+  border: 1px solid #cbd5e1;
+  border-radius: 0.45rem;
+  padding: 0.35rem 0.4rem;
+}
+
+body.page-panel-control-torneos .tw-panel .panel-badge-med {
+  background: #fff !important;
+}
+
+body.page-panel-control-torneos .tw-panel .panel-badge-med--emerald {
+  background: #c8f0d4 !important;
+  border-color: #6ee7b7 !important;
+}
+
+body.page-panel-control-torneos .tw-panel .panel-badge-med--blue {
+  background: #c8e6f5 !important;
+  border-color: #93c5fd !important;
+}
+
+body.page-panel-control-torneos .tw-panel .panel-badge-med--amber {
+  background: #fff0c8 !important;
+  border-color: #fde047 !important;
+}
+
+body.page-panel-control-torneos .tw-panel .panel-badge-med--indigo {
+  background: #e8d4f5 !important;
+  border-color: #d8b4fe !important;
+}
+
+body.page-panel-control-torneos .tw-panel .panel-badge-med--rose {
+  background: #f5d4e0 !important;
+  border-color: #f9a8d4 !important;
+}
+
+body.page-panel-control-torneos .tw-panel .panel-badge-med__k,
+body.page-panel-control-torneos .tw-panel .panel-badge-med__v,
+body.page-panel-control-torneos .tw-panel .panel-badge-med__sub {
+  color: var(--panel-pastel-ink) !important;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-columns > .tw-column:nth-child(1) > .bg-white {
+  border-color: #6ee7b7 !important;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-columns > .tw-column:nth-child(2) > .bg-white {
+  border-color: #93c5fd !important;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-columns > .tw-column:nth-child(3) > .bg-white {
+  border-color: #fde047 !important;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-columns > .tw-column:nth-child(1) > .bg-white > div[class*="bg-gradient"] {
+  background: linear-gradient(to right, #c8f0d4, #d4eef5) !important;
+  border-bottom: 1px solid #6ee7b7 !important;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-columns > .tw-column:nth-child(2) > .bg-white > div[class*="bg-gradient"] {
+  background: linear-gradient(to right, #c8e6f5, #dbeafe) !important;
+  border-bottom: 1px solid #93c5fd !important;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-columns > .tw-column:nth-child(3) > .bg-white > div[class*="bg-gradient"] {
+  background: linear-gradient(to right, #fff0c8, #f5dcc8) !important;
+  border-bottom: 1px solid #fde047 !important;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-columns > .tw-column > .bg-white > div[class*="bg-gradient"] h3 {
+  color: var(--panel-pastel-ink) !important;
+}
+
+body.page-panel-control-torneos .tw-panel .bg-green-100 {
+  background: #d1fae5 !important;
+  border-color: #6ee7b7 !important;
+  color: #065f46 !important;
+}
+
+body.page-panel-control-torneos .tw-panel .bg-red-100,
+body.page-panel-control-torneos .tw-panel .alert-error {
+  background: #fecdd3 !important;
+  border-color: #fb7185 !important;
+  color: #881337 !important;
+}
+
+body.page-panel-control-torneos .tw-panel .bg-gray-100 {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: var(--panel-pastel-ink) !important;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-column .bg-gray-50 {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: var(--panel-pastel-muted) !important;
+}
+
+body.page-panel-control-torneos .tw-panel .tw-column .bg-green-100 {
+  background: #ecfdf5 !important;
+  border: 1px solid #6ee7b7 !important;
+  color: #065f46 !important;
+}
+
+body.page-panel-control-torneos .tw-panel #countdown-cierre-torneo,
+body.page-panel-control-torneos .tw-panel .cronometro-finalizar-torneo {
+  background: #fce7f3 !important;
+  border-color: #f9a8d4 !important;
+}
+
+body.page-panel-control-torneos .tw-panel .panel-top-strip__cron-btn,
+body.page-panel-control-torneos .tw-panel .panel-top-strip__banner-link,
+body.page-panel-control-torneos .tw-panel .panel-top-strip__link-verify {
+  background: #d4eef5 !important;
+  border: 1px solid #93c5fd !important;
+  color: var(--panel-pastel-ink) !important;
+}
+
+body.page-panel-control-torneos .tw-panel .panel-top-strip__cron-btn:hover,
+body.page-panel-control-torneos .tw-panel .panel-top-strip__banner-link:hover,
+body.page-panel-control-torneos .tw-panel .panel-top-strip__link-verify:hover {
+  background: #c8e6f5 !important;
+}
+
+/* Modal importación masiva: tipografía 135% (45% del tamaño anterior 300%) + pasteles */
+body.page-panel-control-torneos .fvd-import-masiva-modal {
+  font-size: 1rem;
+}
+body.page-panel-control-torneos .fvd-import-masiva-modal .fvd-import-masiva-modal__content {
+  font-size: 135%;
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  border: 1px solid #c7d2fe;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+body.page-panel-control-torneos .fvd-import-masiva-modal .fvd-import-masiva-modal__header {
+  background: linear-gradient(135deg, #c7d2fe 0%, #ddd6fe 100%) !important;
+  border-bottom: 1px solid #a78bfa !important;
+  color: #0a3d47 !important;
+  padding: 0.65rem 1rem;
+}
+
+body.page-panel-control-torneos .fvd-import-masiva-modal .modal-title {
+  font-weight: 700;
+  color: #0a3d47 !important;
+}
+
+body.page-panel-control-torneos .fvd-import-masiva-modal .fvd-import-masiva-modal__body {
+  background: #fafbff;
+  color: #0a3d47;
+  padding: 0.85rem 1rem 1rem;
+}
+
+body.page-panel-control-torneos .fvd-import-masiva-modal .form-label,
+body.page-panel-control-torneos .fvd-import-masiva-modal h6 {
+  font-weight: 600;
+  color: #0a3d47;
+  margin-bottom: 0.35rem;
+}
+
+body.page-panel-control-torneos .fvd-import-masiva-modal .text-muted {
+  color: #155a66 !important;
+}
+
+body.page-panel-control-torneos .fvd-import-masiva-modal code {
+  font-size: 0.95em;
+  background: #eef2ff;
+  color: #155a66;
+  padding: 0.08em 0.32em;
+  border-radius: 0.2rem;
+}
+
+body.page-panel-control-torneos .fvd-import-masiva-modal .form-control,
+body.page-panel-control-torneos .fvd-import-masiva-modal .form-select {
+  font-size: 1em;
+  border-color: #cbd5e1;
+  background: #fff;
+}
+
+body.page-panel-control-torneos .fvd-import-masiva-modal .table {
+  font-size: 1em;
+}
+
+body.page-panel-control-torneos .fvd-import-masiva-modal .badge {
+  font-weight: 600;
+}
+
+body.page-panel-control-torneos .fvd-import-masiva-modal .btn {
+  font-weight: 600;
 }

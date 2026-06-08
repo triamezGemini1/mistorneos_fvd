@@ -1,0 +1,56 @@
+/**
+ * Reportes de resultados / posiciones — encabezado, filtros género iconos.
+ */
+.fvd-reporte-card .fvd-reporte-card-header {
+  background: linear-gradient(135deg, #0e85a3 0%, #065a6e 100%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #fff !important;
+}
+
+.fvd-reporte-card .fvd-reporte-card-header h5,
+.fvd-reporte-card .fvd-reporte-card-header h6 {
+  color: #fff !important;
+}
+
+.fvd-reporte-genero-iconos {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.fvd-reporte-genero-iconos__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(14, 133, 163, 0.35);
+  background: rgba(255, 255, 255, 0.92);
+  color: #0a3d47;
+  text-decoration: none !important;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.fvd-reporte-genero-iconos__btn:hover {
+  background: #d4eef5;
+  color: #065a6e;
+  border-color: #0e85a3;
+}
+
+.fvd-reporte-genero-iconos__btn.is-active {
+  background: #173b7e;
+  border-color: #173b7e;
+  color: #fff;
+}
+
+.fvd-reporte-genero-iconos__btn.is-active:hover {
+  background: #1e4a9a;
+  color: #fff;
+}
+
+.fvd-reporte-genero-iconos__btn i {
+  font-size: 1rem;
+  line-height: 1;
+}

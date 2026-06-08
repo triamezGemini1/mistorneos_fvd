@@ -23,7 +23,7 @@ final class RoundManagerHandler
     public static function syncInscritosStatsBeforeGeneracion(int $torneoId): void
     {
         if (\function_exists('actualizarEstadisticasInscritos')) {
-            actualizarEstadisticasInscritos($torneoId);
+            actualizarEstadisticasInscritos($torneoId, true);
 
             return;
         }

@@ -5,6 +5,13 @@
 $script_actual = basename($_SERVER['PHP_SELF'] ?? '');
 $use_standalone = in_array($script_actual, ['admin_torneo.php', 'panel_torneo.php']);
 $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
+if (! class_exists('AppHelpers', false)) {
+    require_once __DIR__ . '/../../lib/app_helpers.php';
+}
+$url_pdf_resumen = AppHelpers::url('export_resumen_individual_pdf.php', [
+    'torneo_id' => (int) ($torneo['id'] ?? 0),
+    'inscrito_id' => (int) ($inscrito['id_usuario'] ?? 0),
+]);
 ?>
 
 <?php if (!$use_standalone): ?>
@@ -87,6 +94,9 @@ $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
             <a href="<?php echo htmlspecialchars($urlRetornoFinal); ?>" class="btn btn-secondary">
                 <i class="fas fa-arrow-left mr-2"></i> <?php echo htmlspecialchars($volverLabel); ?>
             </a>
+            <a href="<?php echo htmlspecialchars($url_pdf_resumen); ?>" class="btn btn-danger ms-2" target="_blank" rel="noopener">
+                <i class="fas fa-file-pdf mr-2"></i> Descargar PDF
+            </a>
         </div>
     </div>
 <?php else: ?>
@@ -101,6 +111,9 @@ $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
     </div>
     <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=posiciones&torneo_id=<?php echo $torneo['id']; ?>" class="btn btn-primary btn-sm flex-shrink-0">
         <i class="fas fa-arrow-left me-1"></i> Volver al listado de posiciones
+    </a>
+    <a href="<?php echo htmlspecialchars($url_pdf_resumen); ?>" class="btn btn-danger btn-sm flex-shrink-0" target="_blank" rel="noopener">
+        <i class="fas fa-file-pdf me-1"></i> PDF
     </a>
 </div>
 <?php endif; ?>
@@ -230,17 +243,21 @@ $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
                         </div>
                     <?php else: ?>
                         <style>
-                            .tabla-resumen th, .tabla-resumen td { padding: 0.35rem 0.5rem; vertical-align: middle; font-size: calc(0.9rem + 1px); font-weight: bold; }
+                            .tabla-resumen { table-layout: fixed; width: 100%; }
+                            .tabla-resumen th, .tabla-resumen td { padding: 0.4rem 0.5rem; vertical-align: middle; font-size: 1rem; line-height: 1.35; }
+                            .tabla-resumen th { font-size: 0.85rem; font-weight: 600; }
+                            .tabla-resumen td:not(.col-pareja):not(.col-contrarios) { font-weight: 700; font-size: 100%; }
                             .tabla-resumen .col-rnd { width: 3%; }
                             .tabla-resumen .col-mesa { width: 4%; }
-                            .tabla-resumen .col-pareja { width: 20%; min-width: 120px; }
-                            .tabla-resumen .col-contrarios { width: 22%; min-width: 130px; }
+                            .tabla-resumen .col-pareja { width: 10%; min-width: 70px; font-weight: 500; font-size: 0.92rem; }
+                            .tabla-resumen .col-contrarios { width: 32%; min-width: 180px; font-weight: 500; font-size: 0.92rem; }
                             .tabla-resumen .col-r1, .tabla-resumen .col-r2 { width: 5%; }
                             .tabla-resumen .col-efect { width: 5%; }
                             .tabla-resumen .col-sanc, .tabla-resumen .col-tarj { width: 4%; }
                             .tabla-resumen .col-res { width: 7%; }
                             .tabla-resumen .col-accion { width: 8%; }
                             .tabla-resumen .nombre-compacto { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: inline-block; }
+                            .tabla-resumen .contrarios-inline { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%; }
                         </style>
                         <div class="table-responsive">
                             <table class="table table-striped table-hover tabla-resumen">
@@ -280,7 +297,8 @@ $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
                                                     foreach ($partida['contrarios'] as $contrario) {
                                                         $lineas[] = htmlspecialchars($contrario['nombre']);
                                                     }
-                                                    echo implode('<br>', $lineas);
+                                                    $txtContrarios = implode(' · ', $lineas);
+                                                    echo '<span class="contrarios-inline" title="' . htmlspecialchars($txtContrarios) . '">' . $txtContrarios . '</span>';
                                                 } else {
                                                     echo '<span class="text-muted">-</span>';
                                                 }

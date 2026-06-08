@@ -129,7 +129,6 @@ $url_reportes_inscritos = ($tid_panel > 0 && class_exists('AppHelpers', false))
 $url_reportes_pago_usuarios = ($tid_panel > 0 && class_exists('AppHelpers', false))
     ? AppHelpers::dashboard('reportes_pago_usuarios', ['torneo_id' => $tid_panel])
     : ($tid_panel > 0 ? 'index.php?page=reportes_pago_usuarios&torneo_id=' . $tid_panel : '#');
-$invitar_clubes_inhabil = ($ultima_ronda > 0);
 ?>
 
 <link rel="stylesheet" href="assets/css/design-system.css">
@@ -268,12 +267,7 @@ $invitar_clubes_inhabil = ($ultima_ronda > 0);
             <?php elseif ($puedeCerrar): ?>
             <div class="cronometro-finalizar-torneo">
                 <p class="cron-finalizar-label">Listo para cerrar</p>
-                <form method="POST" action="<?php echo $use_standalone ? $base_url : 'index.php?page=torneo_gestion'; ?>" class="panel-top-strip__cerrar-form" onsubmit="event.preventDefault(); confirmarCierreTorneo(event);">
-                    <input type="hidden" name="action" value="cerrar_torneo">
-                    <input type="hidden" name="csrf_token" value="<?php echo CSRF::token(); ?>">
-                    <input type="hidden" name="torneo_id" value="<?php echo $torneo['id']; ?>">
-                    <button type="submit" class="panel-top-strip__cerrar-btn">Finalizar torneo</button>
-                </form>
+                <p class="cron-finalizar-hint">Finalizar en Operaciones</p>
             </div>
             <?php endif; ?>
             <button type="button" id="btnCronometroVentana" class="panel-top-strip__cron-btn">Activar cronómetro</button>
@@ -353,23 +347,10 @@ $invitar_clubes_inhabil = ($ultima_ronda > 0);
                         </h3>
                     </div>
                     <div class="p-5 space-y-4">
-                        <!-- Invitar Clubes: deshabilitado cuando el torneo ya inició (hay al menos una ronda) -->
-                        <?php if ($invitar_clubes_inhabil): ?>
-                        <span class="tw-btn bg-gray-300 text-gray-700 w-full text-center cursor-not-allowed opacity-90" role="text" title="No disponible: el torneo ya inició (hay rondas generadas).">
-                            Invitar Clubes
-                        </span>
-                        <?php else: ?>
-                        <a href="index.php?page=invitacion_clubes&torneo_id=<?= (int)($torneo['id'] ?? 0) ?>" class="tw-btn bg-cyan-500 hover:bg-cyan-600 text-white w-full text-center">
-                            <i class="fas fa-paper-plane mr-2"></i> Invitar Clubes
-                        </a>
-                        <?php endif; ?>
-                        <a href="index.php?page=invitations&filter_torneo=<?= (int)($torneo['id'] ?? 0) ?>" class="tw-btn bg-slate-600 hover:bg-slate-700 text-white w-full text-center">
-                            <i class="fas fa-envelope mr-2"></i> Invitaciones por club
-                        </a>
                         <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=export_access_portal&torneo_id=<?php echo (int)($torneo['id'] ?? 0); ?>"
-                           class="tw-btn bg-slate-800 hover:bg-slate-900 text-white w-full text-center border border-slate-600"
-                           title="Descargar inscritos para access y partidas para access">
-                            <i class="fas fa-database mr-2"></i> Exportar para Microsoft Access
+                           class="tw-btn tw-btn--trans-access w-full text-center"
+                           title="Transferencia de inscritos y partidas para Microsoft Access">
+                            <i class="fas fa-database mr-2"></i> Trans Access
                         </a>
                         <?php
                         $tid_op = (int)($torneo['id'] ?? 0);
@@ -381,7 +362,7 @@ $invitar_clubes_inhabil = ($ultima_ronda > 0);
                             : ('index.php?page=op_especiales&torneo_id=' . $tid_op . '&view=carga');
                         ?>
                         <a href="<?php echo htmlspecialchars($href_op_swap, ENT_QUOTES, 'UTF-8'); ?>" class="tw-btn bg-purple-800 hover:bg-purple-900 text-white w-full text-center border border-purple-600">
-                            <i class="fas fa-exchange-alt mr-2"></i> Swap y reemplazo ID (partiresul)
+                            <i class="fas fa-exchange-alt mr-2"></i> Cambiar Atleta
                         </a>
                         <?php if ((int)($torneo['estatus'] ?? 0) === 9): ?>
                         <a href="<?php echo htmlspecialchars($href_op_carga, ENT_QUOTES, 'UTF-8'); ?>" class="tw-btn bg-violet-600 hover:bg-violet-700 text-white w-full text-center">
@@ -403,14 +384,14 @@ $invitar_clubes_inhabil = ($ultima_ronda > 0);
                             <a href="index.php?page=torneo_gestion&action=sustituir_jugador&torneo_id=<?php echo (int)$torneo['id']; ?>" class="tw-btn bg-amber-500 hover:bg-amber-600 text-white"><i class="fas fa-user-exchange"></i> Sustituir jugador retirado</a>
                             <?php endif; ?>
                         <?php else: ?>
-                            <div class="d-flex flex-column gap-1">
+                            <div class="d-flex flex-column panel-card-actions">
                                 <?php if ($es_modalidad_equipos_o_parejas): ?>
                                     <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=gestionar_inscripciones_equipos&torneo_id=<?php echo $torneo['id']; ?>" class="tw-btn bg-blue-500 hover:bg-blue-600 text-white"><i class="fas fa-clipboard-list"></i> <?php echo $es_modalidad_parejas ? 'Gestionar Inscripciones (Parejas)' : 'Gestionar Inscripciones'; ?></a>
                                     <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=inscribir_equipo_sitio&torneo_id=<?php echo $torneo['id']; ?><?php echo $es_modalidad_parejas ? '&abrir_form=1' : ''; ?>" class="tw-btn bg-amber-500 hover:bg-amber-600 text-white"><i class="fas fa-user-plus"></i> <?php echo $es_modalidad_parejas ? 'Inscribir pareja' : 'Inscribir en Sitio'; ?></a>
                                     <?php if ($es_modalidad_equipos): ?>
-                                    <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=carga_masiva_equipos_sitio&torneo_id=<?php echo $torneo['id']; ?>" class="tw-btn bg-amber-700 hover:bg-amber-800 text-white ml-1"><i class="fas fa-file-upload"></i> Carga masiva</a>
+                                    <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=carga_masiva_equipos_sitio&torneo_id=<?php echo $torneo['id']; ?>" class="tw-btn bg-amber-700 hover:bg-amber-800 text-white"><i class="fas fa-file-upload"></i> Carga masiva</a>
                                     <?php elseif ($es_modalidad_parejas): ?>
-                                    <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=carga_masiva_parejas_sitio&torneo_id=<?php echo $torneo['id']; ?>" class="tw-btn bg-amber-700 hover:bg-amber-800 text-white ml-1"><i class="fas fa-file-upload"></i> Carga masiva parejas</a>
+                                    <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=carga_masiva_parejas_sitio&torneo_id=<?php echo $torneo['id']; ?>" class="tw-btn bg-amber-700 hover:bg-amber-800 text-white"><i class="fas fa-file-upload"></i> Carga masiva parejas</a>
                                     <?php endif; ?>
                                 <?php elseif ($es_modalidad_parejas_fijas): ?>
                                     <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=gestionar_inscripciones_parejas_fijas&torneo_id=<?php echo $torneo['id']; ?>" class="tw-btn bg-blue-500 hover:bg-blue-600 text-white"><i class="fas fa-clipboard-list"></i> Gestionar Inscripciones</a>
@@ -585,6 +566,31 @@ $invitar_clubes_inhabil = ($ultima_ronda > 0);
                             </form>
                         <?php endif; ?>
 
+                        <hr class="border-gray-200 my-2">
+
+                        <?php if ($mostrar_aviso_20min && $countdown_fin_timestamp): ?>
+                        <div id="countdown-cierre-torneo" class="mb-3 p-3 rounded-lg border-2" style="background-color: #fce7f3; border-color: #c026d3;">
+                            <p class="text-sm font-medium mb-1" style="color: #86198f;">
+                                <i class="fas fa-clock"></i> El torneo se cerrará oficialmente en:
+                            </p>
+                            <p class="countdown-tiempo-restante text-2xl font-bold tabular-nums" style="color: #86198f;" data-fin="<?php echo (int)$countdown_fin_timestamp; ?>">
+                                --:--
+                            </p>
+                            <p class="text-xs mt-1" style="color: #701a75;">Tras este tiempo se habilitará el botón <strong>Finalizar torneo</strong>.</p>
+                        </div>
+                        <?php endif; ?>
+                        <form method="POST" action="<?php echo $use_standalone ? $base_url : 'index.php?page=torneo_gestion'; ?>"
+                              onsubmit="event.preventDefault(); confirmarCierreTorneo(event);">
+                            <input type="hidden" name="action" value="cerrar_torneo">
+                            <input type="hidden" name="csrf_token" value="<?php echo CSRF::token(); ?>">
+                            <input type="hidden" name="torneo_id" value="<?php echo $torneo['id']; ?>">
+                            <button type="submit" <?php echo $puedeCerrar ? '' : 'disabled'; ?>
+                                    class="tw-btn <?php echo $isLocked ? 'bg-gray-500' : 'bg-gray-800 hover:bg-gray-900'; ?> text-white">
+                                <i class="fas fa-lock"></i>
+                                <?php echo $isLocked ? 'Torneo Finalizado' : 'Finalizar torneo'; ?>
+                            </button>
+                        </form>
+
                     </div>
                 </div>
             </div>
@@ -663,33 +669,6 @@ $invitar_clubes_inhabil = ($ultima_ronda > 0);
                            title="Ver podios del torneo">
                             <i class="fas fa-medal"></i> Podios
                         </a>
-                        
-                        <!-- Separador -->
-                        <hr class="border-gray-200 my-2">
-                        
-                        <!-- Finalizar Torneo (solo cuando rondas completadas + 20 min desde último resultado) -->
-                        <?php if ($mostrar_aviso_20min && $countdown_fin_timestamp): ?>
-                        <div id="countdown-cierre-torneo" class="mb-3 p-3 rounded-lg border-2" style="background-color: #fce7f3; border-color: #c026d3;">
-                            <p class="text-sm font-medium mb-1" style="color: #86198f;">
-                                <i class="fas fa-clock"></i> El torneo se cerrará oficialmente en:
-                            </p>
-                            <p class="countdown-tiempo-restante text-2xl font-bold tabular-nums" style="color: #86198f;" data-fin="<?php echo (int)$countdown_fin_timestamp; ?>">
-                                --:--
-                            </p>
-                            <p class="text-xs mt-1" style="color: #701a75;">Tras este tiempo se habilitará el botón <strong>Finalizar torneo</strong>.</p>
-                        </div>
-                        <?php endif; ?>
-                        <form method="POST" action="<?php echo $use_standalone ? $base_url : 'index.php?page=torneo_gestion'; ?>" 
-                              onsubmit="event.preventDefault(); confirmarCierreTorneo(event);">
-                            <input type="hidden" name="action" value="cerrar_torneo">
-                            <input type="hidden" name="csrf_token" value="<?php echo CSRF::token(); ?>">
-                            <input type="hidden" name="torneo_id" value="<?php echo $torneo['id']; ?>">
-                            <button type="submit" <?php echo $puedeCerrar ? '' : 'disabled'; ?>
-                                    class="tw-btn <?php echo $isLocked ? 'bg-gray-500' : 'bg-gray-800 hover:bg-gray-900'; ?> text-white">
-                                <i class="fas fa-lock"></i>
-                                <?php echo $isLocked ? 'Torneo Finalizado' : 'Finalizar torneo'; ?>
-                            </button>
-                        </form>
 
                         <?php if ($tid_panel > 0): ?>
                         <a href="<?= htmlspecialchars($url_reportes_inscritos, ENT_QUOTES, 'UTF-8'); ?>"
@@ -712,14 +691,14 @@ $invitar_clubes_inhabil = ($ultima_ronda > 0);
 </div>
 
 <!-- Modal Importación Masiva (solo torneos individuales) -->
-<div class="modal fade" id="modalImportacionMasiva" tabindex="-1" aria-labelledby="modalImportacionMasivaLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header bg-indigo-600 text-white">
+<div class="modal fade fvd-import-masiva-modal" id="modalImportacionMasiva" tabindex="-1" aria-labelledby="modalImportacionMasivaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable fvd-import-masiva-modal__dialog">
+        <div class="modal-content fvd-import-masiva-modal__content">
+            <div class="modal-header fvd-import-masiva-modal__header">
                 <h5 class="modal-title" id="modalImportacionMasivaLabel"><i class="fas fa-file-csv me-2"></i>Importación masiva</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body fvd-import-masiva-modal__body">
                 <input type="hidden" id="csrf_token_import_masiva" name="csrf_token_import_masiva" value="<?php echo htmlspecialchars(CSRF::token(), ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
                 <p class="text-muted small">Cargue <strong>Excel</strong> (.xlsx, .xls, .xlsm) o <strong>CSV</strong>. En el servidor debe existir <code>vendor/</code> (ejecute <code>composer install</code> en la raíz del proyecto) para los formatos modernos de Excel. Campos obligatorios: <strong>nacionalidad, cédula, nombre, club, organización</strong>. Si falta cualquiera, la fila se rechaza. Si aparece sesión expirada o token CSRF, recargue la página (F5) antes de subir. Si el archivo es muy grande, revise <code>upload_max_filesize</code> y <code>post_max_size</code> en php.ini.</p>
                 <p class="small mb-2"><strong>Semáforo (tras Validar):</strong> <span class="badge" style="background:#3b82f6">Azul</span> Ya inscrito (omitir) · <span class="badge" style="background:#eab308;color:#000">Amarillo</span> Usuario existe (solo inscribir) · <span class="badge" style="background:#22c55e">Verde</span> Todo nuevo (crear e inscribir) · <span class="badge bg-danger">Rojo</span> Error de datos</p>

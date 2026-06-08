@@ -57,7 +57,7 @@ function generarRonda($torneo_id, $user_id, $is_admin_general, array $opciones =
         }
 
         try {
-            actualizarEstadisticasInscritos($torneo_id);
+            actualizarEstadisticasInscritos($torneo_id, true);
         } catch (Exception $e) {
             return ['success' => false, 'message' => 'Error al actualizar estadísticas: ' . $e->getMessage()];
         }
@@ -72,11 +72,6 @@ function generarRonda($torneo_id, $user_id, $is_admin_general, array $opciones =
             : $mesaService->generarAsignacionRonda($torneo_id, $proxima_ronda, $total_rondas, $estrategia);
 
         if ($resultado['success']) {
-            try {
-                actualizarEstadisticasInscritos($torneo_id);
-            } catch (Exception $e) {
-                // log only
-            }
             $mensaje = $resultado['message'];
             if (isset($resultado['total_mesas'])) $mensaje .= ': ' . $resultado['total_mesas'] . ' mesas';
             if (isset($resultado['total_equipos'])) $mensaje .= ', ' . $resultado['total_equipos'] . ' equipos';
@@ -98,9 +93,10 @@ function generarRonda($torneo_id, $user_id, $is_admin_general, array $opciones =
 }
 
 /**
- * Actualizar estadísticas de todos los inscritos basándose en PartiResul
+ * Actualizar estadísticas de todos los inscritos basándose en PartiResul.
+ * Solo reclasifica posiciones cuando $recalcularClasificacion es true (generar ronda, cierre de torneo, acción manual).
  */
-function actualizarEstadisticasInscritos($torneo_id) {
+function actualizarEstadisticasInscritos($torneo_id, bool $recalcularClasificacion = false) {
     $pdo = DB::pdo();
     $stmt = $pdo->prepare("SELECT puntos FROM tournaments WHERE id = ?");
     $stmt->execute([$torneo_id]);
@@ -197,7 +193,43 @@ function actualizarEstadisticasInscritos($torneo_id) {
         $stmt->execute(array_merge([$totalGanados, $totalPerdidos, $totalEfectividad, $totalPuntos, $totalSancion, $totalChancletas, $totalZapatos, $ultimaTarjeta, $torneo_id, $idUsuario], $entU['bind']));
     }
 
-    recalcularClasificacionEquiposYJugadores($torneo_id);
+    if ($recalcularClasificacion) {
+        recalcularClasificacionEquiposYJugadores($torneo_id);
+    }
+}
+
+/**
+ * Reclasifica posiciones si la última ronda programada del torneo quedó completa (última mesa ingresada).
+ */
+function reclasificarSiUltimaRondaTorneoCompleta($torneo_id): bool
+{
+    $torneo_id = (int) $torneo_id;
+    if ($torneo_id <= 0) {
+        return false;
+    }
+    $pdo = DB::pdo();
+    $stmt = $pdo->prepare('SELECT rondas, modalidad FROM tournaments WHERE id = ? LIMIT 1');
+    $stmt->execute([$torneo_id]);
+    $torneo = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (! $torneo) {
+        return false;
+    }
+    $totalRondas = (int) ($torneo['rondas'] ?? 0);
+    if ($totalRondas <= 0) {
+        return false;
+    }
+    $modalidad = (int) ($torneo['modalidad'] ?? 0);
+    $mesaService = TorneoMesaAsignacionResolver::servicioPorModalidad($modalidad);
+    $ultimaRonda = $mesaService->obtenerUltimaRonda($torneo_id);
+    if ($ultimaRonda < $totalRondas) {
+        return false;
+    }
+    if (! $mesaService->todasLasMesasCompletas($torneo_id, $ultimaRonda)) {
+        return false;
+    }
+    recalcularRankingSegunModalidad($torneo_id);
+
+    return true;
 }
 
 function recalcularRankingSegunModalidad($torneo_id) {

@@ -1015,6 +1015,32 @@ html {
 .tw-panel a.tw-btn[class*="bg-slate-600"] { background-color: #cbd5e1 !important; color: #000 !important; border: 1px solid #64748b !important; }
 .tw-panel .tw-btn.bg-slate-600:hover,
 .tw-panel a.tw-btn[class*="bg-slate-600"]:hover { background-color: #94a3b8 !important; color: #000 !important; }
+.tw-panel a.tw-btn[class*="bg-slate-8"],
+.tw-panel a.tw-btn.bg-slate-800,
+.tw-panel .tw-btn.bg-slate-800 {
+  background-color: #e2e8f0 !important;
+  color: #0a3d47 !important;
+  border: 1px solid #94a3b8 !important;
+}
+.tw-panel a.tw-btn[class*="bg-slate-8"]:hover,
+.tw-panel a.tw-btn.bg-slate-800:hover { background-color: #cbd5e1 !important; }
+.tw-panel a.tw-btn.tw-btn--trans-access,
+.tw-panel .tw-btn.tw-btn--trans-access {
+  background-color: #ddd6fe !important;
+  color: #0a3d47 !important;
+  border: 1px solid #a78bfa !important;
+  font-weight: 700 !important;
+}
+.tw-panel a.tw-btn.tw-btn--trans-access:hover,
+.tw-panel .tw-btn.tw-btn--trans-access:hover { background-color: #c4b5fd !important; }
+.tw-panel a.tw-btn[class*="bg-purple-8"],
+.tw-panel a.tw-btn.bg-purple-800 {
+  background-color: #ede9fe !important;
+  color: #0a3d47 !important;
+  border: 1px solid #a78bfa !important;
+}
+.tw-panel a.tw-btn[class*="bg-purple-8"]:hover,
+.tw-panel a.tw-btn.bg-purple-800:hover { background-color: #ddd6fe !important; }
 .tw-panel .tw-btn.bg-gray-500 { background-color: #d1d5db !important; color: #1f2937 !important; border: 1px solid #9ca3af !important; }
 .tw-panel .tw-btn.bg-gray-800 { background-color: #e5e7eb !important; color: #000 !important; border: 1px solid #4b5563 !important; }
 .tw-panel .tw-btn.bg-gray-800:hover { background-color: #d1d5db !important; }

@@ -57,14 +57,48 @@ function clubes_asociados_normalize_club_row(PDO $pdo, array $c): array
             error_log('Error obteniendo nombre de delegado: ' . $e->getMessage());
         }
     }
+    $codAsoc = ClubHelper::codigoAsociacionDesdeClubRow($c);
+    if ($codAsoc > 0) {
+        require_once __DIR__ . '/../../lib/EntidadFvdCatalogo.php';
+        $c['entidad'] = $codAsoc;
+        $c['nombre'] = EntidadFvdCatalogo::normalizarNombre($codAsoc, (string) ($c['nombre'] ?? ''));
+    }
+    $c['codigo_asociacion'] = ClubHelper::codigoAsociacionDesdeClubRow($c);
 
     return $c;
 }
 
+/**
+ * ¿Puede editar/ver este club? admin_club vía ClubHelper; admin_general por alcance FVD.
+ */
+function clubes_asociados_puede_gestionar_club(PDO $pdo, int $userId, int $clubId, bool $has_cod_org): bool
+{
+    if ($clubId <= 0) {
+        return false;
+    }
+    if (ClubHelper::isClubManagedByAdmin($userId, $clubId)) {
+        return true;
+    }
+    if (!Auth::isAdminGeneral()) {
+        return false;
+    }
+    require_once __DIR__ . '/../../lib/FvdConfig.php';
+    $stOrg = $pdo->prepare('SELECT * FROM organizaciones WHERE id = ? LIMIT 1');
+    $stOrg->execute([(int) FvdConfig::ORGANIZACION_ID]);
+    $orgRow = $stOrg->fetch(PDO::FETCH_ASSOC);
+    if (!$orgRow) {
+        return false;
+    }
+    $idsPermitidos = OrganizacionDashboardStats::clubIdsForOrganizacion($pdo, $orgRow, $has_cod_org);
+
+    return in_array($clubId, $idsPermitidos, true);
+}
+
 // Solo admin_club (admin organización) puede acceder
-Auth::requireRole(['admin_club']);
+Auth::requireRole(['admin_club', 'admin_general', 'admin_torneo']);
 
 $current_user = Auth::user();
+$is_admin_general = Auth::isAdminGeneral();
 $admin_club_user_id = Auth::id();
 /** @var int|null Código canónico cod_org de la federación (no PK de organizaciones) */
 $organizacion_cod_org = Auth::getUserOrganizacionCodOrg();
@@ -203,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $direccion = trim($_POST['direccion'] ?? '');
         $permite_inscripcion_linea = isset($_POST['permite_inscripcion_linea']) ? 1 : 0;
         
-        if (!ClubHelper::isClubManagedByAdmin($admin_club_user_id, $club_id)) {
+        if (!clubes_asociados_puede_gestionar_club($pdo, $admin_club_user_id, $club_id, $has_cod_org)) {
             $redirect_error = 'No tiene permisos para editar este club';
         } elseif (empty($nombre)) {
             $redirect_error = 'El nombre del club es requerido';
@@ -288,7 +322,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'eliminar') {
         $club_id = (int)($_POST['club_id'] ?? 0);
         
-        if (!ClubHelper::isClubManagedByAdmin($admin_club_user_id, $club_id)) {
+        if (!clubes_asociados_puede_gestionar_club(DB::pdo(), $admin_club_user_id, $club_id, $has_cod_org)) {
             $redirect_error = 'No tiene permisos para eliminar este club';
         } else {
             try {
@@ -335,13 +369,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $mis_clubes = [];
 $club_ids = [];
 try {
-    $club_ids = ClubHelper::getClubesByAdminClubId($admin_club_user_id);
-    if (empty($club_ids)) {
-        // Siempre por PK de organización (Auth::getUserOrganizacionId). No pasar getUserOrganizacionCodOrg():
-        // un mismo entero puede ser cod_org de una org y PK de otra, y (id=? OR cod_org=?) devolvía la fila equivocada.
-        $orgPk = Auth::getUserOrganizacionId();
-        if ($orgPk) {
-            $club_ids = ClubHelper::getClubesByOrganizacionId((int) $orgPk);
+    if ($is_admin_general) {
+        require_once __DIR__ . '/../../lib/FvdConfig.php';
+        $stOrgAg = DB::pdo()->prepare('SELECT * FROM organizaciones WHERE id = ? LIMIT 1');
+        $stOrgAg->execute([(int) FvdConfig::ORGANIZACION_ID]);
+        $orgAg = $stOrgAg->fetch(PDO::FETCH_ASSOC);
+        if ($orgAg) {
+            $club_ids = OrganizacionDashboardStats::clubIdsForOrganizacion(DB::pdo(), $orgAg, $has_cod_org);
+        }
+    } else {
+        $club_ids = ClubHelper::getClubesByAdminClubId($admin_club_user_id);
+        if (empty($club_ids)) {
+            // Siempre por PK de organización (Auth::getUserOrganizacionId). No pasar getUserOrganizacionCodOrg():
+            // un mismo entero puede ser cod_org de una org y PK de otra, y (id=? OR cod_org=?) devolvía la fila equivocada.
+            $orgPk = Auth::getUserOrganizacionId();
+            if ($orgPk) {
+                $club_ids = ClubHelper::getClubesByOrganizacionId((int) $orgPk);
+            }
         }
     }
     if (!empty($club_ids)) {
@@ -413,7 +457,7 @@ $club_id_get = isset($_GET['club_id']) ? (int) $_GET['club_id'] : 0;
 
 // Modal: SELECT por id (PK). No buscar por cod_org aunque coincida numéricamente con otro concepto.
 $club_edit_modal_payload = null;
-if ($club_id_get > 0 && ClubHelper::isClubManagedByAdmin($admin_club_user_id, $club_id_get)) {
+if ($club_id_get > 0 && clubes_asociados_puede_gestionar_club(DB::pdo(), $admin_club_user_id, $club_id_get, $has_cod_org)) {
     try {
         $pdoModal = DB::pdo();
         $stmtModal = $pdoModal->prepare('SELECT * FROM clubes WHERE id = ? AND estatus = 1 LIMIT 1');
@@ -432,36 +476,48 @@ $delegado_opciones = [];
 $delegado_opciones[] = ['id' => $admin_club_user_id, 'nombre' => trim($current_user['nombre'] ?? $current_user['username'] ?? 'Administrador'), 'rol' => 'admin_club'];
 if (!empty($club_ids)) {
     $ph = implode(',', array_fill(0, count($club_ids), '?'));
+    $codigosAsoc = ClubHelper::codigosAsociacionDesdeClubIds(DB::pdo(), $club_ids);
+    if ($codigosAsoc === []) {
+        $codigosAsoc = $club_ids;
+    }
+    $phCod = implode(',', array_fill(0, count($codigosAsoc), '?'));
+    $joinClubEnt = ClubHelper::sqlJoinClubesOnUsuariosEntidad(DB::pdo(), 'u', 'c');
     $stmt = DB::pdo()->prepare("
         SELECT u.id, u.nombre, u.celular, c.nombre as club_nombre
         FROM usuarios u
-        LEFT JOIN clubes c ON u.entidad = c.id
-        WHERE u.entidad IN ($ph)
+        LEFT JOIN clubes c ON {$joinClubEnt}
+        WHERE u.entidad IN ($phCod)
         ORDER BY u.nombre ASC
     ");
-    $stmt->execute($club_ids);
+    $stmt->execute($codigosAsoc);
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $u) {
         $delegado_opciones[] = ['id' => (int)$u['id'], 'nombre' => $u['nombre'], 'celular' => $u['celular'] ?? '', 'club_nombre' => $u['club_nombre'] ?? '', 'rol' => 'usuario'];
     }
 }
 
-$mi_organizacion = null;
-try {
-    $oid = Auth::getUserOrganizacionId();
-    if ($oid) {
-        $stOrg = DB::pdo()->prepare('SELECT id, nombre, cod_org, entidad FROM organizaciones WHERE id = ? AND estatus = 1 LIMIT 1');
-        $stOrg->execute([(int) $oid]);
-        $mi_organizacion = $stOrg->fetch(PDO::FETCH_ASSOC) ?: null;
-    }
-} catch (Throwable $e) {
-    $mi_organizacion = null;
+$stats_total_asociaciones = count($mis_clubes);
+$stats_total_afiliados = !empty($mis_clubes)
+    ? (int) array_sum(array_column($mis_clubes, 'total_afiliados'))
+    : 0;
+
+require_once __DIR__ . '/../../lib/FvdPaginacionCompacta.php';
+$clubes_page = max(1, (int) ($_GET['p'] ?? 1));
+$clubes_per_page = FvdPaginacionCompacta::PER_PAGE_DEFAULT;
+$clubes_total_rows = count($mis_clubes);
+$clubes_total_pages = max(1, (int) ceil($clubes_total_rows / $clubes_per_page));
+if ($clubes_page > $clubes_total_pages) {
+    $clubes_page = $clubes_total_pages;
 }
+$clubes_paginados = $clubes_total_rows > 0
+    ? array_slice($mis_clubes, ($clubes_page - 1) * $clubes_per_page, $clubes_per_page)
+    : [];
+$qsBase = 'index.php?page=clubes_asociados';
 
 $hay_club_cod_distinto = false;
 if ($organizacion_cod_org && !empty($mis_clubes)) {
     foreach ($mis_clubes as $rowChk) {
-        $fedR = (int) ($rowChk['fed_codigo_resuelto'] ?? 0);
-        if ($fedR > 0 && $fedR !== (int) $organizacion_cod_org) {
+        $codFedClub = (int) ($rowChk['cod_org'] ?? 0);
+        if ($codFedClub > 0 && $codFedClub !== (int) $organizacion_cod_org) {
             $hay_club_cod_distinto = true;
             break;
         }
@@ -469,39 +525,32 @@ if ($organizacion_cod_org && !empty($mis_clubes)) {
 }
 ?>
 
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2><i class="fas fa-building"></i> Asociaciones de la organización</h2>
-            <p class="text-muted mb-0">
-                Solo clubes vinculados a tu federación (misma regla en listados, edición y búsquedas).
-            </p>
-            <?php if (!empty($mi_organizacion)): ?>
-                <p class="mb-0 mt-2">
-                    <span class="text-muted">Federación:</span>
-                    <strong><?= htmlspecialchars(trim((string) ($mi_organizacion['nombre'] ?? ''))) ?></strong>
-                    <span class="text-muted">· código</span>
-                    <span class="badge bg-dark"><?= (int) ($organizacion_cod_org ?? 0) ?></span>
-                </p>
-                <p class="small text-muted mb-0 mt-1">
-                    La columna <strong>Club</strong> es el nombre del club local (editable). No confundir con el nombre de la federación (Capital, código <?= (int) ($organizacion_cod_org ?? 0) ?>).
-                </p>
-            <?php endif; ?>
+<div class="container-fluid fvd-app-page fvd-listado-page py-2">
+    <div class="fvd-listado-toolbar fvd-clubes-toolbar mb-3">
+        <div class="fvd-listado-toolbar-main">
+            <h2 class="fvd-listado-title mb-0"><i class="fas fa-building me-1"></i> Asociaciones de la organización</h2>
         </div>
-        <div class="d-flex gap-2 flex-wrap">
-            <a href="<?= htmlspecialchars(AppHelpers::dashboard('notificaciones_masivas', ['tipo' => 'club', 'from' => 'clubes'])) ?>" class="btn btn-outline-warning">
+        <div class="fvd-clubes-toolbar-actions d-flex flex-wrap align-items-stretch justify-content-end gap-2">
+            <div class="fvd-clubes-kpi-group d-flex flex-wrap gap-2">
+                <div class="fvd-clubes-kpi fvd-clubes-kpi--asoc" title="Asociaciones registradas">
+                    <strong><?= (int) $stats_total_asociaciones ?></strong>
+                    <span>Asociaciones</span>
+                </div>
+                <div class="fvd-clubes-kpi fvd-clubes-kpi--afil" title="Total de afiliados">
+                    <strong><?= number_format($stats_total_afiliados) ?></strong>
+                    <span>Total afiliados</span>
+                </div>
+            </div>
+            <a href="<?= htmlspecialchars(AppHelpers::dashboard('notificaciones_masivas', ['tipo' => 'club', 'from' => 'clubes'])) ?>" class="btn fvd-clubes-notif-btn align-self-center">
                 <i class="fas fa-bell me-1"></i>Notificación / invitación (toda la organización)
             </a>
-            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#crearClubModal">
-                <i class="fas fa-plus"></i> Nuevo Club
-            </button>
         </div>
     </div>
 
     <?php if (empty($mis_clubes)): ?>
         <div class="alert alert-info">
             <i class="fas fa-info-circle me-2"></i>
-            Aún no tienes clubes. Crea el primero para comenzar a gestionar tu organización.
+            Aún no tienes asociaciones. Contacta al administrador si necesitas registrar una.
         </div>
     <?php endif; ?>
 
@@ -526,51 +575,27 @@ if ($organizacion_cod_org && !empty($mis_clubes)) {
         </div>
     <?php endif; ?>
 
-    <!-- Resumen total (si hay clubes) -->
-    <?php if (!empty($mis_clubes)): ?>
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card text-center bg-primary text-white">
-                <div class="card-body">
-                    <h3 class="mb-0"><?= count($mis_clubes) ?></h3>
-                    <small>Asociaciones de la organización</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card text-center bg-info text-white">
-                <div class="card-body">
-                    <h3 class="mb-0"><?= number_format(array_sum(array_column($mis_clubes, 'total_afiliados'))) ?></h3>
-                    <small>Total Afiliados</small>
-                </div>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
-    
-    <!-- Lista de clubes con estadísticas -->
-    <div class="card">
-        <div class="card-header bg-primary text-white">
+    <!-- Lista de asociaciones -->
+    <div class="card fvd-listado-card fvd-clubes-list-card">
+        <div class="card-header fvd-clubes-list-header">
             <h5 class="mb-0"><i class="fas fa-building me-2"></i>Asociaciones de la organización (<?= count($mis_clubes) ?>)</h5>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             <?php if (empty($mis_clubes)): ?>
-                <div class="text-center py-4">
+                <div class="text-center py-4 px-3">
                     <i class="fas fa-building fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">No tienes clubes asignados aún.</p>
-                    <p class="text-muted">Crea un nuevo club para comenzar.</p>
+                    <p class="text-muted mb-0">No tienes asociaciones registradas aún.</p>
                 </div>
             <?php else: ?>
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
+                    <table class="table table-hover table-sm align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th><i class="fas fa-building me-2"></i>Club</th>
-                                <th class="text-center" title="Código de federación (debe coincidir con el tuyo)"><small>Cód.</small></th>
+                                <th><i class="fas fa-building me-2"></i>Asociación</th>
+                                <th class="text-center" title="Código entidad (asociación)"><small>Ent.</small></th>
                                 <th>RIF</th>
                                 <th>Delegado</th>
                                 <th>Teléfono</th>
-                                <th class="text-center">Insc. línea</th>
                                 <th class="text-center"><i class="fas fa-users me-2"></i>Afiliados</th>
                                 <th class="text-center"><i class="fas fa-mars me-2 text-primary"></i>Hombres</th>
                                 <th class="text-center"><i class="fas fa-venus me-2 text-danger"></i>Mujeres</th>
@@ -579,7 +604,7 @@ if ($organizacion_cod_org && !empty($mis_clubes)) {
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($mis_clubes as $club): ?>
+                            <?php foreach ($clubes_paginados as $club): ?>
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center gap-2">
@@ -599,12 +624,10 @@ if ($organizacion_cod_org && !empty($mis_clubes)) {
                                     </td>
                                     <td class="text-center">
                                         <?php
-                                        $fedR = (int) ($club['fed_codigo_resuelto'] ?? 0);
-                                        $cc = $fedR > 0 ? $fedR : null;
-                                        $okCod = $organizacion_cod_org && $cc !== null && $cc === (int) $organizacion_cod_org;
+                                        $codEntidad = (int) ($club['codigo_asociacion'] ?? $club['entidad'] ?? 0);
                                         ?>
-                                        <?php if ($cc !== null): ?>
-                                            <span class="badge <?= $okCod ? 'bg-success' : 'bg-warning text-dark' ?>" title="COALESCE(cod_org, entidad)"><?= $cc ?><?php if (empty($club['cod_org']) && !empty($club['entidad'])): ?><small class="d-block">(entidad)</small><?php endif; ?></span>
+                                        <?php if ($codEntidad > 0): ?>
+                                            <span class="badge fvd-badge-entidad" title="Código entidad (asociación)"><?= $codEntidad ?></span>
                                         <?php else: ?>
                                             <span class="text-muted">—</span>
                                         <?php endif; ?>
@@ -612,13 +635,6 @@ if ($organizacion_cod_org && !empty($mis_clubes)) {
                                     <td><code><?= htmlspecialchars($club['rif'] ?? 'J000000000000') ?></code></td>
                                     <td><?= htmlspecialchars($club['delegado'] ?? '-') ?></td>
                                     <td><?= htmlspecialchars($club['telefono'] ?? '-') ?></td>
-                                    <td class="text-center">
-                                        <?php if (!empty($club['permite_inscripcion_linea'])): ?>
-                                            <span class="badge bg-success">Sí</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-secondary">No</span>
-                                        <?php endif; ?>
-                                    </td>
                                     <td class="text-center">
                                         <span class="badge bg-info"><?= (int)($club['total_afiliados'] ?? 0) ?></span>
                                     </td>
@@ -637,16 +653,16 @@ if ($organizacion_cod_org && !empty($mis_clubes)) {
                                     </td>
                                     <td class="text-center">
                                         <a href="<?= htmlspecialchars(AppHelpers::dashboard('notificaciones_masivas', ['tipo' => 'club', 'club_id' => (int) ($club['club_id_pk'] ?? $club['id'] ?? 0), 'from' => 'clubes'])) ?>" 
-                                           class="btn btn-sm btn-outline-warning" title="Enviar notificación a afiliados del club">
+                                           class="btn btn-sm btn-outline-warning" title="Enviar notificación a afiliados de la asociación">
                                             <i class="fas fa-bell"></i>
                                         </a>
                                         <a href="<?= htmlspecialchars(AppHelpers::dashboard('clubs/invitation_link', ['club_id' => (int) ($club['club_id_pk'] ?? $club['id'] ?? 0)])) ?>" 
-                                           class="btn btn-sm btn-outline-success" title="Link invitación club">
+                                           class="btn btn-sm btn-outline-success" title="Link invitación asociación">
                                             <i class="fab fa-whatsapp"></i>
                                         </a>
                                         <button type="button" class="btn btn-sm btn-outline-primary"
                                                 onclick="editarClubPorId(<?= (int) ($club['club_id_pk'] ?? $club['id'] ?? 0) ?>)"
-                                                title="Editar este club (PK <?= (int) ($club['club_id_pk'] ?? $club['id'] ?? 0) ?>)">
+                                                title="Editar asociación">
                                             <i class="fas fa-edit"></i>
                                         </button>
                                         <?php if (($club['total_afiliados'] ?? 0) == 0): ?>
@@ -659,33 +675,18 @@ if ($organizacion_cod_org && !empty($mis_clubes)) {
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
-                        <tfoot class="table-light">
-                            <tr class="fw-bold">
-                                <td>TOTAL</td>
-                                <td></td>
-                                <td colspan="4"></td>
-                                <td class="text-center"><?= number_format(array_sum(array_column($mis_clubes, 'total_afiliados'))) ?></td>
-                                <td class="text-center"><?= number_format(array_sum(array_column($mis_clubes, 'hombres'))) ?></td>
-                                <td class="text-center"><?= number_format(array_sum(array_column($mis_clubes, 'mujeres'))) ?></td>
-                                <td colspan="2"></td>
-                            </tr>
-                        </tfoot>
                     </table>
                 </div>
+                <?= FvdPaginacionCompacta::render(
+                    $clubes_page,
+                    $clubes_total_pages,
+                    $clubes_total_rows,
+                    $clubes_per_page,
+                    $qsBase,
+                    'p',
+                    'asociaciones'
+                ) ?>
             <?php endif; ?>
-        </div>
-    </div>
-
-    <!-- Info -->
-    <div class="card mt-3">
-        <div class="card-body">
-            <h6><i class="fas fa-info-circle text-info"></i> Información</h6>
-            <ul class="small text-muted mb-0">
-                <li>Todos los clubes que crees se mostrarán aquí con sus estadísticas</li>
-                <li>Los atletas pueden inscribirse eligiendo cualquiera de tus clubes</li>
-                <li>Puedes crear torneos asignando cualquiera de tus clubes como responsable</li>
-                <li>Si el nombre del club no corresponde (ej. otro estado), usa <strong>Editar</strong> y corrígelo; el vínculo a tu federación es el código en la columna «Cód.»</li>
-            </ul>
         </div>
     </div>
 </div>

@@ -4,7 +4,6 @@ declare(strict_types=1);
 require_once __DIR__ . '/PartiresulEstatusSql.php';
 require_once __DIR__ . '/ResultadosReporteData.php';
 require_once __DIR__ . '/InscritosHelper.php';
-require_once __DIR__ . '/RankingTorneoRecalc.php';
 
 /**
  * ResultadosPublicHelper - Datos para reportes públicos de torneos
@@ -80,7 +79,6 @@ class ResultadosPublicHelper
      */
     private static function obtenerFilasPosicionesPublicoSinLimite(PDO $pdo, int $torneo_id): array
     {
-        RankingTorneoRecalc::actualizarEstadisticasYRanking($torneo_id);
         try {
             $tienePartiresul = false;
             $st = $pdo->query("SHOW TABLES LIKE 'partiresul'");
@@ -88,18 +86,21 @@ class ResultadosPublicHelper
                 $tienePartiresul = true;
             }
 
-            $gffSub = PartiresulEstatusSql::sqlSubqueryCountGffPorUsuarioTorneo();
+            require_once __DIR__ . '/ResultadosReporteData.php';
+            $gffSub = ResultadosReporteData::sqlGanadasPorForfaitSubquery('i');
+            $tarjSub = ResultadosReporteData::sqlTarjetaEfectivaSubquery('i');
             $wRegBye = PartiresulEstatusSql::whereRegistradoUno('pr_bye');
             $sql = "SELECT i.*, COALESCE(u.nombre, u.username) as nombre_completo, u.sexo, c.nombre as club_nombre";
             if ($tienePartiresul) {
-                $sql .= ", {$gffSub} as ganadas_por_forfait";
+                $sql .= ", {$gffSub} as ganadas_por_forfait, {$tarjSub} as tarjeta_efectiva";
                 $sql .= ", (SELECT COUNT(*) FROM partiresul pr_bye WHERE pr_bye.id_usuario = i.id_usuario AND pr_bye.id_torneo = ? AND {$wRegBye} AND pr_bye.mesa = 0 AND pr_bye.resultado1 > pr_bye.resultado2) as partidas_bye";
             } else {
                 $sql .= ", 0 as ganadas_por_forfait, 0 as partidas_bye";
             }
             $sql .= " FROM inscritos i LEFT JOIN usuarios u ON i.id_usuario = u.id LEFT JOIN clubes c ON i.id_club = c.id
                 WHERE i.torneo_id = ? AND (i.estatus IS NULL OR (i.estatus != 4 AND i.estatus != 'retirado'))
-                ORDER BY i.ptosrnk DESC, i.efectividad DESC, i.ganados DESC, i.puntos DESC";
+                ORDER BY CASE WHEN i.posicion = 0 OR i.posicion IS NULL THEN 9999 ELSE i.posicion END ASC,
+                         i.ganados DESC, i.efectividad DESC, i.puntos DESC";
             $stmt = $pdo->prepare($sql);
             $stmt->execute($tienePartiresul ? [$torneo_id, $torneo_id] : [$torneo_id]);
 
@@ -125,22 +126,8 @@ class ResultadosPublicHelper
         $torneoRow = $stmtT->fetch(PDO::FETCH_ASSOC) ?: [];
         $gen = ResultadosReporteData::generoFiltroDesdeParametro($generoGet);
         $modalidad = (int) ($torneoRow['modalidad'] ?? 0);
-        $filas = ResultadosReporteData::filtrarFilasClasificacionPorGenero($filas, $gen, $modalidad);
-        usort($filas, static function (array $a, array $b): int {
-            $x = (int) ($b['ptosrnk'] ?? 0) <=> (int) ($a['ptosrnk'] ?? 0);
-            if ($x !== 0) {
-                return $x;
-            }
-            $x2 = (int) ($b['efectividad'] ?? 0) <=> (int) ($a['efectividad'] ?? 0);
-            if ($x2 !== 0) {
-                return $x2;
-            }
 
-            return (int) ($b['ganados'] ?? 0) <=> (int) ($a['ganados'] ?? 0);
-        });
-        $filas = ResultadosReporteData::reenumerarPosicionMostrada($filas);
-
-        return $filas;
+        return ResultadosReporteData::aplicarRankingPorGenero($filas, $gen, $modalidad);
     }
 
     /**
@@ -149,7 +136,6 @@ class ResultadosPublicHelper
      */
     public static function getResultadosPorClub(PDO $pdo, int $torneo_id, int $topN = 8): array
     {
-        RankingTorneoRecalc::actualizarEstadisticasYRanking($torneo_id);
         try {
             $tienePartiresul = false;
             $stmt = $pdo->query("SHOW TABLES LIKE 'partiresul'");
@@ -234,7 +220,6 @@ class ResultadosPublicHelper
      */
     public static function getResultadosEquiposResumido(PDO $pdo, int $torneo_id, int $limit = 50, int $offset = 0): array
     {
-        RankingTorneoRecalc::actualizarEstadisticasYRanking($torneo_id);
         try {
             $ordG = InscritosHelper::sqlExprColumnaNumerica('e.ganados');
             $ordE = InscritosHelper::sqlExprColumnaNumerica('e.efectividad');
@@ -308,7 +293,7 @@ class ResultadosPublicHelper
         foreach ($equipos as &$eq) {
             $cod = $eq['codigo_equipo'];
             $stmt = $pdo->prepare("
-                SELECT i.id_usuario, u.nombre as nombre_completo, i.posicion, i.ganados, i.perdidos, i.efectividad, i.puntos, i.ptosrnk, " . \ResultadosReporteData::sqlGffSubquery() . " AS gff, i.sancion, i.tarjeta
+                SELECT i.id_usuario, u.nombre as nombre_completo, i.posicion, i.ganados, i.perdidos, i.efectividad, i.puntos, i.ptosrnk, " . \ResultadosReporteData::sqlGanadasPorForfaitSubquery('i') . " AS gff, i.sancion, " . \ResultadosReporteData::sqlTarjetaEfectivaSubquery('i') . " AS tarjeta
                 FROM inscritos i
                 INNER JOIN usuarios u ON i.id_usuario = u.id
                 WHERE i.torneo_id = ? AND i.codigo_equipo = ? AND (i.estatus IS NULL OR (i.estatus != 4 AND i.estatus != 'retirado'))

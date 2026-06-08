@@ -8,15 +8,10 @@
 require_once __DIR__ . '/../../lib/app_helpers.php';
 require_once __DIR__ . '/../../lib/Tournament/Handlers/TeamPerformanceHandler.php';
 require_once __DIR__ . '/../../lib/Tournament/Services/PaginationService.php';
+require_once __DIR__ . '/../../lib/ResultadosReportePaginacion.php';
+require_once __DIR__ . '/../../lib/ResultadosReporteData.php';
 
-// Asegurar que las posiciones estén actualizadas
-if (function_exists('recalcularRankingSegunModalidad')) {
-    recalcularRankingSegunModalidad($torneo_id);
-} elseif (function_exists('recalcularPosiciones')) {
-    recalcularPosiciones($torneo_id);
-}
-
-$items_por_pagina = 10; // Equipos por página
+$items_por_pagina = ResultadosReportePaginacion::PER_PAGE;
 $pagina_raw = isset($_GET['pagina']) ? (int) $_GET['pagina'] : 1;
 
 $pdo = DB::pdo();
@@ -33,96 +28,6 @@ $p_pag = \Tournament\Services\PaginationService::getParams($total_equipos_rankin
 $pagina_actual = $p_pag['page'];
 $total_paginas = $p_pag['total_pages'];
 $equipos = array_slice($equipos, $p_pag['offset'], $p_pag['per_page']);
-
-// Función helper para generar HTML del paginador
-function generarPaginador($pagina_actual, $total_paginas, $base_url, $parametros_get = []) {
-    if ($total_paginas <= 1) {
-        return '';
-    }
-    $buildUrl = static function ($base_url, array $params): string {
-        $sep = (strpos($base_url, '?') !== false) ? '&' : '?';
-        return $base_url . $sep . http_build_query($params);
-    };
-    
-    $html = '<div class="flex items-center justify-center gap-2 mt-6 mb-4">';
-    $html .= '<div class="flex items-center gap-1">';
-    
-    // Botón Primera página
-    if ($pagina_actual > 1) {
-        $parametros_get['pagina'] = 1;
-        $url = $buildUrl($base_url, $parametros_get);
-        $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition"><i class="fas fa-angle-double-left"></i></a>';
-    } else {
-        $html .= '<span class="px-3 py-2 bg-gray-300 text-gray-500 rounded cursor-not-allowed"><i class="fas fa-angle-double-left"></i></span>';
-    }
-    
-    // Botón Página anterior
-    if ($pagina_actual > 1) {
-        $parametros_get['pagina'] = $pagina_actual - 1;
-        $url = $buildUrl($base_url, $parametros_get);
-        $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition"><i class="fas fa-angle-left"></i></a>';
-    } else {
-        $html .= '<span class="px-3 py-2 bg-gray-300 text-gray-500 rounded cursor-not-allowed"><i class="fas fa-angle-left"></i></span>';
-    }
-    
-    // Números de página
-    $inicio = max(1, $pagina_actual - 2);
-    $fin = min($total_paginas, $pagina_actual + 2);
-    
-    if ($inicio > 1) {
-        $parametros_get['pagina'] = 1;
-        $url = $buildUrl($base_url, $parametros_get);
-        $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-white text-purple-600 rounded hover:bg-purple-50 transition">1</a>';
-        if ($inicio > 2) {
-            $html .= '<span class="px-2 text-gray-500">...</span>';
-        }
-    }
-    
-    for ($i = $inicio; $i <= $fin; $i++) {
-        if ($i == $pagina_actual) {
-            $html .= '<span class="px-3 py-2 bg-purple-600 text-white rounded font-bold">' . $i . '</span>';
-        } else {
-            $parametros_get['pagina'] = $i;
-            $url = $buildUrl($base_url, $parametros_get);
-            $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-white text-purple-600 rounded hover:bg-purple-50 transition">' . $i . '</a>';
-        }
-    }
-    
-    if ($fin < $total_paginas) {
-        if ($fin < $total_paginas - 1) {
-            $html .= '<span class="px-2 text-gray-500">...</span>';
-        }
-        $parametros_get['pagina'] = $total_paginas;
-        $url = $buildUrl($base_url, $parametros_get);
-        $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-white text-purple-600 rounded hover:bg-purple-50 transition">' . $total_paginas . '</a>';
-    }
-    
-    // Botón Página siguiente
-    if ($pagina_actual < $total_paginas) {
-        $parametros_get['pagina'] = $pagina_actual + 1;
-        $url = $buildUrl($base_url, $parametros_get);
-        $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition"><i class="fas fa-angle-right"></i></a>';
-    } else {
-        $html .= '<span class="px-3 py-2 bg-gray-300 text-gray-500 rounded cursor-not-allowed"><i class="fas fa-angle-right"></i></span>';
-    }
-    
-    // Botón Última página
-    if ($pagina_actual < $total_paginas) {
-        $parametros_get['pagina'] = $total_paginas;
-        $url = $buildUrl($base_url, $parametros_get);
-        $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition"><i class="fas fa-angle-double-right"></i></a>';
-    } else {
-        $html .= '<span class="px-3 py-2 bg-gray-300 text-gray-500 rounded cursor-not-allowed"><i class="fas fa-angle-double-right"></i></span>';
-    }
-    
-    $html .= '</div>';
-    $html .= '<div class="ml-4 text-sm text-gray-600">';
-    $html .= 'Página ' . $pagina_actual . ' de ' . $total_paginas;
-    $html .= '</div>';
-    $html .= '</div>';
-    
-    return $html;
-}
 
 // Obtener información del club responsable con logo
 $club_responsable = null;
@@ -297,7 +202,7 @@ $base_url_return = $use_standalone ? $script_actual : 'index.php?page=torneo_ges
                             <thead>
                                 <tr class="bg-purple-600 text-white">
                                     <th class="border border-purple-700 px-3 py-2 text-center font-bold">Pos. Torneo</th>
-                                    <th class="border border-purple-700 px-3 py-2 text-center font-bold">ID Usuario</th>
+                                    <th class="border border-purple-700 px-3 py-2 text-center font-bold"><?php echo htmlspecialchars(ResultadosReporteData::etiquetaColumnaIdentificador(false)); ?></th>
                                     <th class="border border-purple-700 px-3 py-2 text-left font-bold">Jugador</th>
                                     <th class="border border-purple-700 px-3 py-2 text-center font-bold">G</th>
                                     <th class="border border-purple-700 px-3 py-2 text-center font-bold">P</th>
@@ -353,7 +258,7 @@ $base_url_return = $use_standalone ? $script_actual : 'index.php?page=torneo_ges
                                             <?php echo $posicion_torneo > 0 ? $posicion_torneo : '-'; ?>
                                         </td>
                                         <td class="border border-purple-200 px-3 py-2 text-center">
-                                            <code><?php echo $id_usuario > 0 ? $id_usuario : 'N/A'; ?></code>
+                                            <code><?php echo htmlspecialchars(ResultadosReporteData::textoIdentificadorFila($jugador, false)); ?></code>
                                         </td>
                                         <td class="border border-purple-200 px-3 py-2 text-gray-800">
                                             <?php 
@@ -469,17 +374,18 @@ $base_url_return = $use_standalone ? $script_actual : 'index.php?page=torneo_ges
                     <i class="fas fa-info-circle text-4xl text-gray-400 mb-4"></i>
                     <p class="text-lg text-gray-600">No hay equipos registrados en este torneo</p>
                 </div>
-            <?php elseif ($total_equipos_ranking > 0 && isset($total_paginas) && $total_paginas > 1): ?>
-                <!-- Paginador -->
-                <?php 
-                $base_url_pag = $base_url_return;
-                $parametros_get = ['action' => 'resultados_equipos_detallado', 'torneo_id' => $torneo_id];
-                foreach ($_GET as $key => $value) {
-                    if ($key !== 'pagina' && $key !== 'action' && $key !== 'torneo_id') {
-                        $parametros_get[$key] = $value;
-                    }
-                }
-                echo generarPaginador($pagina_actual, $total_paginas, $base_url_pag, $parametros_get);
+            <?php elseif ($total_equipos_ranking > 0): ?>
+                <?php
+                echo ResultadosReportePaginacion::renderForTorneoReport(
+                    (int) $pagina_actual,
+                    (int) $total_paginas,
+                    (int) $total_equipos_ranking,
+                    (int) $items_por_pagina,
+                    $base_url_return,
+                    $use_standalone,
+                    ['action' => 'resultados_equipos_detallado', 'torneo_id' => $torneo_id],
+                    'equipos'
+                );
                 ?>
             <?php endif; ?>
         </div>

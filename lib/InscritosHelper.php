@@ -30,6 +30,12 @@ class InscritosHelper {
     /** Legacy: retirado guardado como 4 en datos antiguos. */
     const ESTATUS_RETIRADO_NUM_LEGACY = 4;
 
+    /** Titular para asignación de mesas (torneos por equipos). */
+    const ACTIVO_MESA_SI = 1;
+
+    /** Banca / suplente: conserva codigo_equipo y estadísticas, no entra a mesas. */
+    const ACTIVO_MESA_BANCA = 0;
+
     /**
      * Condición SQL: solo inscritos confirmados (cuentan para participar en el torneo).
      * Compatible con columna INT y ENUM.
@@ -43,6 +49,42 @@ class InscritosHelper {
     {
         $e = $alias ? $alias . '.' : '';
         return "(" . $e . "estatus = 1 OR " . $e . "estatus = 2 OR " . $e . "estatus = 'confirmado' OR " . $e . "estatus = 'solvente')";
+    }
+
+    public static function sqlWhereNoRetiradoConAlias(string $alias = ''): string
+    {
+        $e = $alias !== '' ? $alias . '.' : '';
+
+        return '(CAST(' . $e . 'estatus AS CHAR) NOT IN (\'4\', \'9\', \'retirado\'))';
+    }
+
+    public static function tieneColumnaActivoMesa(PDO $pdo): bool
+    {
+        static $cache = null;
+        if ($cache === null) {
+            $cache = (bool) $pdo->query("SHOW COLUMNS FROM inscritos LIKE 'activo_mesa'")->fetchColumn();
+        }
+
+        return $cache;
+    }
+
+    public static function sqlExprActivoMesa(string $alias, PDO $pdo): string
+    {
+        if (!self::tieneColumnaActivoMesa($pdo)) {
+            return '1';
+        }
+
+        return 'COALESCE(' . $alias . '.activo_mesa, 1)';
+    }
+
+    public static function sqlWhereActivoMesaConAlias(PDO $pdo, string $alias = 'i'): string
+    {
+        if (!self::tieneColumnaActivoMesa($pdo)) {
+            return '1=1';
+        }
+        $e = $alias !== '' ? $alias . '.' : '';
+
+        return '(' . $e . 'activo_mesa IS NULL OR ' . $e . 'activo_mesa = 1)';
     }
 
     /**
@@ -396,6 +438,12 @@ class InscritosHelper {
             throw new Exception('ID de torneo es requerido y debe ser mayor a 0');
         }
 
+        require_once __DIR__ . '/CampeonatoTorneoHelper.php';
+        $errEleg = CampeonatoTorneoHelper::mensajeErrorElegibilidad($pdo, $torneo_id, $id_usuario);
+        if ($errEleg !== null) {
+            throw new Exception($errEleg);
+        }
+
         // id_usuario en inscritos se mantiene como id interno de usuario para todos los torneos.
         $id_usuario_guardar = $id_usuario;
         
@@ -496,6 +544,10 @@ class InscritosHelper {
         }
         if ($H('codigo_equipo')) {
             $push('codigo_equipo', '?', $codigo_equipo);
+        }
+        if ($H('activo_mesa')) {
+            $am = array_key_exists('activo_mesa', $datos) ? (int) $datos['activo_mesa'] : self::ACTIVO_MESA_SI;
+            $push('activo_mesa', '?', $am === self::ACTIVO_MESA_BANCA ? 0 : 1);
         }
         foreach (['posicion', 'ganados', 'perdidos', 'efectividad', 'puntos', 'ptosrnk', 'sancion', 'chancletas', 'zapatos', 'tarjeta'] as $c) {
             if ($H($c)) {

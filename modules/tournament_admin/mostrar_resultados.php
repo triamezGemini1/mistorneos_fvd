@@ -1,11 +1,14 @@
 <?php
 /**
- * Mostrar Resultados del Torneo
+ * Mostrar Resultados del Torneo (clasificación paginada, GFF y tarjetas correctas).
  */
+declare(strict_types=1);
 
-require_once __DIR__ . '/../../lib/InscritosPartiresulHelper.php';
+require_once __DIR__ . '/../../lib/ResultadosReporteData.php';
+require_once __DIR__ . '/../../lib/ResultadosReportePaginacion.php';
+require_once __DIR__ . '/../../lib/InscritosReporteStatsHelper.php';
+require_once __DIR__ . '/../../lib/Tournament/Services/PaginationService.php';
 
-// Verificar que la tabla partiresul existe
 if (!$tabla_partiresul_existe) {
     echo '<div class="alert alert-danger">';
     echo '<h6 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Tabla partiresul no encontrada</h6>';
@@ -15,30 +18,85 @@ if (!$tabla_partiresul_existe) {
     return;
 }
 
-// Obtener clasificación
-$clasificacion = InscritosPartiresulHelper::obtenerClasificacion($torneo_id);
+$items_por_pagina = ResultadosReportePaginacion::PER_PAGE;
+$pagina_raw = isset($_GET['pagina']) ? (int) $_GET['pagina'] : 1;
+$participantes = [];
+$total_participantes = 0;
+$pagina_actual = 1;
+$total_paginas = 1;
 
-// Obtener estadísticas generales
 $estadisticas_partidas = [
     'total_rondas' => 0,
     'total_partidas' => 0,
-    'partidas_registradas' => 0
+    'partidas_registradas' => 0,
 ];
 
 try {
-    $stmt = $pdo->prepare("
-        SELECT 
-            COUNT(DISTINCT partida) as total_rondas,
-            COUNT(*) as total_partidas,
-            COUNT(CASE WHEN registrado = 1 THEN 1 END) as partidas_registradas
+    $stmt = $pdo->prepare('
+        SELECT
+            COUNT(DISTINCT partida) AS total_rondas,
+            COUNT(*) AS total_partidas,
+            COUNT(CASE WHEN registrado = 1 THEN 1 END) AS partidas_registradas
         FROM partiresul
         WHERE id_torneo = ?
-    ");
+    ');
     $stmt->execute([$torneo_id]);
     $estadisticas_partidas = $stmt->fetch(PDO::FETCH_ASSOC) ?: $estadisticas_partidas;
-} catch (Exception $e) {
-    // Usar valores por defecto
+
+    $stmt_count = $pdo->prepare("
+        SELECT COUNT(*) FROM inscritos i
+        WHERE i.torneo_id = ? AND i.estatus != 'retirado'
+    ");
+    $stmt_count->execute([$torneo_id]);
+    $total_participantes = (int) $stmt_count->fetchColumn();
+
+    $pagina_actual = 1;
+    $total_paginas = 1;
+    $offset = 0;
+    $p = \Tournament\Services\PaginationService::getParams($total_participantes, $pagina_raw, $items_por_pagina);
+    $pagina_actual = $p['page'];
+    $total_paginas = $p['total_pages'];
+    $offset = (int) $p['offset'];
+    $limitSql = ' LIMIT ' . (int) $p['limit'] . ' OFFSET ' . $offset;
+
+    InscritosReporteStatsHelper::ensureColumnas($pdo);
+    $cols = InscritosReporteStatsHelper::expresionesSelectClasificacion('i');
+
+    $sql = '
+        SELECT
+            i.id_usuario,
+            i.posicion,
+            i.ganados,
+            i.perdidos,
+            i.efectividad,
+            i.puntos,
+            i.ptosrnk,
+            i.sancion,
+            ' . $cols['gff'] . ',
+            ' . $cols['tarjeta'] . ',
+            u.nombre AS usuario_nombre,
+            c.nombre AS club_nombre
+        FROM inscritos i
+        INNER JOIN usuarios u ON i.id_usuario = u.id
+        LEFT JOIN clubes c ON i.id_club = c.id
+        WHERE i.torneo_id = ?
+          AND i.estatus != \'retirado\'
+        ORDER BY
+            CASE WHEN i.posicion = 0 OR i.posicion IS NULL THEN 9999 ELSE i.posicion END ASC,
+            i.ganados DESC,
+            i.efectividad DESC,
+            i.puntos DESC
+        ' . $limitSql;
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$torneo_id]);
+    $participantes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    error_log('mostrar_resultados: ' . $e->getMessage());
+    $participantes = [];
 }
+
+$base_url_return = 'index.php?page=tournament_admin&torneo_id=' . (int) $torneo_id;
 ?>
 
 <div class="card">
@@ -48,12 +106,11 @@ try {
         </h5>
     </div>
     <div class="card-body">
-        <!-- Estadísticas Generales -->
         <div class="row mb-4">
             <div class="col-md-4">
                 <div class="card bg-primary text-white">
                     <div class="card-body text-center">
-                        <h3 class="mb-0"><?= $estadisticas_partidas['total_rondas'] ?? 0 ?></h3>
+                        <h3 class="mb-0"><?= (int) ($estadisticas_partidas['total_rondas'] ?? 0) ?></h3>
                         <p class="mb-0">Rondas Jugadas</p>
                     </div>
                 </div>
@@ -61,7 +118,7 @@ try {
             <div class="col-md-4">
                 <div class="card bg-info text-white">
                     <div class="card-body text-center">
-                        <h3 class="mb-0"><?= $estadisticas_partidas['total_partidas'] ?? 0 ?></h3>
+                        <h3 class="mb-0"><?= (int) ($estadisticas_partidas['total_partidas'] ?? 0) ?></h3>
                         <p class="mb-0">Total Partidas</p>
                     </div>
                 </div>
@@ -69,125 +126,94 @@ try {
             <div class="col-md-4">
                 <div class="card bg-success text-white">
                     <div class="card-body text-center">
-                        <h3 class="mb-0"><?= $estadisticas_partidas['partidas_registradas'] ?? 0 ?></h3>
+                        <h3 class="mb-0"><?= (int) ($estadisticas_partidas['partidas_registradas'] ?? 0) ?></h3>
                         <p class="mb-0">Partidas Registradas</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Clasificación -->
-        <div class="card mb-4">
-            <div class="card-header bg-dark text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-trophy me-2"></i>Clasificación General
-                </h5>
+        <div class="card mb-3">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Clasificación General</h5>
             </div>
-            <div class="card-body">
-                <?php if (empty($clasificacion)): ?>
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        No hay resultados disponibles aún.
+            <div class="card-body p-0">
+                <?php if ($participantes === []): ?>
+                    <div class="alert alert-info m-3 mb-0">
+                        <i class="fas fa-info-circle me-2"></i>No hay resultados disponibles aún.
                     </div>
                 <?php else: ?>
                     <div class="table-responsive">
-                        <table class="table table-hover table-striped">
-                            <thead class="table-dark">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="table-light">
                                 <tr>
-                                    <th class="text-center" style="width: 60px;">#</th>
-                                    <th class="text-center">ID Usuario</th>
+                                    <th class="text-center">#</th>
                                     <th>Jugador</th>
                                     <th class="text-center">Club</th>
-                                    <th class="text-center">Partidas</th>
                                     <th class="text-center">G</th>
                                     <th class="text-center">P</th>
-                                    <th class="text-center">Efectividad</th>
+                                    <th class="text-center">GFF</th>
+                                    <th class="text-center">Tarj.</th>
+                                    <th class="text-center">Efect.</th>
                                     <th class="text-center">Puntos</th>
-                                    <th class="text-center">Ranking</th>
+                                    <th class="text-center">Pts. Rnk.</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php 
-                                $posicion = 1;
-                                foreach ($clasificacion as $jugador): 
-                                    $estadisticas = InscritosPartiresulHelper::obtenerEstadisticas($jugador['id_usuario'], $torneo_id);
+                                <?php
+                                $posicion_lista = $offset + 1;
+                                foreach ($participantes as $jugador):
+                                    $pos = (int) ($jugador['posicion'] ?? 0);
+                                    if ($pos <= 0) {
+                                        $pos = $posicion_lista;
+                                    }
+                                    $rowClass = $pos <= 3 ? 'table-warning' : '';
                                 ?>
-                                    <tr class="<?= $posicion <= 3 ? 'table-warning' : '' ?>">
+                                    <tr class="<?= $rowClass ?>">
+                                        <td class="text-center fw-bold"><?= $pos ?></td>
+                                        <td><strong><?= htmlspecialchars((string) ($jugador['usuario_nombre'] ?? 'N/A')) ?></strong></td>
+                                        <td class="text-center"><?= htmlspecialchars((string) ($jugador['club_nombre'] ?? 'Sin club')) ?></td>
+                                        <td class="text-center"><span class="badge bg-success"><?= (int) ($jugador['ganados'] ?? 0) ?></span></td>
+                                        <td class="text-center"><span class="badge bg-danger"><?= (int) ($jugador['perdidos'] ?? 0) ?></span></td>
+                                        <td class="text-center"><span class="badge bg-warning text-dark"><?= (int) ($jugador['gff'] ?? 0) ?></span></td>
+                                        <td class="text-center"><?= htmlspecialchars(ResultadosReporteData::tarjetaTexto($jugador['tarjeta'] ?? 0)) ?></td>
                                         <td class="text-center">
-                                            <?php if ($posicion == 1): ?>
-                                                <i class="fas fa-trophy text-warning"></i>
-                                            <?php elseif ($posicion == 2): ?>
-                                                <i class="fas fa-medal text-secondary"></i>
-                                            <?php elseif ($posicion == 3): ?>
-                                                <i class="fas fa-medal text-warning"></i>
-                                            <?php else: ?>
-                                                <strong><?= $posicion ?></strong>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="text-center"><code><?= htmlspecialchars($jugador['id_usuario'] ?? 'N/A') ?></code></td>
-                                        <td>
-                                            <strong><?= htmlspecialchars($jugador['usuario_nombre'] ?? 'N/A') ?></strong>
-                                        </td>
-                                        <td class="text-center">
-                                            <?= htmlspecialchars($jugador['club_nombre'] ?? 'Sin club') ?>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-info"><?= $estadisticas['total_partidas'] ?></span>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-success"><?= $estadisticas['ganados'] ?></span>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-danger"><?= $estadisticas['perdidos'] ?></span>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="fw-bold <?= $jugador['efectividad'] >= 0 ? 'text-success' : 'text-danger' ?>">
-                                                <?= (int)$jugador['efectividad'] >= 0 ? '+' : '' ?><?= (int)$jugador['efectividad'] ?>
+                                            <?php $ef = (int) ($jugador['efectividad'] ?? 0); ?>
+                                            <span class="fw-bold <?= $ef >= 0 ? 'text-success' : 'text-danger' ?>">
+                                                <?= $ef >= 0 ? '+' : '' ?><?= $ef ?>
                                             </span>
                                         </td>
-                                        <td class="text-center">
-                                            <strong><?= (int)$jugador['puntos'] ?></strong>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-primary fs-6"><?= (int)$jugador['ptosrnk'] ?></span>
-                                        </td>
+                                        <td class="text-center"><strong><?= (int) ($jugador['puntos'] ?? 0) ?></strong></td>
+                                        <td class="text-center"><span class="badge bg-primary"><?= (int) ($jugador['ptosrnk'] ?? 0) ?></span></td>
                                     </tr>
-                                    <?php $posicion++; ?>
-                                <?php endforeach; ?>
+                                <?php
+                                    $posicion_lista++;
+                                endforeach;
+                                ?>
                             </tbody>
                         </table>
                     </div>
+                    <?php if ($total_participantes > 0): ?>
+                    <div class="p-3 border-top">
+                        <?= ResultadosReportePaginacion::renderForTorneoReport(
+                            $pagina_actual,
+                            $total_paginas,
+                            $total_participantes,
+                            $items_por_pagina,
+                            $base_url_return,
+                            false,
+                            ['action' => 'mostrar_resultados', 'torneo_id' => (int) $torneo_id],
+                            'jugadores'
+                        ) ?>
+                    </div>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
         </div>
 
-        <!-- Botones de Acción -->
-        <div class="d-flex justify-content-end gap-2">
-            <button class="btn btn-primary" onclick="window.print()">
-                <i class="fas fa-print me-2"></i>Imprimir Clasificación
-            </button>
-            <button class="btn btn-success" onclick="exportarExcel()">
-                <i class="fas fa-file-excel me-2"></i>Exportar Excel
-            </button>
-        </div>
+        <p class="small text-muted mb-0">
+            <strong>GFF:</strong> victorias por forfait (FF) o tarjeta roja/negra del rival o compañero (TR); misma contabilidad.
+            <strong>Tarj.:</strong> tarjeta disciplinaria vigente (máx. en partiresul).
+        </p>
     </div>
 </div>
-
-<script>
-function exportarExcel() {
-    // Implementar exportación a Excel
-    alert('Funcionalidad de exportación a Excel en desarrollo');
-}
-</script>
-
-<style>
-@media print {
-    .btn, .card-header {
-        display: none !important;
-    }
-    .table {
-        font-size: 0.9rem;
-    }
-}
-</style>
-

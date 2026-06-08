@@ -11,7 +11,7 @@ require_once __DIR__ . '/../../lib/whatsapp_sender.php';
 // Verificar autenticación (ya verificada en index.php, pero por seguridad)
 $user = $_SESSION['user'] ?? Auth::user();
 $pagination_page = isset($_GET['pag']) ? (int)$_GET['pag'] : 1;
-$per_page = 20;
+$per_page = 10;
 $offset = ($pagination_page - 1) * $per_page;
 
 // Filtros

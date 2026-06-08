@@ -42,7 +42,7 @@ final class ResultadosReportesPrintHtml
             $topN = max(1, (int)($torneo['pareclub'] ?? 8));
             $dataClub = obtenerTopJugadoresPorClub($pdo, $torneo_id, $topN);
             echo '<h1>Clubes — resumido — ' . $nombreTorneo . '</h1><div class="meta">Letter · Top ' . $topN . ' · ' . $fechaGen . '</div>';
-            echo '<table class="rep-table"><thead><tr><th>Club</th><th>Jug.</th><th>∑G</th><th>∑P</th><th>Prom.ef.</th><th>∑Pts</th><th>∑GFF</th><th>Mej.pos</th></tr></thead><tbody>';
+            echo '<table class="rep-table"><thead><tr><th>' . $esc(ResultadosReporteData::etiquetaAsociacion()) . '</th><th>Jug.</th><th>∑G</th><th>∑P</th><th>Prom.ef.</th><th>∑Pts</th><th>∑GFF</th><th>Mej.pos</th></tr></thead><tbody>';
             $ri = 0;
             foreach ($dataClub['estadisticas'] as $st) {
                 ++$ri;
@@ -70,20 +70,34 @@ final class ResultadosReportesPrintHtml
             }
         } elseif ($tipo === 'general' || $tipo === 'posiciones') {
             $data = ResultadosReporteData::cargar($pdo, $torneo_id, $torneo, $generoGet);
-            $esParejasRep = in_array((int)($torneo['modalidad'] ?? 0), [2, 4], true);
+            $modalidadRep = (int) ($torneo['modalidad'] ?? 0);
+            $esParejasRep = in_array($modalidadRep, [2, 4], true);
+            $mostrarColEquipo = $modalidadRep === 3;
             $colJugadorRep = $esParejasRep ? 'Pareja' : 'Jugador';
             $h1p = $tipo === 'posiciones' ? 'Tabla de posiciones — ' : 'Resultados general — ';
             $gl = ResultadosReporteData::generoFiltroDesdeParametro($generoGet);
-            $genLabel = $gl === 'F' ? 'Femenino' : 'Masculino';
+            $genLabel = ResultadosReporteData::etiquetaGeneroFiltro($gl);
+            $colIdRep = $esParejasRep ? 'Cód. pareja' : ResultadosReporteData::etiquetaColumnaIdentificador(false);
+            $colAsocRep = ResultadosReporteData::etiquetaAsociacion();
             echo '<h1>' . $h1p . $nombreTorneo . '</h1><div class="meta">' . $fechaTor . ' · ' . $fechaGen . ' · Clasificación: ' . $esc($genLabel) . '</div>';
-            echo '<table class="rep-table"><thead><tr><th>Pos</th><th>' . $esc($colJugadorRep) . '</th><th>Club</th><th>Equipo</th><th>G</th><th>P</th><th>Ef.</th><th>Pts</th><th>Rnk</th><th>GFF</th><th>Sanc.</th><th>Tarj.</th></tr></thead><tbody>';
+            echo '<table class="rep-table"><thead><tr><th>Pos</th><th>' . $esc($colIdRep) . '</th><th>' . $esc($colJugadorRep) . '</th><th>' . $esc($colAsocRep) . '</th>';
+            if ($mostrarColEquipo) {
+                echo '<th>Equipo</th>';
+            }
+            echo '<th>G</th><th>P</th><th>Ef.</th><th>Pts</th><th>Rnk</th><th>GFF</th><th>Sanc.</th><th>Tarj.</th></tr></thead><tbody>';
             $n = 0;
             foreach ($data['participantes'] as $p) {
                 ++$n;
                 $alt = ($n % 2 === 0) ? ' class="row-alt"' : '';
                 $pos = (int)($p['posicion'] ?? 0) ?: $n;
-                $eq = trim(($p['codigo_equipo'] ?? '') . ' ' . ($p['nombre_equipo'] ?? ''));
-                echo '<tr' . $alt . '><td class="num">' . $pos . '</td><td>' . $esc($p['nombre_completo'] ?? '') . '</td><td>' . $esc($p['club_nombre'] ?? '') . '</td><td>' . $esc($eq) . '</td><td class="num">' . (int)$p['ganados'] . '</td><td class="num">' . (int)$p['perdidos'] . '</td><td class="num">' . (int)$p['efectividad'] . '</td><td class="num">' . (int)$p['puntos'] . '</td><td class="num">' . (int)$p['ptosrnk'] . '</td><td class="num">' . (int)$p['gff'] . '</td><td class="num">' . (int)$p['sancion'] . '</td><td class="num">' . $esc(ResultadosReporteData::tarjetaTexto($p['tarjeta'] ?? 0)) . '</td></tr>';
+                $idTxt = $esc(ResultadosReporteData::textoIdentificadorFila($p, $esParejasRep));
+                $asocTxt = $esc($p['club_nombre'] ?? ResultadosReporteData::etiquetaSinAsociacion());
+                echo '<tr' . $alt . '><td class="num">' . $pos . '</td><td>' . $idTxt . '</td><td>' . $esc($p['nombre_completo'] ?? '') . '</td><td>' . $asocTxt . '</td>';
+                if ($mostrarColEquipo) {
+                    $eq = trim(($p['codigo_equipo'] ?? '') . ' ' . ($p['nombre_equipo'] ?? ''));
+                    echo '<td>' . $esc($eq) . '</td>';
+                }
+                echo '<td class="num">' . (int)$p['ganados'] . '</td><td class="num">' . (int)$p['perdidos'] . '</td><td class="num">' . (int)$p['efectividad'] . '</td><td class="num">' . (int)$p['puntos'] . '</td><td class="num">' . (int)$p['ptosrnk'] . '</td><td class="num">' . (int)$p['gff'] . '</td><td class="num">' . (int)$p['sancion'] . '</td><td class="num">' . $esc(ResultadosReporteData::tarjetaTexto($p['tarjeta'] ?? 0)) . '</td></tr>';
             }
             echo '</tbody></table>';
         } elseif ($tipo === 'equipos_resumido') {
@@ -92,7 +106,7 @@ final class ResultadosReportesPrintHtml
             $st->execute([$torneo_id]);
             $eqs = $st->fetchAll(PDO::FETCH_ASSOC);
             echo '<h1>Equipos — resumido — ' . $nombreTorneo . '</h1><div class="meta">Letter · ' . $fechaGen . '</div>';
-            echo '<table class="rep-table"><thead><tr><th>#</th><th>Cód.</th><th>Equipo</th><th>Club</th><th>G</th><th>P</th><th>Ef.</th><th>Pts</th><th>Sanc.</th></tr></thead><tbody>';
+            echo '<table class="rep-table"><thead><tr><th>#</th><th>Cód.</th><th>Equipo</th><th>' . $esc(ResultadosReporteData::etiquetaAsociacion()) . '</th><th>G</th><th>P</th><th>Ef.</th><th>Pts</th><th>Sanc.</th></tr></thead><tbody>';
             $pos = 1;
             foreach ($eqs as $e) {
                 $alt = ($pos % 2 === 0) ? ' class="row-alt"' : '';
@@ -131,7 +145,7 @@ final class ResultadosReportesPrintHtml
             $rondas = $data['rondas'];
             $esEquipos = (int)($torneo['modalidad'] ?? 0) === 3;
             $glC = ResultadosReporteData::generoFiltroDesdeParametro($generoGet);
-            $genLabelC = $glC === 'F' ? 'Femenino' : 'Masculino';
+            $genLabelC = ResultadosReporteData::etiquetaGeneroFiltro($glC);
             echo '<h1>Reporte consolidado — ' . $nombreTorneo . '</h1><div class="meta">Fecha torneo: ' . $fechaTor . ' · Generado: ' . $fechaGen . ' · Clasificación: ' . $esc($genLabelC) . '</div>';
             if (!empty($rondas)) {
                 echo '<h2>Rondas</h2><table class="rep-table"><thead><tr><th>Ronda</th><th>Mesas</th><th>Reg.</th></tr></thead><tbody>';
@@ -153,7 +167,7 @@ final class ResultadosReportesPrintHtml
                 }
                 echo '</tbody></table>';
             }
-            echo '<h2>Por club</h2><table class="rep-table"><thead><tr><th>Club</th><th>Jug</th><th>∑G</th><th>∑P</th></tr></thead><tbody>';
+            echo '<h2>Por asociación</h2><table class="rep-table"><thead><tr><th>' . $esc(ResultadosReporteData::etiquetaAsociacion()) . '</th><th>Jug</th><th>∑G</th><th>∑P</th></tr></thead><tbody>';
             $ci = 0;
             foreach ($clubes as $c) {
                 ++$ci;
@@ -163,7 +177,7 @@ final class ResultadosReportesPrintHtml
             $esParejasPdfCons = in_array((int)($torneo['modalidad'] ?? 0), [2, 4], true);
             $colJugPdfCons = $esParejasPdfCons ? 'Pareja' : 'Jugador';
             $titClasPdf = $esParejasPdfCons ? 'Clasificación por pareja' : 'Clasificación individual';
-            echo '</tbody></table><h2>' . $esc($titClasPdf) . '</h2><table class="rep-table"><thead><tr><th>Pos</th><th>' . $esc($colJugPdfCons) . '</th><th>Club</th><th>G</th><th>P</th><th>Pts</th></tr></thead><tbody>';
+            echo '</tbody></table><h2>' . $esc($titClasPdf) . '</h2><table class="rep-table"><thead><tr><th>Pos</th><th>' . $esc($colJugPdfCons) . '</th><th>' . $esc(ResultadosReporteData::etiquetaAsociacion()) . '</th><th>G</th><th>P</th><th>Pts</th></tr></thead><tbody>';
             $n = 0;
             foreach ($participantes as $p) {
                 ++$n;

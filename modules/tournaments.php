@@ -230,7 +230,7 @@ if ($action === 'list') {
         } else {
             // Configurar paginación
             $current_page = isset($_GET['p']) ? max(1, (int)$_GET['p']) : 1;
-            $per_page = isset($_GET['per_page']) ? max(10, min(100, (int)$_GET['per_page'])) : 25;
+            $per_page = Pagination::DEFAULT_PER_PAGE;
             
             // Construir filtro WHERE según permisos
             $tournament_filter = Auth::getTournamentFilterForRole('t');
@@ -284,7 +284,7 @@ if ($action === 'list') {
                 $tournaments_list = [];
             } else {
                 $current_page = isset($_GET['p']) ? max(1, (int)$_GET['p']) : 1;
-                $per_page = isset($_GET['per_page']) ? max(10, min(100, (int)$_GET['per_page'])) : 25;
+                $per_page = Pagination::DEFAULT_PER_PAGE;
                 $stmt = DB::pdo()->prepare("SELECT COUNT(*) FROM tournaments t $where_clause");
                 $stmt->execute($params);
                 $total_records = (int)$stmt->fetchColumn();
@@ -1218,7 +1218,7 @@ function getModalidadLabel($modalidad) {
             $script_path = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : 'index.php';
             $form_action = $script_path . '?' . http_build_query($form_params);
             ?>
-            <form method="POST" action="<?= htmlspecialchars($form_action) ?>" enctype="multipart/form-data">
+            <form method="POST" action="<?= htmlspecialchars($form_action) ?>" enctype="multipart/form-data" id="form-torneo" novalidate>
                 <?= CSRF::input(); ?>
                 <?php if ($action === 'edit'): ?>
                     <input type="hidden" name="id" value="<?= (int)$tournament['id'] ?>">
@@ -1298,8 +1298,8 @@ function getModalidadLabel($modalidad) {
                     </div>
                     <div class="col-md-2">
                         <div class="mb-3">
-                            <label for="hora_torneo" class="form-label">Hora</label>
-                            <input type="time" class="form-control" id="hora_torneo" name="hora_torneo" 
+                            <label for="hora_torneo" class="form-label">Hora *</label>
+                            <input type="time" class="form-control" id="hora_torneo" name="hora_torneo" required
                                    value="<?php
                                    if ($action === 'edit' && !empty($tournament['hora_torneo'])) { $ht = $tournament['hora_torneo']; echo htmlspecialchars(strlen($ht) >= 5 ? substr($ht, 0, 5) : $ht); }
                                    elseif ($action === 'edit' && isset($tournament['hora']) && $tournament['hora'] !== '') { $ht = $tournament['hora']; echo htmlspecialchars(strlen($ht) >= 5 ? substr($ht, 0, 5) : $ht); }
@@ -1325,7 +1325,7 @@ function getModalidadLabel($modalidad) {
                         <div class="mb-3">
                             <label for="rondas" class="form-label">Rondas</label>
                             <input type="number" class="form-control" id="rondas" name="rondas" 
-                                   value="<?= $action === 'edit' ? (int)($tournament['rondas'] ?? 9) : 9 ?>" min="0" placeholder="9">
+                                   value="<?= $action === 'edit' ? (int)($tournament['rondas'] ?? 9) : 9 ?>" min="1" placeholder="9" required>
                         </div>
                     </div>
                 </div>
@@ -1385,6 +1385,25 @@ function getModalidadLabel($modalidad) {
                         </div>
                     </div>
                 </div>
+
+                <?php if ($action === 'new'): ?>
+                <div class="row d-none" id="campeonato-opciones-row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="campeonato_tipo" class="form-label">Tipo de campeonato *</label>
+                            <select class="form-select" id="campeonato_tipo" name="campeonato_tipo">
+                                <option value="">Seleccionar...</option>
+                                <option value="genero">Por género — 2 torneos (EQUIPOS MASCULINO / EQUIPOS FEMENINO)</option>
+                                <option value="categoria_sub">Por categoría SUB — 3 torneos (SUB 12, SUB 15, SUB 18)</option>
+                            </select>
+                            <small class="form-text text-muted">
+                                Se crean torneos simultáneos con la misma información. SUB 12 usa 5 rondas; el resto hereda las rondas del formulario.
+                                Control de inscripción por sexo o edad según el tipo.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
                 
                 <!-- Fila 5: Costo, Estado, Evento, Inscripción línea, Publicación, Cuenta bancaria -->
                 <div class="row">
@@ -1912,6 +1931,47 @@ function getModalidadLabel($modalidad) {
     
     // Ejecutar cuando cambie el tipo de evento
     tipoEventoSelect?.addEventListener('change', actualizarRankingSegunTipoEvento);
+
+    const claseSelect = document.getElementById('clase');
+    const campeonatoRow = document.getElementById('campeonato-opciones-row');
+    const campeonatoTipo = document.getElementById('campeonato_tipo');
+    function actualizarCampeonatoOpciones() {
+        if (!claseSelect || !campeonatoRow) return;
+        const esCampeonato = claseSelect.value === '2';
+        campeonatoRow.classList.toggle('d-none', !esCampeonato);
+        if (campeonatoTipo) {
+            campeonatoTipo.required = esCampeonato;
+            if (!esCampeonato) campeonatoTipo.value = '';
+        }
+    }
+    claseSelect?.addEventListener('change', actualizarCampeonatoOpciones);
+    actualizarCampeonatoOpciones();
+
+    const formTorneo = document.getElementById('form-torneo');
+    formTorneo?.addEventListener('submit', function (ev) {
+        const errores = [];
+        const nombre = document.getElementById('nombre');
+        const fechator = document.getElementById('fechator');
+        const hora = document.getElementById('hora_torneo');
+        const clase = document.getElementById('clase');
+        const modalidad = document.getElementById('modalidad');
+        const rondas = document.getElementById('rondas');
+        if (!nombre?.value.trim()) errores.push('Nombre del torneo');
+        if (!fechator?.value) errores.push('Fecha');
+        if (!hora?.value) errores.push('Hora');
+        if (!clase?.value) errores.push('Clase');
+        if (!modalidad?.value) errores.push('Modalidad');
+        if (!rondas?.value || parseInt(rondas.value, 10) < 1) errores.push('Rondas (mínimo 1)');
+        if (clase?.value === '2' && campeonatoTipo && !campeonatoTipo.value) {
+            errores.push('Tipo de campeonato');
+        }
+        if (errores.length) {
+            ev.preventDefault();
+            alert('Complete los campos requeridos:\n- ' + errores.join('\n- '));
+            return false;
+        }
+        return true;
+    });
     </script>
     <?php endif; ?>
 <?php endif; ?>

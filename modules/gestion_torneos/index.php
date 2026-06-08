@@ -44,6 +44,9 @@ $panel_sep = $use_standalone_list ? '?' : '&';
                         <i class="fas fa-chart-line me-1"></i>Estadísticas
                     </a>
                     <?php if (!empty($is_admin_general)): ?>
+                    <a href="index.php?page=importacion_torneo_externo" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-file-import me-1"></i>Importar torneo
+                    </a>
                     <a href="index.php?page=notificaciones_masivas" class="btn btn-sm btn-outline-warning">
                         <i class="fas fa-bell me-1"></i>Notif.
                     </a>
@@ -102,23 +105,18 @@ $panel_sep = $use_standalone_list ? '?' : '&';
                     <table class="table table-hover table-sm mb-0">
                         <thead class="table-light">
                             <tr>
-                                <?php if ($is_admin_general): ?><th>Entidad</th><?php endif; ?>
+                                <th>Fecha</th>
                                 <th>Estatus</th>
                                 <th>Nombre</th>
-                                <th>Fecha</th>
-                                <th>Club</th>
                                 <th class="text-center">Inscritos</th>
                                 <th class="text-center">Rondas</th>
-                                <th class="text-center">Invitaciones</th>
                                 <th></th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($torneos as $t): ?>
                             <tr>
-                                <?php if ($is_admin_general): ?>
-                                <td><?= htmlspecialchars($t['entidad_nombre'] ?? '—') ?></td>
-                                <?php endif; ?>
+                                <td><?= !empty($t['fechator']) ? date('d/m/Y', strtotime($t['fechator'])) : '—' ?></td>
                                 <td>
                                     <?php $cat = $t['categoria'] ?? ''; ?>
                                     <?php if ($cat === 'por_realizar'): ?><span class="badge bg-info">Por realizar</span>
@@ -126,20 +124,18 @@ $panel_sep = $use_standalone_list ? '?' : '&';
                                     <?php else: ?><span class="badge bg-success">Realizados</span><?php endif; ?>
                                 </td>
                                 <td><?= htmlspecialchars($t['nombre']) ?></td>
-                                <td><?= !empty($t['fechator']) ? date('d/m/Y', strtotime($t['fechator'])) : '—' ?></td>
-                                <td><?= htmlspecialchars($t['club_nombre'] ?? '—') ?></td>
                                 <td class="text-center"><?= (int)($t['total_inscritos'] ?? 0) ?></td>
                                 <td class="text-center"><?= (int)($t['ultima_ronda'] ?? 0) ?> / <?= (int)($t['rondas'] ?? 0) ?></td>
-                                <td class="text-center">
-                                    <a href="index.php?page=invitations&amp;filter_torneo=<?= (int)$t['id'] ?>" class="btn btn-sm btn-outline-secondary" title="Invitaciones de clubes para este torneo">
-                                        <i class="fas fa-envelope"></i>
-                                    </a>
-                                </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
                                         <a href="index.php?page=torneo_gestion&action=view&id=<?= (int)$t['id'] ?>" class="btn btn-outline-info" title="Ver">Ver</a>
                                         <a href="index.php?page=torneo_gestion&action=edit&id=<?= (int)$t['id'] ?>" class="btn btn-outline-primary" title="Editar">Editar</a>
                                         <a href="<?= htmlspecialchars($base_url_panel . $panel_sep . 'action=panel&torneo_id=' . (int)$t['id']) ?>" class="btn btn-outline-success">Panel</a>
+                                        <?php if ($is_admin_general): ?>
+                                        <a href="index.php?page=importacion_torneo_externo&amp;torneo_id=<?= (int)$t['id'] ?>" class="btn btn-outline-secondary" title="Importar desde Access">
+                                            <i class="fas fa-file-import"></i> Importar
+                                        </a>
+                                        <?php endif; ?>
                                         <?php
                                         $notif_url = $is_admin_general
                                             ? 'index.php?page=notificaciones_masivas&tipo_ag=inscritos_torneo&torneo_id_ag=' . (int)$t['id']

@@ -10,7 +10,7 @@ if (!defined('APP_BOOTSTRAPPED')) {
 require_once __DIR__ . '/../config/auth.php';
 
 $user = Auth::user();
-if ($user && ($user['role'] ?? '') === 'admin_general') {
+if ($user && Auth::isAdminGeneral()) {
     require __DIR__ . '/admin_general/actions/home.php';
     return;
 }

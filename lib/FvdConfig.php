@@ -251,4 +251,93 @@ final class FvdConfig
         $nombre = trim((string)($row['nombre'] ?? ''));
         return $nombre !== '' ? $nombre : self::ORGANIZACION_NOMBRE;
     }
+
+    /**
+     * Etiqueta de ámbito territorial para listados (torneos, organizaciones).
+     * 0 y {@see ENTIDAD_AMBITO_NACIONAL_ID} se tratan como alcance nacional.
+     */
+    public static function etiquetaAmbitoTerritorial(int $entidadId = 0, ?PDO $pdo = null): string
+    {
+        if ($entidadId <= 0 || $entidadId === self::ENTIDAD_AMBITO_NACIONAL_ID) {
+            $nacional = self::lookupEntidadNombre(self::ENTIDAD_AMBITO_NACIONAL_ID, $pdo);
+
+            return $nacional !== '' ? $nacional : 'Nacional';
+        }
+
+        $nombre = self::lookupEntidadNombre($entidadId, $pdo);
+
+        return $nombre !== '' ? $nombre : ('Entidad ' . $entidadId);
+    }
+
+    /**
+     * Resuelve el id territorial efectivo de un torneo (columna entidad o la de su organización).
+     *
+     * @param array<string, mixed> $torneo
+     */
+    public static function entidadTerritorioEfectivaTorneo(array $torneo, ?PDO $pdo = null): int
+    {
+        $ent = (int) ($torneo['entidad'] ?? 0);
+        if ($ent > 0) {
+            return $ent;
+        }
+
+        $orgEnt = (int) ($torneo['organizacion_entidad'] ?? 0);
+        if ($orgEnt > 0) {
+            return $orgEnt;
+        }
+
+        $clubRef = (int) ($torneo['club_responsable'] ?? 0);
+        if ($clubRef === self::ORGANIZACION_ID || (int) ($torneo['cod_org'] ?? 0) === self::ORGANIZACION_ID) {
+            return self::ENTIDAD_AMBITO_NACIONAL_ID;
+        }
+
+        if ($clubRef > 0 && $pdo !== null) {
+            try {
+                $st = $pdo->prepare('SELECT entidad FROM organizaciones WHERE id = ? LIMIT 1');
+                $st->execute([$clubRef]);
+                $orgEntDb = (int) ($st->fetchColumn() ?: 0);
+                if ($orgEntDb > 0) {
+                    return $orgEntDb;
+                }
+            } catch (Throwable $e) {
+                // ignore
+            }
+        }
+
+        return 0;
+    }
+
+    private static function lookupEntidadNombre(int $entidadId, ?PDO $pdo): string
+    {
+        static $cache = [];
+
+        if ($entidadId <= 0) {
+            return '';
+        }
+        if (isset($cache[$entidadId])) {
+            return $cache[$entidadId];
+        }
+
+        if ($pdo === null && class_exists('DB', false)) {
+            try {
+                $pdo = DB::pdo();
+            } catch (Throwable $e) {
+                $pdo = null;
+            }
+        }
+
+        if ($pdo === null) {
+            return $cache[$entidadId] = '';
+        }
+
+        try {
+            $st = $pdo->prepare('SELECT nombre FROM entidad WHERE id = ? LIMIT 1');
+            $st->execute([$entidadId]);
+            $nombre = trim((string) ($st->fetchColumn() ?: ''));
+        } catch (Throwable $e) {
+            $nombre = '';
+        }
+
+        return $cache[$entidadId] = $nombre;
+    }
 }

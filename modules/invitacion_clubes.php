@@ -166,8 +166,7 @@ if ($torneo_id <= 0) {
                 }
                 $total = (int) $pdo->query("SELECT COUNT(*) FROM clubes")->fetchColumn();
                 $current_page = isset($_GET['p']) ? max(1, (int)$_GET['p']) : 1;
-                $per_page_val = (int)($_GET['per_page'] ?? 0);
-                $per_page = ($per_page_val >= 10 && $per_page_val <= 100) ? $per_page_val : 25;
+                $per_page = Pagination::DEFAULT_PER_PAGE;
                 $pagination = new Pagination($total, $current_page, $per_page);
                 // Orden: primero los clubes de la organización que organiza el torneo, luego el resto; dentro de cada grupo por nombre
                 $order_sql = $has_organizacion_id && $org_id !== null

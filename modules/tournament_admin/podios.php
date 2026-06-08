@@ -14,13 +14,6 @@ $wFfOppPod = \PartiresulEstatusSql::whereFfUno('pr_oponente');
 $wFfCompPod = \PartiresulEstatusSql::whereFfUno('pr_companero');
 $wRegPrTarPod = \PartiresulEstatusSql::whereRegistradoUno('pr');
 
-// Asegurar que las posiciones estén actualizadas
-if (function_exists('recalcularRankingSegunModalidad')) {
-    recalcularRankingSegunModalidad($torneo_id);
-} elseif (function_exists('recalcularPosiciones')) {
-    recalcularPosiciones($torneo_id);
-}
-
 // club_responsable en tournaments es el ID de la organización (organizaciones), no de clubes
 $club_responsable = null;
 $club_logo_url = null;
@@ -102,11 +95,11 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$torneo_id, $torneo_id]);
     $posiciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    require_once __DIR__ . '/../../lib/NumfvdHelper.php';
+    $posiciones = NumfvdHelper::enriquecerFilas($posiciones);
     $genero_podio = ResultadosReporteData::generoFiltroDesdeParametro($_GET['genero'] ?? null);
     $modalidad_pod = (int) ($torneo['modalidad'] ?? 0);
-    $posiciones = ResultadosReporteData::filtrarFilasClasificacionPorGenero($posiciones, $genero_podio, $modalidad_pod);
-    $posiciones = ResultadosReporteData::ordenarFilasComoPosicionesTorneo($posiciones);
-    $posiciones = ResultadosReporteData::reenumerarPosicionMostrada($posiciones);
+    $posiciones = ResultadosReporteData::aplicarRankingPorGenero($posiciones, $genero_podio, $modalidad_pod);
 
     // Procesar todos los resultados
     foreach ($posiciones as $pos) {
@@ -126,10 +119,11 @@ try {
         $jugador_data = [
             'posicion' => $posicion_actual,
             'id_usuario' => (int)$pos['id_usuario'],
+            'numfvd' => $pos['numfvd'] ?? null,
             'cedula' => $pos['cedula'] ?? '',
             'nombre' => $pos['nombre_completo'] ?? $pos['nombre'] ?? 'N/A',
             'foto_url' => $foto_url,
-            'club_nombre' => $pos['club_nombre'] ?? 'Sin Club',
+            'club_nombre' => $pos['club_nombre'] ?? ResultadosReporteData::etiquetaSinAsociacion(),
             'club_id' => (int)($pos['club_id'] ?? 0),
             'ganados' => (int)($pos['ganados'] ?? 0),
             'perdidos' => (int)($pos['perdidos'] ?? 0),
@@ -248,9 +242,10 @@ $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
 
                 return $base_url . ($use_standalone ? '?' : '&') . http_build_query($p);
             };
+            $urlGeneroFn = $qPod;
+            $generoActual = $gPod;
+            include __DIR__ . '/../../public/includes/partials/fvd_reporte_genero_iconos.php';
             ?>
-            <a href="<?= htmlspecialchars($qPod('M')) ?>" class="px-4 py-2 rounded-lg font-semibold <?= $gPod === 'M' ? 'bg-purple-800 text-white' : 'bg-gray-200 text-gray-700' ?>">Masculino</a>
-            <a href="<?= htmlspecialchars($qPod('F')) ?>" class="px-4 py-2 rounded-lg font-semibold <?= $gPod === 'F' ? 'bg-purple-800 text-white' : 'bg-gray-200 text-gray-700' ?>">Femenino</a>
         </div>
     </div>
     
@@ -417,9 +412,9 @@ $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
                 <thead>
                     <tr class="bg-gradient-to-r from-purple-600 to-indigo-700 text-white">
                         <th class="px-4 py-3 text-left font-bold">Pos</th>
-                        <th class="px-4 py-3 text-center font-bold">ID Usuario</th>
+                        <th class="px-4 py-3 text-center font-bold"><?= htmlspecialchars(ResultadosReporteData::etiquetaColumnaIdentificador(false)) ?></th>
                         <th class="px-4 py-3 text-left font-bold">Jugador</th>
-                        <th class="px-4 py-3 text-left font-bold">Club</th>
+                        <th class="px-4 py-3 text-left font-bold"><?= htmlspecialchars(ResultadosReporteData::etiquetaAsociacion()) ?></th>
                         <th class="px-4 py-3 text-center font-bold">G</th>
                         <th class="px-4 py-3 text-center font-bold">P</th>
                         <th class="px-4 py-3 text-center font-bold">GFF</th>
@@ -440,12 +435,12 @@ $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
                             <?php endif; ?>
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <code><?= htmlspecialchars($jugador['id_usuario'] ?? 'N/A') ?></code>
+                            <code><?= htmlspecialchars(ResultadosReporteData::textoIdentificadorFila($jugador, false)) ?></code>
                         </td>
                         <td class="px-4 py-3">
                             <div class="font-semibold"><?= htmlspecialchars($jugador['nombre']) ?></div>
                         </td>
-                        <td class="px-4 py-3"><?= htmlspecialchars($jugador['club_nombre']) ?></td>
+                        <td class="px-4 py-3"><?= htmlspecialchars($jugador['club_nombre'] ?? ResultadosReporteData::etiquetaSinAsociacion()) ?></td>
                         <td class="px-4 py-3 text-center font-bold"><?= $jugador['ganados'] ?></td>
                         <td class="px-4 py-3 text-center"><?= $jugador['perdidos'] ?></td>
                         <td class="px-4 py-3 text-center"><?= $jugador['gff'] ?></td>

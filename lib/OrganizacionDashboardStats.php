@@ -304,6 +304,22 @@ final class OrganizacionDashboardStats
             : "COALESCE({$alias}.entidad, 0)";
     }
 
+    /** Usuario afiliado activo/aprobado (misma regla en listados y KPI). */
+    public static function sqlUsuarioAfiliadoAprobado(string $alias = 'u'): string
+    {
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $alias)) {
+            $alias = 'u';
+        }
+
+        return "({$alias}.status = 0 OR {$alias}.status = 'approved' OR {$alias}.status = 1 OR TRIM(CAST({$alias}.status AS CHAR)) = '1')";
+    }
+
+    /** Operador / admin_torneo activo. */
+    public static function sqlUsuarioStaffAprobado(string $alias = 'u'): string
+    {
+        return self::sqlUsuarioAfiliadoAprobado($alias);
+    }
+
     /**
      * @param array<string, mixed> $organizacion
      * @return array{
@@ -335,10 +351,17 @@ final class OrganizacionDashboardStats
         }
         $org_entidad = FvdConfig::entidadTerritorioEfectivaOrganizacion($organizacion);
 
-        $canonical = self::canonicalOrgCodigo($organizacion);
-        [$clubWhere, $clubParams] = self::clubScopeSqlAndParams($pdo, $canonical);
-        $stmt = $pdo->prepare("SELECT COUNT(DISTINCT c.id) FROM clubes c WHERE {$clubWhere}");
-        $stmt->execute($clubParams);
+        $uTerr = self::usuarioTerritorioSql($pdo);
+        $terrParams = [$org_entidad, $org_entidad];
+
+        $aprob = self::sqlUsuarioAfiliadoAprobado('u');
+        $sqlAsociaciones = "
+            SELECT COUNT(DISTINCT u.entidad) FROM usuarios u
+            WHERE u.role = 'usuario' AND {$aprob}
+              AND COALESCE(u.entidad, 0) > 0
+              AND ({$uTerr})";
+        $stmt = $pdo->prepare($sqlAsociaciones);
+        $stmt->execute($terrParams);
         $stats_clubes = (int) $stmt->fetchColumn();
 
         [$torneoActWhere, $torneoActParams] = self::torneoScopeSqlAndParams($pdo, $has_cod_org, $org_pk, $org_ref, $org_entidad, true);
@@ -356,32 +379,18 @@ final class OrganizacionDashboardStats
 
         $sqlAfiliados = "
             SELECT COUNT(DISTINCT u.id) FROM usuarios u
-            WHERE u.role = 'usuario' AND u.status = 0
-            AND (
-                {$uTerr}
-                OR EXISTS (
-                    SELECT 1 FROM clubes c
-                    WHERE c.id = u.club_id
-                      AND ({$clubWhere})
-                )
-            )";
+            WHERE u.role = 'usuario' AND {$aprob}
+            AND ({$uTerr})";
         $stmt = $pdo->prepare($sqlAfiliados);
-        $stmt->execute(array_merge($terrParams, $clubParams));
+        $stmt->execute($terrParams);
         $stats_afiliados = (int) $stmt->fetchColumn();
 
         $sqlUsuarios = "
             SELECT COUNT(DISTINCT u.id) FROM usuarios u
             WHERE u.status = 0
-            AND (
-                {$uTerr}
-                OR EXISTS (
-                    SELECT 1 FROM clubes c
-                    WHERE c.id = u.club_id
-                      AND ({$clubWhere})
-                )
-            )";
+            AND ({$uTerr})";
         $stmt = $pdo->prepare($sqlUsuarios);
-        $stmt->execute(array_merge($terrParams, $clubParams));
+        $stmt->execute($terrParams);
         $stats_usuarios = (int) $stmt->fetchColumn();
 
         $whereInsc = InscritosHelper::sqlWhereSoloConfirmadoConAlias('i');
@@ -438,11 +447,10 @@ final class OrganizacionDashboardStats
         }
         $org_entidad = FvdConfig::entidadTerritorioEfectivaOrganizacion($organizacion);
 
-        $canonical = self::canonicalOrgCodigo($organizacion);
-        [$clubWhere, $clubParams] = self::clubScopeSqlAndParams($pdo, $canonical);
         $uTerr = self::usuarioTerritorioSql($pdo);
         $terrParams = [$org_entidad, $org_entidad];
 
+        $aprob = self::sqlUsuarioAfiliadoAprobado('u');
         $sql = "
             SELECT
                 SUM(CASE WHEN UPPER(TRIM(COALESCE(u.sexo, ''))) IN ('M', '1') OR u.sexo = 1 THEN 1 ELSE 0 END) AS hombres,
@@ -453,17 +461,10 @@ final class OrganizacionDashboardStats
                     ELSE 0
                 END) AS sin_genero
             FROM usuarios u
-            WHERE u.role = 'usuario' AND u.status = 0
-            AND (
-                {$uTerr}
-                OR EXISTS (
-                    SELECT 1 FROM clubes c
-                    WHERE c.id = u.club_id
-                      AND ({$clubWhere})
-                )
-            )";
+            WHERE u.role = 'usuario' AND {$aprob}
+            AND ({$uTerr})";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute(array_merge($terrParams, $clubParams));
+        $stmt->execute($terrParams);
         $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
         return [

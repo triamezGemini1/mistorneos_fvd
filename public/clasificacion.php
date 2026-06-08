@@ -52,26 +52,14 @@ try {
         LEFT JOIN clubes c ON i.id_club = c.id
         WHERE i.torneo_id = ?
         AND (i.estatus IN (1, 2, '1', '2', 'confirmado', 'solvente'))
-        ORDER BY i.ptosrnk DESC, i.efectividad DESC, i.ganados DESC, i.puntos DESC, i.id_usuario ASC
+        ORDER BY CASE WHEN i.posicion = 0 OR i.posicion IS NULL THEN 9999 ELSE i.posicion END ASC,
+                 i.ganados DESC, i.efectividad DESC, i.puntos DESC, i.id_usuario ASC
     ");
     $stmt->execute([$torneo_id]);
     $clasificacion = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $genero_ranking = ResultadosReporteData::generoFiltroDesdeParametro($genero_get);
     $modalidadTor = (int) ($torneo['modalidad'] ?? 0);
-    $clasificacion = ResultadosReporteData::filtrarFilasClasificacionPorGenero($clasificacion, $genero_ranking, $modalidadTor);
-    usort($clasificacion, static function (array $a, array $b): int {
-        $x = (int) ($b['ptosrnk'] ?? 0) <=> (int) ($a['ptosrnk'] ?? 0);
-        if ($x !== 0) {
-            return $x;
-        }
-        $x2 = (int) ($b['efectividad'] ?? 0) <=> (int) ($a['efectividad'] ?? 0);
-        if ($x2 !== 0) {
-            return $x2;
-        }
-
-        return (int) ($b['ganados'] ?? 0) <=> (int) ($a['ganados'] ?? 0);
-    });
-    $clasificacion = ResultadosReporteData::reenumerarPosicionMostrada($clasificacion);
+    $clasificacion = ResultadosReporteData::aplicarRankingPorGenero($clasificacion, $genero_ranking, $modalidadTor);
 } catch (Throwable $e) {
     error_log('clasificacion.php: ' . $e->getMessage());
 }

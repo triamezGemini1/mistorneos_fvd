@@ -324,7 +324,7 @@ class StatisticsHelper {
                     SUM(CASE WHEN u.sexo = 'F' OR UPPER(u.sexo) = 'F' THEN 1 ELSE 0 END) as mujeres,
                     SUM(CASE WHEN u.sexo IS NULL OR u.sexo = '' THEN 1 ELSE 0 END) as sin_genero
                 FROM clubes c
-                LEFT JOIN usuarios u ON u.entidad = c.id
+                LEFT JOIN usuarios u ON " . ClubHelper::sqlJoinUsuariosAfiliadosOnClub($pdo, 'c') . "
                 WHERE c.id IN ($placeholders) AND c.estatus = 1
                 GROUP BY c.id, c.nombre, c.delegado, c.telefono, c.cod_org
                 ORDER BY c.nombre ASC
@@ -524,6 +524,11 @@ class StatisticsHelper {
                     }
                     
                     $placeholders = implode(',', array_fill(0, count($supervised_club_ids), '?'));
+                    $codigosAsoc = ClubHelper::codigosAsociacionDesdeClubIds($pdo, $supervised_club_ids);
+                    if ($codigosAsoc === []) {
+                        $codigosAsoc = $supervised_club_ids;
+                    }
+                    $placeholdersCod = implode(',', array_fill(0, count($codigosAsoc), '?'));
                     
                     // Estadísticas de usuarios
                     $user_stats = ['total_users' => 0, 'hombres' => 0, 'mujeres' => 0];
@@ -534,9 +539,9 @@ class StatisticsHelper {
                                 SUM(CASE WHEN sexo = 'M' THEN 1 ELSE 0 END) as hombres,
                                 SUM(CASE WHEN sexo = 'F' THEN 1 ELSE 0 END) as mujeres
                             FROM usuarios
-                            WHERE entidad IN ($placeholders)
+                            WHERE entidad IN ($placeholdersCod)
                         ");
-                        $stmt->execute($supervised_club_ids);
+                        $stmt->execute($codigosAsoc);
                         $user_stats = $stmt->fetch(PDO::FETCH_ASSOC) ?: $user_stats;
                     } catch (Exception $e) {
                         error_log("Error obteniendo estadísticas de usuarios para admin " . $admin['admin_id'] . ": " . $e->getMessage());
@@ -557,7 +562,7 @@ class StatisticsHelper {
                                     SUM(CASE WHEN u.sexo = 'M' THEN 1 ELSE 0 END) as hombres,
                                     SUM(CASE WHEN u.sexo = 'F' THEN 1 ELSE 0 END) as mujeres
                                 FROM clubes c
-                                LEFT JOIN usuarios u ON u.entidad = c.id
+                                LEFT JOIN usuarios u ON " . ClubHelper::sqlJoinUsuariosAfiliadosOnClub($pdo, 'c') . "
                                 WHERE c.id = ?
                                 GROUP BY c.id, c.nombre
                             ");
@@ -573,7 +578,7 @@ class StatisticsHelper {
                                     SUM(CASE WHEN u.sexo = 'M' THEN 1 ELSE 0 END) as hombres,
                                     SUM(CASE WHEN u.sexo = 'F' THEN 1 ELSE 0 END) as mujeres
                                 FROM clubes c
-                                LEFT JOIN usuarios u ON u.entidad = c.id
+                                LEFT JOIN usuarios u ON " . ClubHelper::sqlJoinUsuariosAfiliadosOnClub($pdo, 'c') . "
                                 WHERE c.id = ?
                                 GROUP BY c.id, c.nombre
                             ");

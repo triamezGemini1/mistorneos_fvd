@@ -495,7 +495,7 @@ if ($organizacion) {
 <?php
 $url_inicio = class_exists('AppHelpers') ? AppHelpers::dashboard('home') : 'index.php?page=home';
 ?>
-<div class="container-fluid py-4">
+<div class="container-fluid py-4 fvd-app-page fvd-app-page--glass fvd-org-page">
     <div class="row mb-4">
         <div class="col">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">

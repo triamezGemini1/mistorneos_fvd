@@ -210,3 +210,141 @@ function calcularEfectividadTarjetaGrave($tieneTarjetaGrave, $puntosTorneo) {
         ];
     }
 }
+
+function calcularTriunfoGffJugadorMesa(
+    bool $hayForfaitEnMesa,
+    bool $hayTarjetaGraveEnMesa,
+    int $ff,
+    int $tarjeta,
+    int $resultado1,
+    int $resultado2,
+    int $efectividad
+): int {
+    if (! $hayForfaitEnMesa && ! $hayTarjetaGraveEnMesa) {
+        return 0;
+    }
+    if ($ff === 1 || $tarjeta === 3 || $tarjeta === 4) {
+        return 0;
+    }
+    if ($resultado1 <= $resultado2 || $efectividad <= 0) {
+        return 0;
+    }
+
+    return 1;
+}
+
+/**
+ * Interpreta forfait desde formulario web, importación Access u otros orígenes.
+ */
+/** @param mixed $v */
+function torneoFfDesdeEntrada($v): int
+{
+    if ($v === true || $v === 'on') {
+        return 1;
+    }
+    if (is_numeric($v)) {
+        return ((int) $v) === 1 ? 1 : 0;
+    }
+    $s = strtoupper(trim((string) $v));
+
+    return in_array($s, ['1', 'S', 'SI', 'Y', 'YES', 'TRUE', 'FF', 'FORFAIT'], true) ? 1 : 0;
+}
+
+/**
+ * Modo de cálculo de efectividad en una mesa.
+ * Tarjeta grave (roja/negra) prevalece sobre forfait: Access suele marcar FF+tarjeta al infractor.
+ *
+ * @param array<int, array<string, mixed>> $jugadoresFilas
+ * @return 'tarjeta_grave'|'forfait'|'normal'
+ */
+function detectarModoCalculoMesa(array $jugadoresFilas): string
+{
+    if (! class_exists('TorneoCampoNumerico', false)) {
+        require_once __DIR__ . '/TorneoCampoNumerico.php';
+    }
+    foreach ($jugadoresFilas as $jugador) {
+        $tarjeta = TorneoCampoNumerico::codigoTarjeta($jugador['tarjeta'] ?? 0);
+        if ($tarjeta === 3 || $tarjeta === 4) {
+            return 'tarjeta_grave';
+        }
+    }
+    foreach ($jugadoresFilas as $jugador) {
+        if (torneoFfDesdeEntrada($jugador['ff'] ?? 0) === 1) {
+            return 'forfait';
+        }
+    }
+
+    return 'normal';
+}
+
+/**
+ * Efectividad de un jugador según el modo de la mesa (misma lógica que aplicarResultadosMesaCore).
+ *
+ * @param array<string, mixed> $fila
+ */
+function calcularEfectividadJugadorMesa(array $fila, string $modoMesa, int $puntosTorneo, bool $esEmpateManoNula = false): int
+{
+    if ($esEmpateManoNula) {
+        return 0;
+    }
+    if (! class_exists('TorneoCampoNumerico', false)) {
+        require_once __DIR__ . '/TorneoCampoNumerico.php';
+    }
+
+    $ff = torneoFfDesdeEntrada($fila['ff'] ?? 0);
+    $tarjeta = TorneoCampoNumerico::codigoTarjeta($fila['tarjeta'] ?? 0);
+    $resultado1 = TorneoCampoNumerico::intEstadistica($fila['resultado1'] ?? 0);
+    $resultado2 = TorneoCampoNumerico::intEstadistica($fila['resultado2'] ?? 0);
+    $sancion = min(80, max(0, TorneoCampoNumerico::intEstadistica($fila['sancion'] ?? 0)));
+
+    if ($modoMesa === 'tarjeta_grave') {
+        return calcularEfectividadTarjetaGrave($tarjeta === 3 || $tarjeta === 4, $puntosTorneo)['efectividad'];
+    }
+    if ($modoMesa === 'forfait') {
+        return calcularEfectividadForfait($ff === 1, $puntosTorneo)['efectividad'];
+    }
+    if ($sancion > 0) {
+        return evaluarSancionIndividual($resultado1, $resultado2, $sancion, $puntosTorneo)['efectividad'];
+    }
+
+    return calcularEfectividad(max(0, $resultado1 - $sancion), $resultado2, $puntosTorneo, $ff, $tarjeta, 0);
+}
+
+/**
+ * Ajusta PF/PC antes de validar: misma lógica que el ingreso manual tras FF o tarjeta grave;
+ * en mesas normales trunca negativos (legacy Access).
+ *
+ * @param array<int, array<string, mixed>> $jugadores
+ */
+function normalizarResultadosEntradaMesa(
+    array &$jugadores,
+    bool $hayForfaitEnMesa,
+    bool $hayTarjetaGraveEnMesa,
+    int $puntosTorneo
+): void {
+    if (! class_exists('TorneoCampoNumerico', false)) {
+        require_once __DIR__ . '/TorneoCampoNumerico.php';
+    }
+
+    foreach ($jugadores as &$jugador) {
+        $ff = torneoFfDesdeEntrada($jugador['ff'] ?? 0);
+        $tarjeta = \TorneoCampoNumerico::codigoTarjeta($jugador['tarjeta'] ?? 0);
+        $r1 = \TorneoCampoNumerico::intEstadistica($jugador['resultado1'] ?? 0);
+        $r2 = \TorneoCampoNumerico::intEstadistica($jugador['resultado2'] ?? 0);
+
+        if ($hayTarjetaGraveEnMesa) {
+            $calc = calcularEfectividadTarjetaGrave($tarjeta === 3 || $tarjeta === 4, $puntosTorneo);
+            $jugador['resultado1'] = $calc['resultado1'];
+            $jugador['resultado2'] = $calc['resultado2'];
+        } elseif ($hayForfaitEnMesa) {
+            $calc = calcularEfectividadForfait($ff === 1, $puntosTorneo);
+            $jugador['resultado1'] = $calc['resultado1'];
+            $jugador['resultado2'] = $calc['resultado2'];
+        } else {
+            $jugador['resultado1'] = max(0, $r1);
+            $jugador['resultado2'] = max(0, $r2);
+        }
+        $jugador['ff'] = $ff;
+    }
+    unset($jugador);
+}

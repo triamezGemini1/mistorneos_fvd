@@ -7,109 +7,14 @@
 
 require_once __DIR__ . '/../../lib/app_helpers.php';
 require_once __DIR__ . '/../../lib/Tournament/Services/PaginationService.php';
+require_once __DIR__ . '/../../lib/ResultadosReportePaginacion.php';
 
 // Configuración de paginación
-$items_por_pagina_club = 10; // Clubes por página
+$items_por_pagina_club = ResultadosReportePaginacion::PER_PAGE;
 $pagina_actual_club = isset($_GET['pagina']) ? max(1, (int)$_GET['pagina']) : 1;
 
-// Función helper para generar HTML del paginador
-function generarPaginadorClubs($pagina_actual, $total_paginas, $base_url, $parametros_get = []) {
-    if ($total_paginas <= 1) {
-        return '';
-    }
-    $buildUrl = static function ($base_url, array $params): string {
-        $sep = (strpos($base_url, '?') !== false) ? '&' : '?';
-        return $base_url . $sep . http_build_query($params);
-    };
-    
-    $html = '<div class="flex items-center justify-center gap-2 mt-6 mb-4">';
-    $html .= '<div class="flex items-center gap-1">';
-    
-    // Botón Primera página
-    if ($pagina_actual > 1) {
-        $parametros_get['pagina'] = 1;
-        $url = $buildUrl($base_url, $parametros_get);
-        $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition"><i class="fas fa-angle-double-left"></i></a>';
-    } else {
-        $html .= '<span class="px-3 py-2 bg-gray-300 text-gray-500 rounded cursor-not-allowed"><i class="fas fa-angle-double-left"></i></span>';
-    }
-    
-    // Botón Página anterior
-    if ($pagina_actual > 1) {
-        $parametros_get['pagina'] = $pagina_actual - 1;
-        $url = $buildUrl($base_url, $parametros_get);
-        $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition"><i class="fas fa-angle-left"></i></a>';
-    } else {
-        $html .= '<span class="px-3 py-2 bg-gray-300 text-gray-500 rounded cursor-not-allowed"><i class="fas fa-angle-left"></i></span>';
-    }
-    
-    // Números de página
-    $inicio = max(1, $pagina_actual - 2);
-    $fin = min($total_paginas, $pagina_actual + 2);
-    
-    if ($inicio > 1) {
-        $parametros_get['pagina'] = 1;
-        $url = $buildUrl($base_url, $parametros_get);
-        $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-white text-purple-600 rounded hover:bg-purple-50 transition">1</a>';
-        if ($inicio > 2) {
-            $html .= '<span class="px-2 text-gray-500">...</span>';
-        }
-    }
-    
-    for ($i = $inicio; $i <= $fin; $i++) {
-        if ($i == $pagina_actual) {
-            $html .= '<span class="px-3 py-2 bg-purple-600 text-white rounded font-bold">' . $i . '</span>';
-        } else {
-            $parametros_get['pagina'] = $i;
-            $url = $buildUrl($base_url, $parametros_get);
-            $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-white text-purple-600 rounded hover:bg-purple-50 transition">' . $i . '</a>';
-        }
-    }
-    
-    if ($fin < $total_paginas) {
-        if ($fin < $total_paginas - 1) {
-            $html .= '<span class="px-2 text-gray-500">...</span>';
-        }
-        $parametros_get['pagina'] = $total_paginas;
-        $url = $buildUrl($base_url, $parametros_get);
-        $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-white text-purple-600 rounded hover:bg-purple-50 transition">' . $total_paginas . '</a>';
-    }
-    
-    // Botón Página siguiente
-    if ($pagina_actual < $total_paginas) {
-        $parametros_get['pagina'] = $pagina_actual + 1;
-        $url = $buildUrl($base_url, $parametros_get);
-        $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition"><i class="fas fa-angle-right"></i></a>';
-    } else {
-        $html .= '<span class="px-3 py-2 bg-gray-300 text-gray-500 rounded cursor-not-allowed"><i class="fas fa-angle-right"></i></span>';
-    }
-    
-    // Botón Última página
-    if ($pagina_actual < $total_paginas) {
-        $parametros_get['pagina'] = $total_paginas;
-        $url = $buildUrl($base_url, $parametros_get);
-        $html .= '<a href="' . htmlspecialchars($url) . '" class="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition"><i class="fas fa-angle-double-right"></i></a>';
-    } else {
-        $html .= '<span class="px-3 py-2 bg-gray-300 text-gray-500 rounded cursor-not-allowed"><i class="fas fa-angle-double-right"></i></span>';
-    }
-    
-    $html .= '</div>';
-    $html .= '<div class="ml-4 text-sm text-gray-600">';
-    $html .= 'Página ' . $pagina_actual . ' de ' . $total_paginas;
-    $html .= '</div>';
-    $html .= '</div>';
-    
-    return $html;
-}
-
 require_once __DIR__ . '/../../lib/ResultadosPorClubHelper.php';
-
-// Asegurar que las posiciones estén actualizadas
-if (function_exists('recalcularRankingSegunModalidad')) {
-    recalcularRankingSegunModalidad($torneo_id);
-} elseif (function_exists('recalcularPosiciones')) {
-    recalcularPosiciones($torneo_id);
-}
+require_once __DIR__ . '/../../lib/ResultadosReporteData.php';
 
 // Obtener información del torneo
 $pareclub = (int)($torneo['pareclub'] ?? 0);
@@ -367,7 +272,7 @@ if (!isset($total_clubes)) {
     $total_clubes = count($resultados_por_club ?? []);
 }
 if (!isset($total_paginas_club)) {
-    $ppc = (int) ($items_por_pagina_club ?? 10);
+    $ppc = (int) ($items_por_pagina_club ?? ResultadosReportePaginacion::PER_PAGE);
     $pac = isset($_GET['pagina']) ? (int) $_GET['pagina'] : 1;
     $p_fb = \Tournament\Services\PaginationService::getParams((int) $total_clubes, $pac, $ppc);
     $total_paginas_club = $p_fb['total_pages'];
@@ -473,14 +378,14 @@ $base_url_return = $use_standalone ? $script_actual : 'index.php?page=torneo_ges
             <!-- Título y nombre del torneo centrados -->
             <div class="flex-1 flex flex-col items-center justify-center text-center">
                 <h1 class="text-4xl font-extrabold text-purple-700 tracking-tight mb-2">
-                    RESULTADOS POR CLUB
+                    RESULTADOS POR ASOCIACIÓN
                 </h1>
                 <h3 class="text-2xl font-semibold text-gray-600">
                     <i class="fas fa-trophy mr-2"></i>
                     <?= htmlspecialchars($torneo['nombre']) ?>
                 </h3>
                 <span class="mt-2 inline-block px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
-                    <i class="fas fa-users mr-1"></i>Límite: <?= $limite_jugadores_por_club ?> mejor(es) jugador(es) por club
+                    <i class="fas fa-users mr-1"></i>Límite: <?= $limite_jugadores_por_club ?> mejor(es) jugador(es) por asociación
                 </span>
                 <?php if (!empty($clubes_filtro_ids)): ?>
                 <span class="mt-2 ml-2 inline-block px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
@@ -530,7 +435,7 @@ $base_url_return = $use_standalone ? $script_actual : 'index.php?page=torneo_ges
     <div id="vistaResumen" class="<?= $vista === 'resumen' ? '' : 'hidden' ?>">
         <div class="bg-white rounded-2xl shadow-2xl p-6">
             <h2 class="text-3xl font-bold text-purple-700 mb-4 text-center">
-                <i class="fas fa-chart-bar mr-3"></i>Resultados Resumidos por Club
+                <i class="fas fa-chart-bar mr-3"></i>Resultados Resumidos por Asociación
                 <span class="text-lg text-blue-600 block mt-2 font-semibold">
                     <i class="fas fa-info-circle mr-2"></i>Total de clubes: <?= $total_clubes ?? count($resultados_por_club ?? []) ?>
                 </span>
@@ -555,7 +460,7 @@ $base_url_return = $use_standalone ? $script_actual : 'index.php?page=torneo_ges
                     <thead>
                         <tr class="bg-gradient-to-r from-purple-600 to-indigo-700 text-white">
                             <th class="px-4 py-4 text-left font-bold">Pos</th>
-                            <th class="px-4 py-4 text-left font-bold">Club</th>
+                            <th class="px-4 py-4 text-left font-bold"><?= htmlspecialchars(ResultadosReporteData::etiquetaAsociacion()) ?></th>
                             <th class="px-4 py-4 text-center font-bold">Jugadores</th>
                             <th class="px-4 py-4 text-center font-bold">Ganados</th>
                             <th class="px-4 py-4 text-center font-bold">Perdidos</th>
@@ -620,19 +525,19 @@ $base_url_return = $use_standalone ? $script_actual : 'index.php?page=torneo_ges
             </div>
             
             <!-- Paginador para vista resumida -->
-            <?php 
-            if (!empty($resultados_por_club_mostrar) && isset($total_paginas_club) && $total_paginas_club > 1) {
-                // Construir URL base para el paginador
-                $parametros_get_club = ['action' => 'resultados_por_club', 'torneo_id' => $torneo_id, 'vista' => 'resumen'];
-                // Preservar otros parámetros GET si existen
-                foreach ($_GET as $key => $value) {
-                    if ($key !== 'pagina' && $key !== 'action' && $key !== 'torneo_id' && $key !== 'vista') {
-                        $parametros_get_club[$key] = $value;
-                    }
-                }
-                $use_standalone_club = $use_standalone;
-                $base_url_club = $base_url_return;
-                echo generarPaginadorClubs($pagina_actual_club, $total_paginas_club, $base_url_club, $parametros_get_club);
+            <?php
+            if (!empty($resultados_por_club_mostrar) && (int) ($total_clubes ?? 0) > 0) {
+                echo ResultadosReportePaginacion::renderForTorneoReport(
+                    (int) $pagina_actual_club,
+                    (int) $total_paginas_club,
+                    (int) $total_clubes,
+                    (int) $items_por_pagina_club,
+                    $base_url_return,
+                    $use_standalone,
+                    ['action' => 'resultados_por_club', 'torneo_id' => $torneo_id, 'vista' => 'resumen'],
+                    'clubes',
+                    ['vista']
+                );
             }
             ?>
         </div>
@@ -676,7 +581,7 @@ $base_url_return = $use_standalone ? $script_actual : 'index.php?page=torneo_ges
                         <?php if (!$club_seleccionado_id): ?>
                         <a href="<?= $url_base ?>&club_id=<?= $club_data['club_id'] ?>" 
                            class="mt-2 inline-block text-sm text-purple-600 hover:text-purple-800 hover:underline">
-                            <i class="fas fa-eye mr-1"></i>Ver solo este club
+                            <i class="fas fa-eye mr-1"></i>Ver solo esta asociación
                         </a>
                         <?php endif; ?>
                     </div>
@@ -705,7 +610,7 @@ $base_url_return = $use_standalone ? $script_actual : 'index.php?page=torneo_ges
                     <thead>
                         <tr class="bg-gradient-to-r from-gray-600 to-gray-700 text-white">
                             <th class="px-4 py-3 text-left font-bold">Pos</th>
-                            <th class="px-4 py-3 text-center font-bold">ID Usuario</th>
+                            <th class="px-4 py-3 text-center font-bold"><?= htmlspecialchars(ResultadosReporteData::etiquetaColumnaIdentificador(false)) ?></th>
                             <th class="px-4 py-3 text-left font-bold">Jugador</th>
                             <th class="px-4 py-3 text-center font-bold">G</th>
                             <th class="px-4 py-3 text-center font-bold">P</th>
@@ -737,7 +642,7 @@ $base_url_return = $use_standalone ? $script_actual : 'index.php?page=torneo_ges
                                 <?php endif; ?>
                             </td>
                             <td class="px-4 py-3 text-center">
-                                <code><?= htmlspecialchars($jugador['id_usuario'] ?? 'N/A') ?></code>
+                                <code><?= htmlspecialchars(ResultadosReporteData::textoIdentificadorFila($jugador, false)) ?></code>
                             </td>
                             <td class="px-4 py-3">
                                 <div class="font-semibold"><?= htmlspecialchars($jugador['nombre'] ?? 'N/A') ?></div>
@@ -766,19 +671,19 @@ $base_url_return = $use_standalone ? $script_actual : 'index.php?page=torneo_ges
         ?>
         
         <!-- Paginador para vista detallada -->
-        <?php 
-        if (!empty($resultados_por_club_mostrar) && isset($total_paginas_club) && $total_paginas_club > 1) {
-            // Construir URL base para el paginador
-            $parametros_get_club = ['action' => 'resultados_por_club', 'torneo_id' => $torneo_id, 'vista' => 'detallada'];
-            // Preservar otros parámetros GET si existen
-            foreach ($_GET as $key => $value) {
-                if ($key !== 'pagina' && $key !== 'action' && $key !== 'torneo_id' && $key !== 'vista') {
-                    $parametros_get_club[$key] = $value;
-                }
-            }
-            $use_standalone_club = (basename($_SERVER['PHP_SELF'] ?? '') === 'admin_torneo.php');
-            $base_url_club = $use_standalone_club ? 'admin_torneo.php' : 'index.php?page=torneo_gestion';
-            echo generarPaginadorClubs($pagina_actual_club, $total_paginas_club, $base_url_club, $parametros_get_club);
+        <?php
+        if (!empty($resultados_por_club_mostrar) && (int) ($total_clubes ?? 0) > 0) {
+            echo ResultadosReportePaginacion::renderForTorneoReport(
+                (int) $pagina_actual_club,
+                (int) $total_paginas_club,
+                (int) $total_clubes,
+                (int) $items_por_pagina_club,
+                $base_url_return,
+                $use_standalone,
+                ['action' => 'resultados_por_club', 'torneo_id' => $torneo_id, 'vista' => 'detallada'],
+                'clubes',
+                ['vista']
+            );
         }
         ?>
     </div>

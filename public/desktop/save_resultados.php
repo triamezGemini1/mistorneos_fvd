@@ -6,7 +6,7 @@
  * 1. Recepción de datos: Puntos (resultado1/2), Sanciones, Tarjetas, Faltas (ff), Observaciones.
  * 2. Transacción SQLite: todo o nada; rollback si algo falla.
  * 3. Estatus: marca la mesa como completada (registrado=1) para que el contador del Panel baje.
- * 4. Ejecución del core: actualizarEstadisticasInscritos() actualiza la clasificación en la tabla inscritos local.
+ * 4. Ejecución del core: actualizarEstadisticasInscritos() sincroniza stats; la posición oficial se cierra al generar la siguiente ronda.
  *    Esto debe ejecutarse antes de permitir el Paso 8 (Generar Ronda X+1).
  * 5. Redirección: panel_torneo.php?torneo_id=X&msg=resultados_guardados
  */
@@ -125,6 +125,7 @@ try {
     }
 
     actualizarEstadisticasInscritos($torneo_id);
+    reclasificarSiUltimaRondaTorneoCompleta($torneo_id);
     $pdo->commit();
 
     ob_end_clean();

@@ -86,7 +86,7 @@ if ($action === 'list') {
         $has_id_usuario = (bool) $pdo->query("SHOW COLUMNS FROM directorio_clubes LIKE 'id_usuario'")->fetch();
         $total = (int) $pdo->query("SELECT COUNT(*) FROM directorio_clubes")->fetchColumn();
         $current_page = isset($_GET['p']) ? max(1, (int)$_GET['p']) : 1;
-        $per_page = isset($_GET['per_page']) ? max(10, min(100, (int)$_GET['per_page'])) : 25;
+        $per_page = Pagination::DEFAULT_PER_PAGE;
         $pagination = new Pagination($total, $current_page, $per_page);
         $sel_usuario = $has_id_usuario ? ", dc.id_usuario, u.nombre AS usuario_vinculado_nombre" : "";
         $join_usuario = $has_id_usuario ? " LEFT JOIN usuarios u ON u.id = dc.id_usuario" : "";

@@ -5,6 +5,7 @@
 if (!class_exists('AppHelpers', false)) {
     require_once __DIR__ . '/../../lib/app_helpers.php';
 }
+require_once __DIR__ . '/../../lib/ResultadosReportePaginacion.php';
 $script_actual = basename($_SERVER['PHP_SELF'] ?? '');
 $use_standalone = in_array($script_actual, ['admin_torneo.php', 'panel_torneo.php'], true);
 $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
@@ -15,17 +16,16 @@ $torneo = $reporte['torneo'] ?? [];
 $rondasDisponibles = $reporte['rondas_disponibles'] ?? [];
 $rondaActual = (int) ($reporte['ronda_actual'] ?? 0);
 $rondaData = $reporte['ronda'] ?? null;
-$paginacion = $reporte['paginacion'] ?? ['pagina' => 1, 'por_pagina' => 10, 'total_mesas' => 0, 'total_paginas' => 0];
+$paginacion = $reporte['paginacion'] ?? ['pagina' => 1, 'por_pagina' => ResultadosReportePaginacion::PER_PAGE, 'total_mesas' => 0, 'total_paginas' => 0];
 $leyenda = $reporte['leyenda'] ?? [];
 $criterioClasif = $reporte['orden_clasificacion_criterio'] ?? '';
 $modalidad_etiqueta = $reporte['modalidad_etiqueta'] ?? '';
 $torneo_id = (int) ($torneo['id'] ?? $torneo_id ?? 0);
 $pagina = (int) ($paginacion['pagina'] ?? 1);
-$porPagina = (int) ($paginacion['por_pagina'] ?? 10);
 $totalPaginas = (int) ($paginacion['total_paginas'] ?? 0);
+$porPagina = ResultadosReportePaginacion::PER_PAGE;
+$totalMesas = (int) ($paginacion['total_mesas'] ?? 0);
 $asset_css = AppHelpers::url('assets/css/reporte-estructura-mesas.css');
-
-$urlReporteBase = $base_url . $action_param . 'action=reporte_estructura_mesas&torneo_id=' . $torneo_id;
 ?>
 <link rel="stylesheet" href="<?php echo htmlspecialchars($asset_css, ENT_QUOTES, 'UTF-8'); ?>">
 
@@ -79,14 +79,6 @@ $urlReporteBase = $base_url . $action_param . 'action=reporte_estructura_mesas&t
                         <option value="<?php echo (int) $nr; ?>" <?php echo (int) $nr === $rondaActual ? 'selected' : ''; ?>>
                             Ronda <?php echo (int) $nr; ?>
                         </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label class="block text-xs font-semibold text-slate-600">
-                Mesas por página
-                <select name="por_pagina" class="mt-1 block rounded-md border border-slate-300 px-2 py-1.5 text-sm" onchange="this.form.pagina.value=1; this.form.submit()">
-                    <?php foreach ([6, 8, 10, 12, 16, 20] as $pp): ?>
-                        <option value="<?php echo $pp; ?>" <?php echo $pp === $porPagina ? 'selected' : ''; ?>><?php echo $pp; ?></option>
                     <?php endforeach; ?>
                 </select>
             </label>
@@ -184,28 +176,23 @@ $urlReporteBase = $base_url . $action_param . 'action=reporte_estructura_mesas&t
                 <?php endif; ?>
             </div>
 
-            <?php if ($totalPaginas > 1): ?>
-            <nav class="rem-paginador rem-no-print" aria-label="Paginación mesas">
+            <?php if ($totalMesas > 0): ?>
                 <?php
-                $urlPag = static function (int $p) use ($urlReporteBase, $rondaActual, $porPagina): string {
-                    return $urlReporteBase . '&ronda=' . $rondaActual . '&pagina=' . $p . '&por_pagina=' . $porPagina;
-                };
+                echo ResultadosReportePaginacion::renderForTorneoReport(
+                    (int) $pagina,
+                    (int) max(1, $totalPaginas),
+                    (int) $totalMesas,
+                    (int) $porPagina,
+                    $base_url,
+                    $use_standalone,
+                    [
+                        'action' => 'reporte_estructura_mesas',
+                        'torneo_id' => $torneo_id,
+                        'ronda' => $rondaActual,
+                    ],
+                    'mesas'
+                );
                 ?>
-                <?php if ($pagina > 1): ?>
-                    <a href="<?php echo htmlspecialchars($urlPag($pagina - 1), ENT_QUOTES, 'UTF-8'); ?>" class="rem-page-btn">&laquo; Anterior</a>
-                <?php endif; ?>
-                <?php
-                $inicio = max(1, $pagina - 2);
-                $fin = min($totalPaginas, $pagina + 2);
-                for ($p = $inicio; $p <= $fin; $p++):
-                ?>
-                    <a href="<?php echo htmlspecialchars($urlPag($p), ENT_QUOTES, 'UTF-8'); ?>"
-                       class="rem-page-btn <?php echo $p === $pagina ? 'rem-page-btn--active' : ''; ?>"><?php echo $p; ?></a>
-                <?php endfor; ?>
-                <?php if ($pagina < $totalPaginas): ?>
-                    <a href="<?php echo htmlspecialchars($urlPag($pagina + 1), ENT_QUOTES, 'UTF-8'); ?>" class="rem-page-btn">Siguiente &raquo;</a>
-                <?php endif; ?>
-            </nav>
             <?php endif; ?>
         </section>
     <?php endif; ?>

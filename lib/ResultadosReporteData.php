@@ -2,22 +2,27 @@
 /**
  * Datos agregados para reportes PDF/Excel del módulo de resultados.
  *
- * GFF (ganadas por forfait): mismo criterio que resultados_detalle.php y
- * ResultadosPublicHelper::getPosiciones — COUNT en partiresul con ff = 1 por jugador/torneo.
+ * GFF (ganadas por forfait / tarjeta roja rival): FF y TR comparten la misma contabilidad GFF.
  */
 declare(strict_types=1);
 
 require_once __DIR__ . '/PartiresulEstatusSql.php';
+require_once __DIR__ . '/InscritosHelper.php';
 
 final class ResultadosReporteData
 {
-    /** Normaliza M/F desde GET u otros valores. */
+    public const GENERO_TODOS = 'T';
+
+    /** Normaliza M/F/T desde GET u otros valores. */
     public static function normalizarGeneroQuery(?string $g): ?string
     {
         if ($g === null || $g === '') {
             return null;
         }
         $x = strtoupper(trim($g));
+        if (in_array($x, ['T', 'TODOS', 'ALL', 'A', '*'], true) || str_starts_with($x, 'TOD')) {
+            return self::GENERO_TODOS;
+        }
         if ($x === 'F' || str_starts_with($x, 'F')) {
             return 'F';
         }
@@ -28,16 +33,66 @@ final class ResultadosReporteData
         return null;
     }
 
+    public static function esFiltroGeneroTodos(string $genero): bool
+    {
+        return strtoupper(trim($genero)) === self::GENERO_TODOS;
+    }
+
+    public static function etiquetaGeneroFiltro(string $genero): string
+    {
+        if (self::esFiltroGeneroTodos($genero)) {
+            return 'Todos';
+        }
+
+        return strtoupper(trim($genero)) === 'F' ? 'Femenino' : 'Masculino';
+    }
+
+    /** Columna Equipo solo en torneos por equipos (modalidad 3). */
+    public static function mostrarColumnaEquipo(int $modalidad): bool
+    {
+        return $modalidad === 3;
+    }
+
+    public static function etiquetaAsociacion(): string
+    {
+        return 'Asociación';
+    }
+
+    public static function etiquetaSinAsociacion(): string
+    {
+        return 'Sin asociación';
+    }
+
+    /** Encabezado columna identificador: parejas → código; resto → ID FVD. */
+    public static function etiquetaColumnaIdentificador(bool $esParejas): string
+    {
+        return $esParejas ? 'Cód. pareja' : 'ID FVD';
+    }
+
+    /** Texto público del identificador en filas de clasificación. */
+    public static function textoIdentificadorFila(array $fila, bool $esParejas): string
+    {
+        if ($esParejas) {
+            $cod = trim((string) ($fila['codigo_equipo'] ?? ''));
+
+            return $cod !== '' ? $cod : '—';
+        }
+        if (! class_exists('NumfvdHelper', false)) {
+            require_once __DIR__ . '/NumfvdHelper.php';
+        }
+        $txt = NumfvdHelper::textoMostrar($fila, false);
+
+        return $txt !== '—' ? $txt : '—';
+    }
+
     /**
-     * M o F elegido para el reporte (p. ej. GET genero). No usa datos del torneo (p. ej. tournaments.tipo):
-     * la pertenencia de cada fila al grupo es por el sexo del participante en esa inscripción
-     * (filas construidas desde inscritos + usuarios / partiresul), no por la configuración del torneo.
+     * M, F o T (todos) elegido para el reporte.
      */
     public static function generoFiltroDesdeParametro(?string $generoGet): string
     {
         $n = self::normalizarGeneroQuery($generoGet);
 
-        return $n ?? 'M';
+        return $n ?? 'T';
     }
 
     /** @deprecated Usar {@see generoFiltroDesdeParametro}; el parámetro torneo ya no se usa */
@@ -99,6 +154,10 @@ final class ResultadosReporteData
      */
     public static function filtrarFilasClasificacionPorGenero(array $filas, string $generoObjetivo, int $modalidad): array
     {
+        if (self::esFiltroGeneroTodos($generoObjetivo)) {
+            return $filas;
+        }
+
         $g = strtoupper($generoObjetivo) === 'F' ? 'F' : 'M';
         if (! in_array($modalidad, [2, 4], true)) {
             $out = [];
@@ -213,10 +272,129 @@ final class ResultadosReporteData
         return $filas;
     }
 
-    /** Subconsulta COUNT GFF (forfait) por jugador/torneo; segura si ff no es numérico. */
+    /**
+     * Filtra por género (si aplica) y ordena por posición persistida en inscritos.
+     * No recalcula ni renumera: la clasificación se cierra al generar la siguiente ronda o finalizar el torneo.
+     *
+     * @param list<array<string, mixed>> $filas
+     * @return list<array<string, mixed>>
+     */
+    public static function aplicarRankingPorGenero(array $filas, string $genero, int $modalidad): array
+    {
+        if (! self::esFiltroGeneroTodos($genero)) {
+            $filas = self::filtrarFilasClasificacionPorGenero($filas, $genero, $modalidad);
+        }
+
+        return self::ordenarFilasComoPosicionesTorneo($filas);
+    }
+
+    /**
+     * Fragmentos SQL compartidos para GFF = victorias por FF rival/compañero + TR (tarjeta roja/negra rival/compañero).
+     *
+     * @return array{joins: string, where_victoria: string, where_incidencia: string}
+     */
+    public static function sqlPartesConteoGff(): array
+    {
+        if (! class_exists('InscritosReporteStatsHelper', false)) {
+            require_once __DIR__ . '/InscritosReporteStatsHelper.php';
+        }
+        $wRegPr1 = PartiresulEstatusSql::whereRegistradoUno('pr1');
+        $wFf0Pr1 = PartiresulEstatusSql::whereFfCero('pr1');
+        $wFfOpp = PartiresulEstatusSql::whereFfUno('pr_oponente');
+        $wFfComp = PartiresulEstatusSql::whereFfUno('pr_companero');
+        $r1 = InscritosHelper::sqlExprColumnaNumerica('pr1.resultado1');
+        $r2 = InscritosHelper::sqlExprColumnaNumerica('pr1.resultado2');
+        $ef = InscritosHelper::sqlExprColumnaNumerica('pr1.efectividad');
+        $t1 = InscritosReporteStatsHelper::sqlExprTarjetaCodigoFvd('pr1.tarjeta');
+        $tOpp = InscritosReporteStatsHelper::sqlExprTarjetaCodigoFvd('pr_oponente.tarjeta');
+        $tComp = InscritosReporteStatsHelper::sqlExprTarjetaCodigoFvd('pr_companero.tarjeta');
+
+        $joins = '
+            LEFT JOIN partiresul pr_oponente ON pr1.id_torneo = pr_oponente.id_torneo
+                AND pr1.partida = pr_oponente.partida
+                AND pr1.mesa = pr_oponente.mesa
+                AND pr_oponente.id_usuario != pr1.id_usuario
+                AND (
+                    (pr1.secuencia IN (1, 2) AND pr_oponente.secuencia IN (3, 4)) OR
+                    (pr1.secuencia IN (3, 4) AND pr_oponente.secuencia IN (1, 2))
+                )
+            LEFT JOIN partiresul pr_companero ON pr1.id_torneo = pr_companero.id_torneo
+                AND pr1.partida = pr_companero.partida
+                AND pr1.mesa = pr_companero.mesa
+                AND pr_companero.id_usuario != pr1.id_usuario
+                AND (
+                    (pr1.secuencia IN (1, 2) AND pr_companero.secuencia IN (1, 2) AND pr_companero.secuencia != pr1.secuencia) OR
+                    (pr1.secuencia IN (3, 4) AND pr_companero.secuencia IN (3, 4) AND pr_companero.secuencia != pr1.secuencia)
+                )';
+
+        $whereVictoria = "
+                AND {$wRegPr1}
+                AND {$wFf0Pr1}
+                AND {$t1} NOT IN (3, 4)
+                AND {$r1} > {$r2}
+                AND {$ef} > 0";
+
+        $whereIncidencia = "
+                AND (({$wFfOpp}) OR ({$wFfComp}) OR ({$tOpp} IN (3, 4)) OR ({$tComp} IN (3, 4)))";
+
+        return [
+            'joins' => $joins,
+            'where_victoria' => $whereVictoria,
+            'where_incidencia' => $whereIncidencia,
+        ];
+    }
+
+    /**
+     * GFF: partidas ganadas por forfait (FF) o tarjeta roja/negra (TR) del rival o compañero.
+     */
+    public static function sqlGanadasPorForfaitSubquery(string $iAlias = 'i'): string
+    {
+        self::validarAliasTabla($iAlias);
+        $parts = self::sqlPartesConteoGff();
+
+        return "(
+            SELECT COUNT(DISTINCT pr1.partida, pr1.mesa)
+            FROM partiresul pr1
+            {$parts['joins']}
+            WHERE pr1.id_usuario = {$iAlias}.id_usuario
+                AND pr1.id_torneo = {$iAlias}.torneo_id
+                {$parts['where_victoria']}
+                {$parts['where_incidencia']}
+        )";
+    }
+
+    /** Tarjeta vigente: máximo en partiresul registradas (normalizado FVD), fallback inscritos.tarjeta. */
+    public static function sqlTarjetaEfectivaSubquery(string $iAlias = 'i'): string
+    {
+        self::validarAliasTabla($iAlias);
+        $wReg = PartiresulEstatusSql::whereRegistradoUno('pr_tar');
+        if (! class_exists('InscritosReporteStatsHelper', false)) {
+            require_once __DIR__ . '/InscritosReporteStatsHelper.php';
+        }
+        $tn = InscritosReporteStatsHelper::sqlExprTarjetaCodigoFvd('pr_tar.tarjeta');
+        $ti = InscritosHelper::sqlExprColumnaNumerica($iAlias . '.tarjeta');
+
+        return "COALESCE(
+            (SELECT MAX({$tn}) FROM partiresul pr_tar
+             WHERE pr_tar.id_torneo = {$iAlias}.torneo_id
+               AND pr_tar.id_usuario = {$iAlias}.id_usuario
+               AND {$wReg}),
+            {$ti},
+            0
+        )";
+    }
+
+    /** @deprecated Alias: usar {@see sqlGanadasPorForfaitSubquery} */
     public static function sqlGffSubquery(): string
     {
-        return PartiresulEstatusSql::sqlSubqueryCountGffPorUsuarioTorneo();
+        return self::sqlGanadasPorForfaitSubquery('i');
+    }
+
+    private static function validarAliasTabla(string $alias): void
+    {
+        if ($alias === '' || !preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $alias)) {
+            throw new InvalidArgumentException('Alias de tabla inválido: ' . $alias);
+        }
     }
 
     /**
@@ -280,14 +458,10 @@ final class ResultadosReporteData
      */
     public static function cargar(PDO $pdo, int $torneoId, array $torneo, ?string $generoPreferencia = null): array
     {
-        if (function_exists('recalcularRankingSegunModalidad')) {
-            recalcularRankingSegunModalidad($torneoId);
-        } elseif (function_exists('recalcularPosiciones')) {
-            recalcularPosiciones($torneoId);
-        }
+        require_once __DIR__ . '/InscritosReporteStatsHelper.php';
+        InscritosReporteStatsHelper::ensureColumnas($pdo);
+        $cols = InscritosReporteStatsHelper::expresionesSelectClasificacion('i');
 
-        $gffSql = self::sqlGffSubquery();
-        $wRegPr = PartiresulEstatusSql::whereRegistradoUno('pr');
         $sqlParticipantes = "
             SELECT
                 i.id,
@@ -300,11 +474,10 @@ final class ResultadosReporteData
                 i.efectividad,
                 i.puntos,
                 i.ptosrnk,
-                {$gffSql} AS gff,
+                {$cols['gff']},
                 i.sancion,
-                i.tarjeta,
-                (SELECT COUNT(*) FROM partiresul pr WHERE pr.id_usuario = i.id_usuario AND pr.id_torneo = i.torneo_id
-                    AND {$wRegPr} AND pr.mesa = 0 AND pr.resultado1 > pr.resultado2) AS partidas_bye,
+                {$cols['tarjeta']},
+                {$cols['partidas_bye']},
                 u.nombre AS nombre_completo,
                 u.username,
                 u.cedula,
@@ -327,6 +500,10 @@ final class ResultadosReporteData
         $stmt = $pdo->prepare($sqlParticipantes);
         $stmt->execute([$torneoId]);
         $participantes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (class_exists('NumfvdHelper', false) || is_file(__DIR__ . '/NumfvdHelper.php')) {
+            require_once __DIR__ . '/NumfvdHelper.php';
+            $participantes = NumfvdHelper::enriquecerFilas($participantes);
+        }
         foreach ($participantes as &$p) {
             if (empty($p['nombre_equipo']) && !empty($p['codigo_equipo'])) {
                 $p['nombre_equipo'] = 'Equipo ' . $p['codigo_equipo'];
@@ -336,9 +513,7 @@ final class ResultadosReporteData
 
         $modalidad = (int) ($torneo['modalidad'] ?? 0);
         $gen = self::generoFiltroDesdeParametro($generoPreferencia);
-        $participantes = self::filtrarFilasClasificacionPorGenero($participantes, $gen, $modalidad);
-        $participantes = self::ordenarFilasComoPosicionesTorneo($participantes);
-        $participantes = self::reenumerarPosicionMostrada($participantes);
+        $participantes = self::aplicarRankingPorGenero($participantes, $gen, $modalidad);
         if (in_array($modalidad, [2, 4], true)) {
             $participantes = self::colapsarFilasPorPareja($participantes, $pdo, $torneoId);
         }
@@ -409,7 +584,10 @@ final class ResultadosReporteData
 
     public static function tarjetaTexto($tarjeta): string
     {
-        switch ((int)$tarjeta) {
+        if (! class_exists('TorneoCampoNumerico', false)) {
+            require_once __DIR__ . '/TorneoCampoNumerico.php';
+        }
+        switch (TorneoCampoNumerico::codigoTarjeta($tarjeta)) {
             case 1:
                 return 'Amarilla';
             case 3:
@@ -418,6 +596,24 @@ final class ResultadosReporteData
                 return 'Negra';
             default:
                 return '—';
+        }
+    }
+
+    /** Letra corta para reportes: A=amarilla, R=roja, N=negra. */
+    public static function tarjetaLetraReporte($tarjeta): string
+    {
+        if (! class_exists('TorneoCampoNumerico', false)) {
+            require_once __DIR__ . '/TorneoCampoNumerico.php';
+        }
+        switch (TorneoCampoNumerico::codigoTarjeta($tarjeta)) {
+            case 1:
+                return 'A';
+            case 3:
+                return 'R';
+            case 4:
+                return 'N';
+            default:
+                return '';
         }
     }
 }

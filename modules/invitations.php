@@ -424,7 +424,7 @@ if ($action === 'list' && !empty($filter_torneo)) {
     try {
         // Configurar paginación
         $current_page = isset($_GET['p']) ? max(1, (int)$_GET['p']) : 1;
-        $per_page = isset($_GET['per_page']) ? max(10, min(100, (int)$_GET['per_page'])) : 25;
+        $per_page = Pagination::DEFAULT_PER_PAGE;
         
         // Construir query con filtro de torneo
         $where = "WHERE i.torneo_id = ?";

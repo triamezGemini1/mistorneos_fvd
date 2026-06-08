@@ -19,16 +19,17 @@
   }
 
   #page-content-wrapper > nav.navbar {
-    padding-top: 0.4rem !important;
-    padding-bottom: 0.4rem !important;
-    min-height: auto !important;
+    padding-top: calc(0.25rem * 1.4) !important;
+    padding-bottom: calc(0.25rem * 1.4) !important;
+    min-height: var(--fvd-topbar-h, calc(2.75rem * 1.4)) !important;
   }
 
   #page-content-wrapper > nav.navbar .navbar-nav img.me-2,
   #page-content-wrapper > nav.navbar .navbar-nav img.fvd-topbar-logo,
-  #page-content-wrapper > nav.navbar .navbar-nav img[height="39"] {
-    height: 39px !important;
-    max-height: 39px !important;
+  #page-content-wrapper > nav.navbar .navbar-nav img[height="39"],
+  #page-content-wrapper > nav.navbar .navbar-nav img[height="32"] {
+    height: calc(32px * 1.4) !important;
+    max-height: calc(32px * 1.4) !important;
   }
 
   #page-content-wrapper > nav.navbar h5,
@@ -37,11 +38,11 @@
   }
 
   #sidebar .sidebar-header {
-    padding: 1.2rem !important;
+    padding: 0.55rem 0.75rem !important;
   }
 
   #sidebar .sidebar-header h4 {
-    font-size: 1rem;
+    font-size: 0.85rem;
   }
 
   .admin-sidebar .sidebar-header {

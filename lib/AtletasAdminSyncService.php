@@ -162,6 +162,11 @@ final class AtletasAdminSyncService
 
             $password = strlen($cedula) >= 6 ? $cedula : str_pad($cedula, 6, '0', STR_PAD_LEFT);
 
+            require_once __DIR__ . '/AsociacionAdminHelper.php';
+            $clubIdResuelto = $clubId > 0
+                ? (int) (AsociacionAdminHelper::resolverClubIdDesdeEntidad($pdoMain, $entidad) ?? 0)
+                : 0;
+
             $data = [
                 'username' => $username,
                 'password' => $password,
@@ -175,9 +180,9 @@ final class AtletasAdminSyncService
                 'email' => $email,
                 'celular' => self::nullableString($a['celular'] ?? null),
                 'fechnac' => self::normalizarFecha($a['fechnac'] ?? null),
-                'club_id' => $clubId,
-                'entidad' => $entidad,
-                '_allow_club_for_usuario' => true,
+                'club_id' => $clubIdResuelto > 0 ? $clubIdResuelto : ($entidad > 0 ? $entidad : null),
+                'entidad' => $entidad > 0 ? $entidad : null,
+                '_allow_club_for_usuario' => $clubIdResuelto > 0,
             ];
             if (self::usuariosTieneCodOrg($pdoMain)) {
                 $data['cod_org'] = $organizacionId;
@@ -464,6 +469,563 @@ final class AtletasAdminSyncService
         return $reporte;
     }
 
+    public static function existeTablaAtletas(PDO $pdo): bool
+    {
+        try {
+            return (bool) $pdo->query("SHOW TABLES LIKE 'atletas'")->fetchColumn();
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Verifica y opcionalmente sincroniza usuarios desde atletas para cédulas de un archivo de importación.
+     *
+     * @param list<string> $cedulasImport
+     * @return array<string, mixed>
+     */
+    public static function prepararUsuariosParaImportacion(PDO $pdo, array $cedulasImport, bool $ejecutar = false): array
+    {
+        require_once __DIR__ . '/security.php';
+
+        $cedulasSet = [];
+        foreach ($cedulasImport as $raw) {
+            $c = self::normalizarCedula((string) $raw);
+            if ($c !== '') {
+                $cedulasSet[$c] = true;
+            }
+        }
+
+        $reporte = [
+            'ok' => false,
+            'tabla_atletas' => self::existeTablaAtletas($pdo),
+            'ejecutado' => $ejecutar,
+            'total_cedulas' => count($cedulasSet),
+            'en_atletas' => 0,
+            'sin_atleta' => [],
+            'en_usuarios_inicial' => 0,
+            'pendiente_crear' => 0,
+            'pendiente_actualizar' => 0,
+            'usuarios_creados' => 0,
+            'usuarios_actualizados' => 0,
+            'numfvd_actualizados' => 0,
+            'sin_usuario_final' => [],
+            'detalle_cambios' => [],
+            'detalle_pendientes' => [],
+            'errores' => [],
+        ];
+
+        if (!$reporte['tabla_atletas']) {
+            $reporte['errores'][] = 'No existe la tabla atletas. Sincronice el padrón de atletas antes de importar.';
+            return $reporte;
+        }
+        if ($cedulasSet === []) {
+            $reporte['errores'][] = 'No se encontraron cédulas en el archivo.';
+            return $reporte;
+        }
+
+        $atletasPorCedula = [];
+        $stA = $pdo->query(
+            'SELECT id, cedula, sexo, numfvd, asociacion, nombre, celular, email, fechnac FROM atletas'
+        );
+        while ($a = $stA->fetch(PDO::FETCH_ASSOC)) {
+            $c = self::normalizarCedula((string) ($a['cedula'] ?? ''));
+            if ($c !== '' && !isset($atletasPorCedula[$c])) {
+                $atletasPorCedula[$c] = $a;
+            }
+        }
+
+        foreach (array_keys($cedulasSet) as $ced) {
+            if (!isset($atletasPorCedula[$ced])) {
+                $reporte['sin_atleta'][] = $ced;
+            } else {
+                $reporte['en_atletas']++;
+            }
+        }
+
+        $hasUsuarioCodOrg = self::usuariosTieneCodOrg($pdo);
+        $selectUsuCols = $hasUsuarioCodOrg
+            ? 'id, cedula, sexo, numfvd, club_id, entidad, cod_org, celular, email, fechnac, nombre'
+            : 'id, cedula, sexo, numfvd, club_id, entidad, celular, email, fechnac, nombre';
+        $usuariosPorCedula = [];
+        $stU = $pdo->query("SELECT {$selectUsuCols} FROM usuarios");
+        while ($u = $stU->fetch(PDO::FETCH_ASSOC)) {
+            $c = self::normalizarCedula((string) ($u['cedula'] ?? ''));
+            if ($c !== '' && !isset($usuariosPorCedula[$c])) {
+                $usuariosPorCedula[$c] = $u;
+            }
+        }
+        $reporte['en_usuarios_inicial'] = count(array_filter(
+            array_keys($cedulasSet),
+            static fn (string $ced): bool => isset($usuariosPorCedula[$ced])
+        ));
+
+        $usernamesUsados = [];
+        foreach ($pdo->query('SELECT username FROM usuarios')->fetchAll(PDO::FETCH_COLUMN) as $uu) {
+            $t = trim((string) $uu);
+            if ($t !== '') {
+                $usernamesUsados[$t] = true;
+            }
+        }
+
+        $stmtUpdate = $hasUsuarioCodOrg
+            ? $pdo->prepare(
+                'UPDATE usuarios SET sexo = ?, numfvd = ?, club_id = ?, entidad = ?, cod_org = ?, celular = ?, email = ?, fechnac = ?, nombre = COALESCE(NULLIF(?, \'\'), nombre) WHERE id = ?'
+            )
+            : $pdo->prepare(
+                'UPDATE usuarios SET sexo = ?, numfvd = ?, club_id = ?, entidad = ?, celular = ?, email = ?, fechnac = ?, nombre = COALESCE(NULLIF(?, \'\'), nombre) WHERE id = ?'
+            );
+
+        if ($ejecutar) {
+            $pdo->beginTransaction();
+        }
+
+        try {
+            foreach (array_keys($cedulasSet) as $ced) {
+                if (!isset($atletasPorCedula[$ced])) {
+                    continue;
+                }
+                $a = $atletasPorCedula[$ced];
+                $numfvdAtleta = (int) ($a['numfvd'] ?? 0);
+                $nombreAtleta = trim((string) ($a['nombre'] ?? ''));
+
+                if (!isset($usuariosPorCedula[$ced])) {
+                    $reporte['pendiente_crear']++;
+                    if (!$ejecutar) {
+                        $reporte['detalle_pendientes'][] = [
+                            'cedula' => $ced,
+                            'accion' => 'crear',
+                            'numfvd_atleta' => $numfvdAtleta,
+                            'nombre' => $nombreAtleta,
+                        ];
+                        continue;
+                    }
+
+                    $create = self::crearUsuarioDesdeAtleta($pdo, $a, $usernamesUsados);
+                    if (!$create['ok']) {
+                        $reporte['errores'][] = 'Cédula ' . $ced . ': ' . ($create['error'] ?? 'No se pudo crear usuario');
+                        continue;
+                    }
+                    $reporte['usuarios_creados']++;
+                    $reporte['detalle_cambios'][] = [
+                        'cedula' => $ced,
+                        'accion' => 'creado',
+                        'numfvd' => $numfvdAtleta,
+                        'nombre' => $nombreAtleta,
+                    ];
+                    $stRef = $pdo->prepare("SELECT {$selectUsuCols} FROM usuarios WHERE id = ? LIMIT 1");
+                    $stRef->execute([(int) $create['user_id']]);
+                    $usuariosPorCedula[$ced] = $stRef->fetch(PDO::FETCH_ASSOC) ?: [];
+                    continue;
+                }
+
+                $u = $usuariosPorCedula[$ced];
+                $cambio = self::diffUsuarioAtleta($u, $a, $hasUsuarioCodOrg);
+                if ($cambio === []) {
+                    continue;
+                }
+
+                $reporte['pendiente_actualizar']++;
+                if (!$ejecutar) {
+                    $reporte['detalle_pendientes'][] = array_merge(
+                        ['cedula' => $ced, 'accion' => 'actualizar', 'nombre' => $nombreAtleta],
+                        $cambio
+                    );
+                    continue;
+                }
+
+                $nuevoSexo = self::normalizarSexo($a['sexo'] ?? 'M');
+                $nuevoNumfvd = (int) ($a['numfvd'] ?? 0);
+                $nuevaEntidad = (int) ($a['asociacion'] ?? 0);
+                $nuevoClubId = $nuevaEntidad;
+                $nuevaOrganizacionId = self::resolverOrganizacionPorEntidad($pdo, $nuevaEntidad);
+                $nuevoCel = self::nullableString($a['celular'] ?? null);
+                $nuevoEmail = self::nullableString($a['email'] ?? null);
+                $nuevaFechnac = self::normalizarFecha($a['fechnac'] ?? null);
+                $nuevoNombre = $nombreAtleta !== '' ? mb_substr($nombreAtleta, 0, 62) : trim((string) ($u['nombre'] ?? ''));
+
+                if ($hasUsuarioCodOrg) {
+                    $stmtUpdate->execute([
+                        $nuevoSexo, $nuevoNumfvd, $nuevoClubId, $nuevaEntidad, $nuevaOrganizacionId,
+                        $nuevoCel, $nuevoEmail, $nuevaFechnac, $nuevoNombre, (int) ($u['id'] ?? 0),
+                    ]);
+                } else {
+                    $stmtUpdate->execute([
+                        $nuevoSexo, $nuevoNumfvd, $nuevoClubId, $nuevaEntidad,
+                        $nuevoCel, $nuevoEmail, $nuevaFechnac, $nuevoNombre, (int) ($u['id'] ?? 0),
+                    ]);
+                }
+
+                if ($stmtUpdate->rowCount() > 0) {
+                    $reporte['usuarios_actualizados']++;
+                    if (isset($cambio['numfvd'])) {
+                        $reporte['numfvd_actualizados']++;
+                    }
+                    $reporte['detalle_cambios'][] = array_merge(
+                        ['cedula' => $ced, 'accion' => 'actualizado'],
+                        $cambio
+                    );
+                }
+            }
+
+            if ($ejecutar) {
+                $pdo->commit();
+            }
+        } catch (Throwable $e) {
+            if ($ejecutar && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+
+        foreach (array_keys($cedulasSet) as $ced) {
+            if (isset($atletasPorCedula[$ced]) && !isset($usuariosPorCedula[$ced])) {
+                if ($ejecutar) {
+                    $reporte['sin_usuario_final'][] = $ced;
+                }
+            }
+        }
+
+        if (!$ejecutar) {
+            $reporte['pendiente_crear'] = count(array_filter(
+                $reporte['detalle_pendientes'],
+                static fn (array $d): bool => ($d['accion'] ?? '') === 'crear'
+            ));
+            $reporte['pendiente_actualizar'] = count(array_filter(
+                $reporte['detalle_pendientes'],
+                static fn (array $d): bool => ($d['accion'] ?? '') === 'actualizar'
+            ));
+        }
+
+        $reporte['ok'] = $reporte['sin_atleta'] === []
+            && $reporte['errores'] === []
+            && ($ejecutar
+                ? ($reporte['sin_usuario_final'] === [] && $reporte['en_usuarios_inicial'] + $reporte['usuarios_creados'] >= $reporte['en_atletas'])
+                : true);
+
+        return $reporte;
+    }
+
+    /**
+     * Sincroniza todo el padrón atletas → usuarios: crea faltantes y actualiza existentes (numfvd, sexo, entidad…).
+     *
+     * @return array<string, mixed>
+     */
+    public static function sincronizarPadronCompletoAtletasUsuarios(PDO $pdo, bool $ejecutar = false): array
+    {
+        require_once __DIR__ . '/security.php';
+
+        $reporte = [
+            'ok' => false,
+            'tabla_atletas' => self::existeTablaAtletas($pdo),
+            'ejecutado' => $ejecutar,
+            'total_atletas' => 0,
+            'sin_cedula_valida' => 0,
+            'en_usuarios_inicial' => 0,
+            'alineados' => 0,
+            'pendiente_crear' => 0,
+            'pendiente_actualizar' => 0,
+            'usuarios_creados' => 0,
+            'usuarios_actualizados' => 0,
+            'numfvd_actualizados' => 0,
+            'detalle_pendientes' => [],
+            'detalle_cambios' => [],
+            'errores' => [],
+        ];
+
+        if (!$reporte['tabla_atletas']) {
+            $reporte['errores'][] = 'No existe la tabla atletas.';
+            return $reporte;
+        }
+
+        $atletas = $pdo->query(
+            'SELECT id, cedula, sexo, numfvd, asociacion, nombre, celular, email, fechnac FROM atletas ORDER BY id ASC'
+        )->fetchAll(PDO::FETCH_ASSOC);
+        $reporte['total_atletas'] = count($atletas);
+
+        $hasUsuarioCodOrg = self::usuariosTieneCodOrg($pdo);
+        $selectUsuCols = $hasUsuarioCodOrg
+            ? 'id, cedula, sexo, numfvd, club_id, entidad, cod_org, celular, email, fechnac, nombre'
+            : 'id, cedula, sexo, numfvd, club_id, entidad, celular, email, fechnac, nombre';
+
+        $usuariosPorCedula = [];
+        $stU = $pdo->query("SELECT {$selectUsuCols} FROM usuarios");
+        while ($u = $stU->fetch(PDO::FETCH_ASSOC)) {
+            $c = self::normalizarCedula((string) ($u['cedula'] ?? ''));
+            if ($c !== '' && !isset($usuariosPorCedula[$c])) {
+                $usuariosPorCedula[$c] = $u;
+            }
+        }
+
+        $usernamesUsados = [];
+        foreach ($pdo->query('SELECT username FROM usuarios')->fetchAll(PDO::FETCH_COLUMN) as $uu) {
+            $t = trim((string) $uu);
+            if ($t !== '') {
+                $usernamesUsados[$t] = true;
+            }
+        }
+
+        $stmtUpdate = $hasUsuarioCodOrg
+            ? $pdo->prepare(
+                'UPDATE usuarios SET sexo = ?, numfvd = ?, club_id = ?, entidad = ?, cod_org = ?, celular = ?, email = ?, fechnac = ?, nombre = COALESCE(NULLIF(?, \'\'), nombre) WHERE id = ?'
+            )
+            : $pdo->prepare(
+                'UPDATE usuarios SET sexo = ?, numfvd = ?, club_id = ?, entidad = ?, celular = ?, email = ?, fechnac = ?, nombre = COALESCE(NULLIF(?, \'\'), nombre) WHERE id = ?'
+            );
+
+        $maxDetalle = 60;
+
+        if ($ejecutar) {
+            $pdo->beginTransaction();
+        }
+
+        try {
+            foreach ($atletas as $a) {
+                $ced = self::normalizarCedula((string) ($a['cedula'] ?? ''));
+                if ($ced === '') {
+                    $reporte['sin_cedula_valida']++;
+                    continue;
+                }
+
+                $nombreAtleta = trim((string) ($a['nombre'] ?? ''));
+
+                if (!isset($usuariosPorCedula[$ced])) {
+                    if (!$ejecutar) {
+                        $reporte['pendiente_crear']++;
+                        if (count($reporte['detalle_pendientes']) < $maxDetalle) {
+                            $reporte['detalle_pendientes'][] = [
+                                'cedula' => $ced,
+                                'accion' => 'crear',
+                                'numfvd_atleta' => (int) ($a['numfvd'] ?? 0),
+                                'nombre' => $nombreAtleta,
+                            ];
+                        }
+                        continue;
+                    }
+
+                    $create = self::crearUsuarioDesdeAtleta($pdo, $a, $usernamesUsados);
+                    if (!$create['ok']) {
+                        $reporte['errores'][] = 'Cédula ' . $ced . ': ' . ($create['error'] ?? 'No se pudo crear usuario');
+                        continue;
+                    }
+                    $reporte['usuarios_creados']++;
+                    $reporte['detalle_cambios'][] = [
+                        'cedula' => $ced,
+                        'accion' => 'creado',
+                        'numfvd' => (int) ($a['numfvd'] ?? 0),
+                        'nombre' => $nombreAtleta,
+                    ];
+                    $stRef = $pdo->prepare("SELECT {$selectUsuCols} FROM usuarios WHERE id = ? LIMIT 1");
+                    $stRef->execute([(int) $create['user_id']]);
+                    $usuariosPorCedula[$ced] = $stRef->fetch(PDO::FETCH_ASSOC) ?: [];
+                    continue;
+                }
+
+                $reporte['en_usuarios_inicial']++;
+                $u = $usuariosPorCedula[$ced];
+                $cambio = self::diffUsuarioAtleta($u, $a, $hasUsuarioCodOrg);
+                if ($cambio === []) {
+                    $reporte['alineados']++;
+                    continue;
+                }
+
+                if (!$ejecutar) {
+                    $reporte['pendiente_actualizar']++;
+                    if (count($reporte['detalle_pendientes']) < $maxDetalle) {
+                        $reporte['detalle_pendientes'][] = array_merge(
+                            ['cedula' => $ced, 'accion' => 'actualizar', 'nombre' => $nombreAtleta],
+                            $cambio
+                        );
+                    }
+                    continue;
+                }
+
+                $nuevoSexo = self::normalizarSexo($a['sexo'] ?? 'M');
+                $nuevoNumfvd = (int) ($a['numfvd'] ?? 0);
+                $nuevaEntidad = (int) ($a['asociacion'] ?? 0);
+                $nuevoClubId = $nuevaEntidad;
+                $nuevaOrganizacionId = self::resolverOrganizacionPorEntidad($pdo, $nuevaEntidad);
+                $nuevoCel = self::nullableString($a['celular'] ?? null);
+                $nuevoEmail = self::nullableString($a['email'] ?? null);
+                $nuevaFechnac = self::normalizarFecha($a['fechnac'] ?? null);
+                $nuevoNombre = $nombreAtleta !== '' ? mb_substr($nombreAtleta, 0, 62) : trim((string) ($u['nombre'] ?? ''));
+
+                if ($hasUsuarioCodOrg) {
+                    $stmtUpdate->execute([
+                        $nuevoSexo, $nuevoNumfvd, $nuevoClubId, $nuevaEntidad, $nuevaOrganizacionId,
+                        $nuevoCel, $nuevoEmail, $nuevaFechnac, $nuevoNombre, (int) ($u['id'] ?? 0),
+                    ]);
+                } else {
+                    $stmtUpdate->execute([
+                        $nuevoSexo, $nuevoNumfvd, $nuevoClubId, $nuevaEntidad,
+                        $nuevoCel, $nuevoEmail, $nuevaFechnac, $nuevoNombre, (int) ($u['id'] ?? 0),
+                    ]);
+                }
+
+                if ($stmtUpdate->rowCount() > 0) {
+                    $reporte['usuarios_actualizados']++;
+                    if (isset($cambio['numfvd'])) {
+                        $reporte['numfvd_actualizados']++;
+                    }
+                    if (count($reporte['detalle_cambios']) < $maxDetalle) {
+                        $reporte['detalle_cambios'][] = array_merge(
+                            ['cedula' => $ced, 'accion' => 'actualizado'],
+                            $cambio
+                        );
+                    }
+                } else {
+                    $reporte['alineados']++;
+                }
+            }
+
+            if ($ejecutar) {
+                $pdo->commit();
+            }
+        } catch (Throwable $e) {
+            if ($ejecutar && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+
+        if (!$ejecutar) {
+            // Recalcular totales (detalle_pendientes puede estar truncado)
+            $reporte['pendiente_crear'] = 0;
+            $reporte['pendiente_actualizar'] = 0;
+            $reporte['en_usuarios_inicial'] = 0;
+            $reporte['alineados'] = 0;
+            foreach ($atletas as $a) {
+                $ced = self::normalizarCedula((string) ($a['cedula'] ?? ''));
+                if ($ced === '') {
+                    continue;
+                }
+                if (!isset($usuariosPorCedula[$ced])) {
+                    $reporte['pendiente_crear']++;
+                    continue;
+                }
+                $reporte['en_usuarios_inicial']++;
+                $cambio = self::diffUsuarioAtleta($usuariosPorCedula[$ced], $a, $hasUsuarioCodOrg);
+                if ($cambio === []) {
+                    $reporte['alineados']++;
+                } else {
+                    $reporte['pendiente_actualizar']++;
+                }
+            }
+        } else {
+            $reporte['pendiente_crear'] = 0;
+            $reporte['pendiente_actualizar'] = 0;
+        }
+
+        $reporte['ok'] = $reporte['errores'] === [];
+
+        return $reporte;
+    }
+
+    /**
+     * @param array<string, mixed> $usuario
+     * @param array<string, mixed> $atleta
+     * @return array<string, mixed>
+     */
+    private static function diffUsuarioAtleta(array $usuario, array $atleta, bool $hasCodOrg): array
+    {
+        $diff = [];
+        $oldNf = (int) ($usuario['numfvd'] ?? 0);
+        $newNf = (int) ($atleta['numfvd'] ?? 0);
+        if ($oldNf !== $newNf) {
+            $diff['numfvd'] = ['antes' => $oldNf, 'despues' => $newNf];
+        }
+        $oldSexo = self::normalizarSexo($usuario['sexo'] ?? 'M');
+        $newSexo = self::normalizarSexo($atleta['sexo'] ?? 'M');
+        if ($oldSexo !== $newSexo) {
+            $diff['sexo'] = ['antes' => $oldSexo, 'despues' => $newSexo];
+        }
+        $oldEnt = (int) ($usuario['entidad'] ?? 0);
+        $newEnt = (int) ($atleta['asociacion'] ?? 0);
+        if ($oldEnt !== $newEnt) {
+            $diff['entidad'] = ['antes' => $oldEnt, 'despues' => $newEnt];
+        }
+
+        return $diff;
+    }
+
+    /**
+     * @param array<string, mixed> $atleta
+     * @param array<string, true> $usernamesUsados
+     * @return array{ok: bool, user_id?: int, error?: string}
+     */
+    private static function crearUsuarioDesdeAtleta(PDO $pdo, array $atleta, array &$usernamesUsados): array
+    {
+        $cedula = self::normalizarCedula((string) ($atleta['cedula'] ?? ''));
+        if ($cedula === '') {
+            return ['ok' => false, 'error' => 'Cédula inválida'];
+        }
+
+        $idAtleta = (int) ($atleta['id'] ?? 0);
+        $numfvd = (int) ($atleta['numfvd'] ?? 0);
+        $clubId = (int) ($atleta['asociacion'] ?? 0);
+        $entidad = $clubId;
+        $organizacionId = self::resolverOrganizacionPorEntidad($pdo, $entidad);
+        require_once __DIR__ . '/AsociacionAdminHelper.php';
+        $clubIdResuelto = $clubId > 0
+            ? (int) (AsociacionAdminHelper::resolverClubIdDesdeEntidad($pdo, $entidad) ?? 0)
+            : 0;
+        $sexo = self::normalizarSexo($atleta['sexo'] ?? 'M');
+        $nombre = trim((string) ($atleta['nombre'] ?? ''));
+        if ($nombre === '') {
+            $nombre = 'Atleta ' . $cedula;
+        }
+        $nombre = mb_substr($nombre, 0, 62);
+
+        $usernameBase = 'user00' . ($numfvd > 0 ? (string) $numfvd : (string) max(1, $idAtleta));
+        $username = self::usernameUnico($usernameBase, $usernamesUsados);
+
+        $email = trim((string) ($atleta['email'] ?? ''));
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $email = $username . '@atletas.local';
+        }
+
+        $password = strlen($cedula) >= 6 ? $cedula : str_pad($cedula, 6, '0', STR_PAD_LEFT);
+
+        $data = [
+            'username' => $username,
+            'password' => $password,
+            'role' => 'usuario',
+            'status' => 0,
+            'nombre' => $nombre,
+            'cedula' => $cedula,
+            'nacionalidad' => 'V',
+            'sexo' => $sexo,
+            'numfvd' => $numfvd,
+            'email' => $email,
+            'celular' => self::nullableString($atleta['celular'] ?? null),
+            'fechnac' => self::normalizarFecha($atleta['fechnac'] ?? null),
+            'club_id' => $clubIdResuelto > 0 ? $clubIdResuelto : ($entidad > 0 ? $entidad : null),
+            'entidad' => $entidad > 0 ? $entidad : null,
+            '_allow_club_for_usuario' => $clubIdResuelto > 0,
+        ];
+        if (self::usuariosTieneCodOrg($pdo)) {
+            $data['cod_org'] = $organizacionId;
+        }
+
+        $create = Security::createUser($data);
+        if (empty($create['success'])) {
+            return ['ok' => false, 'error' => implode(', ', (array) ($create['errors'] ?? ['error desconocido']))];
+        }
+
+        $newUserId = (int) ($create['user_id'] ?? 0);
+        if ($newUserId > 0) {
+            if (self::usuariosTieneCodOrg($pdo)) {
+                $upd = $pdo->prepare('UPDATE usuarios SET numfvd = ?, cod_org = ? WHERE id = ?');
+                $upd->execute([$numfvd, $organizacionId, $newUserId]);
+            } else {
+                $upd = $pdo->prepare('UPDATE usuarios SET numfvd = ? WHERE id = ?');
+                $upd->execute([$numfvd, $newUserId]);
+            }
+        }
+
+        return ['ok' => true, 'user_id' => $newUserId];
+    }
+
     private static function usuariosTieneCodOrg(PDO $pdo): bool
     {
         static $cached = [];
@@ -515,7 +1077,22 @@ final class AtletasAdminSyncService
 
     private static function normalizarCedula(string $cedula): string
     {
-        return preg_replace('/\D/', '', $cedula) ?? '';
+        $s = trim(preg_replace('/\s+/', '', $cedula));
+        if ($s === '') {
+            return '';
+        }
+        if (preg_match('/^([VEJPvejp])(\d+)$/', $s, $m)) {
+            $s = $m[2];
+        } else {
+            $s = preg_replace('/\D/', '', $s) ?? '';
+        }
+        if ($s === '') {
+            return '';
+        }
+        // Forma canónica: 2550415 y 02550415 son la misma persona
+        $s = ltrim($s, '0');
+
+        return $s !== '' ? $s : '0';
     }
 
     private static function normalizarSexo($sexo): string

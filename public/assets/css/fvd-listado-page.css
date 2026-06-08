@@ -1,0 +1,143 @@
+/**
+ * Listados afiliados / asociaciones — extensiones mínimas.
+ * Base unificada: fvd-app-page.css
+ */
+body.fvd-dashboard-compact.page-fvd-listado main.fvd-main-scroll {
+  /* Hereda gradiente de page-fvd-app-shell; refuerzo por compatibilidad */
+  background: linear-gradient(
+    165deg,
+    var(--fvd-app-bg-soft) 0%,
+    var(--fvd-app-bg) 42%,
+    var(--fvd-app-bg-deep) 100%
+  );
+}
+
+.fvd-listado-page .fvd-listado-filtros .btn-group {
+  flex-wrap: nowrap;
+}
+
+/* Toolbar clubes asociados */
+.fvd-clubes-toolbar {
+  align-items: center;
+}
+
+.fvd-clubes-toolbar-actions {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.fvd-clubes-kpi-group {
+  flex: 0 1 auto;
+}
+
+.fvd-clubes-kpi {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 7.5rem;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 0.45rem;
+  border: 1px solid transparent;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.fvd-clubes-kpi strong {
+  font-size: calc(1.05rem * var(--fvd-app-scale, 1.25));
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--fvd-app-ink, #0a3d47);
+}
+
+.fvd-clubes-kpi span {
+  font-size: calc(0.62rem * var(--fvd-app-scale, 1.25));
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--fvd-app-ink-muted, #155a66);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.fvd-clubes-kpi--asoc {
+  background: var(--fvd-app-kpi-blue, #c8e6f5);
+  border-color: #93c5fd;
+}
+
+.fvd-clubes-kpi--afil {
+  background: var(--fvd-app-kpi-yellow, #fff0c8);
+  border-color: #fde047;
+}
+
+.fvd-clubes-notif-btn {
+  min-height: 2.75rem;
+  padding: 0.4rem 0.9rem;
+  font-size: calc(0.78rem * var(--fvd-app-scale, 1.25));
+  font-weight: 700;
+  color: var(--fvd-app-ink, #0a3d47) !important;
+  background: var(--fvd-app-kpi-sky, #d4eef5);
+  border: 1px solid #93c5fd;
+  border-radius: 0.45rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  white-space: normal;
+  text-align: center;
+  max-width: 14rem;
+  line-height: 1.25;
+}
+
+.fvd-clubes-notif-btn:hover,
+.fvd-clubes-notif-btn:focus {
+  color: var(--fvd-app-ink, #0a3d47) !important;
+  background: var(--fvd-app-kpi-blue, #c8e6f5);
+  border-color: #60a5fa;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+}
+
+.fvd-clubes-notif-btn i {
+  color: var(--fvd-app-ink-muted, #155a66);
+}
+
+.fvd-clubes-list-card .card-header.fvd-clubes-list-header {
+  background: var(--fvd-app-kpi-lavender, #e8d4f5) !important;
+  color: var(--fvd-app-ink, #0a3d47) !important;
+  border-bottom: 1px solid #d8b4fe !important;
+}
+
+.fvd-clubes-list-card .card-header h5 {
+  color: inherit;
+  font-weight: 700;
+}
+
+.fvd-listado-page .fvd-badge-entidad {
+  background: var(--fvd-app-kpi-sky, #d4eef5);
+  color: var(--fvd-app-ink, #0a3d47);
+  border: 1px solid #93c5fd;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 767.98px) {
+  .fvd-clubes-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fvd-clubes-toolbar-actions {
+    justify-content: stretch;
+  }
+
+  .fvd-clubes-kpi-group {
+    width: 100%;
+  }
+
+  .fvd-clubes-kpi {
+    flex: 1 1 calc(50% - 0.5rem);
+  }
+
+  .fvd-clubes-notif-btn {
+    width: 100%;
+    max-width: none;
+  }
+}

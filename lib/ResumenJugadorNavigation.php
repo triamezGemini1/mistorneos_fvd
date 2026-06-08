@@ -20,6 +20,7 @@ final class ResumenJugadorNavigation
         'resultados_reportes_print' => 'resultados_reportes',
         'reporte_estructura_mesas' => 'reporte_estructura_mesas',
         'reporte_parejas_repetidas' => 'reporte_parejas_repetidas',
+        'reporte_sanciones_ronda' => 'reporte_sanciones_ronda',
         'registrar_resultados' => 'registrar_resultados',
         'registrar_resultados_v2' => 'registrar_resultados_v2',
         'mesas' => 'mesas',

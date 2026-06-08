@@ -1,7 +1,7 @@
 ﻿<?php
 /**
  * Publicación de Resultados - Tabla de clasificación (Desktop).
- * Usa recalcularRankingSegunModalidad() (equipos: cadena clasiequi + ptosrnk) y muestra la tabla como la web.
+ * Lee posición persistida en inscritos (sin recalcular en cada consulta).
  */
 declare(strict_types=1);
 require_once __DIR__ . '/desktop_auth.php';
@@ -21,7 +21,6 @@ if ($torneo_id > 0) {
         $st->execute([$torneo_id]);
         $torneo = $st->fetch(PDO::FETCH_ASSOC);
         if ($torneo) {
-            recalcularRankingSegunModalidad($torneo_id);
             $ent = logica_torneo_where_entidad('i');
             $st = $pdo->prepare("
                 SELECT i.id, i.id_usuario, i.posicion, i.ganados, i.perdidos, i.efectividad, i.puntos, i.ptosrnk, i.sancion, i.tarjeta,

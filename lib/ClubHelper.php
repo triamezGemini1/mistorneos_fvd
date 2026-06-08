@@ -57,9 +57,9 @@ class ClubHelper {
 
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
             foreach ($rows as &$row) {
-                $id = (int) ($row['id'] ?? 0);
-                if ($id > 0) {
-                    $row['nombre'] = self::nombreAsociacionCanonico($id, (string) ($row['nombre'] ?? ''));
+                $codigo = self::codigoAsociacionDesdeClubRow($row);
+                if ($codigo > 0) {
+                    $row['nombre'] = self::nombreAsociacionCanonico($codigo, (string) ($row['nombre'] ?? ''));
                 }
             }
             unset($row);
@@ -73,16 +73,73 @@ class ClubHelper {
     }
 
     /**
-     * Afiliados de un club: misma condición que en SQL manual `WHERE entidad = <id del club>`.
-     * `usuarios.entidad` = PK `clubes.id`. Sin CAST, sin club_id/id_club, sin filtro de rol aquí.
+     * Código de asociación almacenado en usuarios.entidad (preferir clubes.entidad; fallback clubes.id legacy).
+     */
+    public static function codigoAsociacionDesdeClubRow(array $clubRow): int
+    {
+        $ent = (int) ($clubRow['entidad'] ?? 0);
+        if ($ent > 0) {
+            return $ent;
+        }
+
+        return (int) ($clubRow['id'] ?? 0);
+    }
+
+    /**
+     * Expresión SQL del código de asociación en fila clubes (alias c).
+     */
+    public static function sqlExprCodigoAsociacionClub(PDO $pdo, string $clubAlias = 'c'): string
+    {
+        if (! preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $clubAlias)) {
+            $clubAlias = 'c';
+        }
+        require_once __DIR__ . '/OrganizacionDashboardStats.php';
+        if (OrganizacionDashboardStats::tableHasColumn($pdo, 'clubes', 'entidad')) {
+            return "COALESCE(NULLIF({$clubAlias}.entidad, 0), {$clubAlias}.id)";
+        }
+
+        return "{$clubAlias}.id";
+    }
+
+    /**
+     * @param int[] $clubIds PK clubes.id
+     * @return int[] códigos usuarios.entidad
+     */
+    public static function codigosAsociacionDesdeClubIds(PDO $pdo, array $clubIds): array
+    {
+        $clubIds = array_values(array_unique(array_filter(array_map('intval', $clubIds), static fn (int $v): bool => $v > 0)));
+        if ($clubIds === []) {
+            return [];
+        }
+        $ph = implode(',', array_fill(0, count($clubIds), '?'));
+        $stmt = $pdo->prepare("SELECT id, entidad FROM clubes WHERE id IN ({$ph})");
+        $stmt->execute($clubIds);
+        $codes = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $cod = self::codigoAsociacionDesdeClubRow($row);
+            if ($cod > 0) {
+                $codes[] = $cod;
+            }
+        }
+
+        return array_values(array_unique($codes));
+    }
+
+    /**
+     * Afiliados de una asociación: usuarios.entidad = código de entidad (no PK clubes.id salvo legacy sin columna entidad).
      *
      * @return array{0: string, 1: list<mixed>}
      */
     public static function afiliadosMatchSqlAndParams(PDO $pdo, array $clubRow, int $clubId): array
     {
+        $codigo = self::codigoAsociacionDesdeClubRow($clubRow);
+        if ($codigo <= 0 && $clubId > 0) {
+            $codigo = $clubId;
+        }
+
         return [
-            '(u.entidad = ?)',
-            [(int) $clubId],
+            '(COALESCE(u.entidad, 0) = ?)',
+            [$codigo],
         ];
     }
 
@@ -94,9 +151,25 @@ class ClubHelper {
         if (! preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $clubAlias)) {
             $clubAlias = 'c';
         }
-        $c = $clubAlias;
+        $expr = self::sqlExprCodigoAsociacionClub($pdo, $clubAlias);
 
-        return "u.entidad = {$c}.id";
+        return "u.entidad = {$expr}";
+    }
+
+    /**
+     * JOIN clubes ← usuarios por código entidad (alias u = usuarios, c = clubes).
+     */
+    public static function sqlJoinClubesOnUsuariosEntidad(PDO $pdo, string $usuarioAlias = 'u', string $clubAlias = 'c'): string
+    {
+        if (! preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $usuarioAlias)) {
+            $usuarioAlias = 'u';
+        }
+        if (! preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $clubAlias)) {
+            $clubAlias = 'c';
+        }
+        $expr = self::sqlExprCodigoAsociacionClub($pdo, $clubAlias);
+
+        return "{$usuarioAlias}.entidad = {$expr}";
     }
 
     private static function hasCodOrg(): bool

@@ -93,9 +93,9 @@ body.fvd-dashboard-compact {
 /* Regla de Densidad de Datos para Tablas Administrativas */
 .table-fvd-compact th,
 .table-fvd-compact td {
-  padding: 6px 12px;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
+  padding: 4px 8px;
+  font-size: 0.8125rem;
+  line-height: 1.22;
   vertical-align: middle;
 }
 
@@ -278,8 +278,18 @@ body.fvd-report-shell,
   background: var(--color-bg-card);
   border: 1px solid var(--color-border-neutral);
   border-radius: var(--radius-ui);
-  padding: 1rem 1.25rem;
+  padding: 0.65rem 0.85rem;
   transition: border-color 0.15s ease;
+}
+
+.fvd-report-shell .table th,
+.fvd-report-shell .table td,
+body.fvd-report-shell .table th,
+body.fvd-report-shell .table td {
+  padding: 0.26rem 0.42rem;
+  font-size: 0.8125rem;
+  line-height: 1.22;
+  vertical-align: middle;
 }
 
 .fvd-report-shell .fvd-report-block:hover {
@@ -327,8 +337,14 @@ body.fvd-report-shell,
 }
 
 /* Tablas Bootstrap en dashboard: densidad por defecto en contenedores admin */
-body.fvd-dashboard-compact .table:not(.table-fvd-compact) {
-  font-size: 0.875rem;
+body.fvd-dashboard-compact .table:not(.table-fvd-compact):not(.no-fvd-compact) {
+  font-size: 0.8125rem;
+}
+
+body.fvd-dashboard-compact .table:not(.table-fvd-compact):not(.no-fvd-compact) > :not(caption) > * > * {
+  padding: 0.26rem 0.42rem;
+  line-height: 1.22;
+  vertical-align: middle;
 }
 
 body.fvd-dashboard-compact .card {

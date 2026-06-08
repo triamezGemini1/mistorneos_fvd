@@ -6,7 +6,11 @@ $script_actual = basename($_SERVER['PHP_SELF'] ?? '');
 $use_standalone = in_array($script_actual, ['admin_torneo.php', 'panel_torneo.php']);
 $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
 $es_parejas_posiciones = in_array((int)($torneo['modalidad'] ?? 0), [2, 4], true);
-$genero_ranking = $genero_ranking ?? 'M';
+$modalidad_torneo_pos = (int) ($torneo['modalidad'] ?? 1);
+$mostrar_col_equipo_pos = ResultadosReporteData::mostrarColumnaEquipo($modalidad_torneo_pos);
+$genero_ranking = $genero_ranking ?? 'T';
+require_once __DIR__ . '/../../../../lib/ResultadosReportePaginacion.php';
+require_once __DIR__ . '/../../../../lib/ResultadosReporteData.php';
 ?>
 
 <?php if (!$use_standalone): ?>
@@ -61,6 +65,9 @@ $genero_ranking = $genero_ranking ?? 'M';
             <a href="<?php echo htmlspecialchars($u('resultados_reportes', ['genero' => $genero_ranking])); ?>" class="btn btn-outline-secondary fw-bold">
                 <i class="fas fa-file-alt mr-1"></i> Todos los reportes
             </a>
+            <a href="<?php echo htmlspecialchars($u('reporte_sanciones_ronda')); ?>" class="btn btn-outline-warning fw-bold border border-dark" title="Tarjetas A/R/N por jugador (M-R-T)">
+                <i class="fas fa-id-card mr-1"></i> Reporte tarjetas
+            </a>
             <a href="<?php echo htmlspecialchars(AppHelpers::url('export_resultados_pdf.php', ['torneo_id' => $tid, 'tipo' => 'todos', 'genero' => $genero_ranking])); ?>" target="_blank" rel="noopener" class="btn btn-outline-danger fw-bold border border-dark" title="Un solo PDF con clasificación, clubes y consolidado">
                 <i class="fas fa-file-pdf mr-1"></i> PDF (todos)
             </a>
@@ -89,6 +96,7 @@ $genero_ranking = $genero_ranking ?? 'M';
     <a href="<?php echo htmlspecialchars(AppHelpers::url('export_resultados_pdf.php', ['torneo_id' => $tid, 'tipo' => 'posiciones', 'genero' => $genero_ranking])); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-danger text-dark fw-bold border border-dark">PDF</a>
     <a href="<?php echo htmlspecialchars($u2('resultados_reportes_print', array_merge(['tipo' => 'posiciones'], ['genero' => $genero_ranking]))); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-warning text-dark fw-bold">Imprimir</a>
     <a href="<?php echo htmlspecialchars($u2('resultados_reportes', ['genero' => $genero_ranking])); ?>" class="btn btn-sm btn-outline-secondary fw-bold">Reportes</a>
+    <a href="<?php echo htmlspecialchars($u2('reporte_sanciones_ronda')); ?>" class="btn btn-sm btn-outline-warning fw-bold border border-dark" title="Tarjetas A/R/N">Tarjetas</a>
     <a href="<?php echo htmlspecialchars(AppHelpers::url('export_resultados_pdf.php', ['torneo_id' => $tid, 'tipo' => 'todos', 'genero' => $genero_ranking])); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-danger fw-bold border border-dark" title="Un solo PDF con todos los bloques">PDF todos</a>
     <a href="<?php echo htmlspecialchars($u2('resultados_reportes_print', array_merge(['tipo' => 'todos'], ['genero' => $genero_ranking]))); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-info fw-bold border border-dark" title="Vista imprimible con todos los bloques">Impr. todos</a>
     <?php endif; ?>
@@ -97,8 +105,8 @@ $genero_ranking = $genero_ranking ?? 'M';
 
     <div class="row">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header">
+            <div class="card fvd-reporte-card">
+                <div class="card-header fvd-reporte-card-header">
                     <h5 class="mb-0"><?php echo $es_parejas_posiciones ? 'Clasificación General de Parejas' : 'Clasificación General'; ?></h5>
                 </div>
                 <div class="card-body">
@@ -108,27 +116,37 @@ $genero_ranking = $genero_ranking ?? 'M';
 
                         return $base_url . ($use_standalone ? '?' : '&') . http_build_query($p);
                     };
+                    $urlGeneroFn = $urlPosGenero;
+                    $generoActual = $genero_ranking;
+                    include __DIR__ . '/../../../../public/includes/partials/fvd_reporte_genero_iconos.php';
                     ?>
-                    <div class="mb-3 btn-group flex-wrap" role="group" aria-label="Clasificación por género">
-                        <a href="<?php echo htmlspecialchars($urlPosGenero('M')); ?>" class="btn btn-sm <?php echo $genero_ranking === 'M' ? 'btn-primary' : 'btn-outline-primary'; ?>">Masculino</a>
-                        <a href="<?php echo htmlspecialchars($urlPosGenero('F')); ?>" class="btn btn-sm <?php echo $genero_ranking === 'F' ? 'btn-primary' : 'btn-outline-primary'; ?>">Femenino</a>
-                    </div>
-                    <p class="small text-muted mb-3">Ranking mostrado solo para el género seleccionado (posiciones reenumeradas dentro del grupo).</p>
                     <?php if (empty($posiciones)): ?>
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle mr-2"></i>
                             Aún no hay jugadores inscritos o no hay posiciones calculadas.
                         </div>
                     <?php else: ?>
+                        <?php
+                        require_once __DIR__ . '/../../../../lib/Tournament/Services/PaginationService.php';
+                        $items_por_pagina_pos = ResultadosReportePaginacion::PER_PAGE;
+                        $pagina_raw_pos = isset($_GET['pagina']) ? (int) $_GET['pagina'] : 1;
+                        $pag_pos = ResultadosReportePaginacion::paginarFilas($posiciones, $pagina_raw_pos, $items_por_pagina_pos);
+                        $posiciones_paginadas = $pag_pos['filas'];
+                        $pagina_actual_pos = $pag_pos['pagina'];
+                        $total_paginas_pos = $pag_pos['total_paginas'];
+                        $total_posiciones = $pag_pos['total'];
+                        ?>
                         <div class="table-responsive">
                             <table class="table table-bordered table-hover">
                                 <thead class="thead-dark">
                                     <tr>
                                         <th>Pos</th>
-                                        <th><?php echo $es_parejas_posiciones ? 'Código pareja' : 'ID Usuario'; ?></th>
+                                        <th><?php echo htmlspecialchars(ResultadosReporteData::etiquetaColumnaIdentificador($es_parejas_posiciones)); ?></th>
                                         <th><?php echo $es_parejas_posiciones ? 'Pareja' : 'Jugador'; ?></th>
+                                        <?php if ($mostrar_col_equipo_pos): ?>
                                         <th>Equipo</th>
-                                        <th>Club</th>
+                                        <?php endif; ?>
+                                        <th><?php echo htmlspecialchars(ResultadosReporteData::etiquetaAsociacion()); ?></th>
                                         <th>G</th>
                                         <th>P</th>
                                         <th>GFF</th>
@@ -140,16 +158,7 @@ $genero_ranking = $genero_ranking ?? 'M';
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php 
-                                    // Calcular paginación antes del loop
-                                    if (!isset($items_por_pagina_pos)) {
-                                        $items_por_pagina_pos = 30;
-                                        $pagina_actual_pos = isset($_GET['pagina']) ? max(1, (int)$_GET['pagina']) : 1;
-                                        $total_posiciones = count($posiciones);
-                                        $total_paginas_pos = max(1, ceil($total_posiciones / $items_por_pagina_pos));
-                                        $posiciones_paginadas = ($total_paginas_pos > 1) ? array_slice($posiciones, ($pagina_actual_pos - 1) * $items_por_pagina_pos, $items_por_pagina_pos) : $posiciones;
-                                    }
-                                    
+                                    <?php
                                     $pos_idx = 0;
                                     foreach ($posiciones_paginadas as $pos): 
                                         $pos_idx++;
@@ -175,7 +184,7 @@ $genero_ranking = $genero_ranking ?? 'M';
                                                     <i class="fas fa-medal text-warning"></i>
                                                 <?php endif; ?>
                                             </td>
-                                            <td><code><?php echo htmlspecialchars((string)($pos['id_usuario'] ?? 'N/A')); ?></code></td>
+                                            <td><code><?php echo htmlspecialchars(ResultadosReporteData::textoIdentificadorFila($pos, $es_parejas_posiciones)); ?></code></td>
                                             <td>
                                                 <?php if ($es_parejas_posiciones): ?>
                                                     <span class="font-weight-bold text-dark">
@@ -198,6 +207,7 @@ $genero_ranking = $genero_ranking ?? 'M';
                                                     <small class="text-muted">(<?php echo $pos['sexo'] == 'M' || $pos['sexo'] == 1 ? '♂' : '♀'; ?>)</small>
                                                 <?php endif; ?>
                                             </td>
+                                            <?php if ($mostrar_col_equipo_pos): ?>
                                             <td>
                                                 <?php 
                                                 $nombre_equipo = $pos['nombre_equipo'] ?? '';
@@ -217,7 +227,8 @@ $genero_ranking = $genero_ranking ?? 'M';
                                                 }
                                                 ?>
                                             </td>
-                                            <td><?php echo htmlspecialchars($pos['club_nombre'] ?? 'Sin Club'); ?></td>
+                                            <?php endif; ?>
+                                            <td><?php echo htmlspecialchars($pos['club_nombre'] ?? ResultadosReporteData::etiquetaSinAsociacion()); ?></td>
                                             <td><strong><?php echo (int)($pos['ganados'] ?? 0); ?></strong></td>
                                             <td><?php echo (int)($pos['perdidos'] ?? 0); ?></td>
                                             <td>
@@ -264,61 +275,24 @@ $genero_ranking = $genero_ranking ?? 'M';
                             </table>
                         </div>
                         
-                        <?php 
-                        // Mostrar paginador si hay más de una página
-                        if ($total_paginas_pos > 1): 
-                            // Construir URL base para el paginador
-                            $parametros_get_pos = ['action' => 'posiciones', 'torneo_id' => $torneo['id']];
-                            // Preservar otros parámetros GET si existen
-                            foreach ($_GET as $key => $value) {
-                                if ($key !== 'pagina' && $key !== 'action' && $key !== 'torneo_id') {
-                                    $parametros_get_pos[$key] = $value;
-                                }
+                        <?php if (($total_posiciones ?? 0) > 0): ?>
+                            <?php
+                            $pagParamsPos = ['action' => 'posiciones', 'torneo_id' => $torneo['id']];
+                            if (($genero_ranking ?? 'T') !== 'T') {
+                                $pagParamsPos['genero'] = $genero_ranking;
                             }
-                        ?>
-                            <div class="mt-4 d-flex justify-content-center align-items-center gap-3">
-                                <?php if ($pagina_actual_pos > 1): ?>
-                                    <?php $parametros_get_pos['pagina'] = 1; ?>
-                                    <a href="<?php echo $base_url . ($use_standalone ? '?' : '&') . http_build_query($parametros_get_pos); ?>" class="btn btn-sm btn-secondary">
-                                        <i class="fas fa-angle-double-left"></i> Primera
-                                    </a>
-                                    <?php $parametros_get_pos['pagina'] = $pagina_actual_pos - 1; ?>
-                                    <a href="<?php echo $base_url . ($use_standalone ? '?' : '&') . http_build_query($parametros_get_pos); ?>" class="btn btn-sm btn-secondary">
-                                        <i class="fas fa-angle-left"></i> Anterior
-                                    </a>
-                                <?php else: ?>
-                                    <span class="btn btn-sm btn-secondary disabled"><i class="fas fa-angle-double-left"></i> Primera</span>
-                                    <span class="btn btn-sm btn-secondary disabled"><i class="fas fa-angle-left"></i> Anterior</span>
-                                <?php endif; ?>
-                                
-                                <span class="badge badge-info">Página <?php echo $pagina_actual_pos; ?> de <?php echo $total_paginas_pos; ?></span>
-                                
-                                <?php if ($pagina_actual_pos < $total_paginas_pos): ?>
-                                    <?php $parametros_get_pos['pagina'] = $pagina_actual_pos + 1; ?>
-                                    <a href="<?php echo $base_url . ($use_standalone ? '?' : '&') . http_build_query($parametros_get_pos); ?>" class="btn btn-sm btn-secondary">
-                                        Siguiente <i class="fas fa-angle-right"></i>
-                                    </a>
-                                    <?php $parametros_get_pos['pagina'] = $total_paginas_pos; ?>
-                                    <a href="<?php echo $base_url . ($use_standalone ? '?' : '&') . http_build_query($parametros_get_pos); ?>" class="btn btn-sm btn-secondary">
-                                        Última <i class="fas fa-angle-double-right"></i>
-                                    </a>
-                                <?php else: ?>
-                                    <span class="btn btn-sm btn-secondary disabled">Siguiente <i class="fas fa-angle-right"></i></span>
-                                    <span class="btn btn-sm btn-secondary disabled">Última <i class="fas fa-angle-double-right"></i></span>
-                                <?php endif; ?>
-                            </div>
+                            echo ResultadosReportePaginacion::renderForTorneoReport(
+                                (int) $pagina_actual_pos,
+                                (int) $total_paginas_pos,
+                                (int) $total_posiciones,
+                                (int) $items_por_pagina_pos,
+                                $base_url,
+                                $use_standalone,
+                                $pagParamsPos,
+                                'jugadores'
+                            );
+                            ?>
                         <?php endif; ?>
-                        
-                        <div class="mt-3">
-                            <small class="text-muted">
-                                <strong>Leyenda:</strong>
-                                <span class="badge badge-warning">1°</span> Oro |
-                                <span class="badge badge-secondary">2°</span> Plata |
-                                <span class="badge badge-light">3°</span> Bronce
-                                <br>
-                                <strong>G:</strong> Ganados | <strong>P:</strong> Perdidos | <strong>GFF:</strong> Ganadas por Forfait | <strong>BYE:</strong> Partidas con descanso (información) | <strong>Efect.:</strong> Efectividad | <strong>Puntos:</strong> Puntos del torneo | <strong>Pts. Rnk:</strong> Puntos de Ranking | <strong>Sanc.:</strong> Sanciones | <strong>Tarj.:</strong> Estado de tarjeta en el torneo (🟨 Amarilla, 🟥 Roja, ⬛ Negra)
-                            </small>
-                        </div>
                     <?php endif; ?>
                 </div>
             </div>

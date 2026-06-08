@@ -72,7 +72,7 @@ $title = $titles[$tipo] ?? 'Reporte';
 <div class="no-print">
     <button type="button" onclick="window.print()">Imprimir / Guardar PDF</button>
     <a href="<?= $esc(ReportReturnNavigation::getReturnAbsoluteUrl()) ?>">Volver a pantalla anterior</a>
-    <a href="<?= $esc(AppHelpers::url('index.php', ['page' => 'torneo_gestion', 'action' => 'resultados_reportes', 'torneo_id' => (int)$torneo_id])) ?>">Volver a reportes</a>
+    <a href="<?= $esc(AppHelpers::url('index.php', ['page' => 'torneo_gestion', 'action' => 'resultados_reportes', 'torneo_id' => (int)$torneo_id, 'genero' => ResultadosReporteData::generoFiltroDesdeParametro($generoGet)])) ?>">Volver a reportes</a>
     <?php
     $origen = [
         'clubes_resumido' => 'resultados_por_club',

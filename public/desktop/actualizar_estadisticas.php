@@ -32,7 +32,7 @@ $url_ok = 'panel_torneo.php?torneo_id=' . $torneo_id . '&msg=estadisticas_actual
 $url_error = 'panel_torneo.php?torneo_id=' . $torneo_id . '&error=';
 
 try {
-    actualizarEstadisticasInscritos($torneo_id);
+    actualizarEstadisticasInscritos($torneo_id, true);
     if ($ajax) {
         ob_end_clean();
         header('Content-Type: application/json; charset=utf-8');

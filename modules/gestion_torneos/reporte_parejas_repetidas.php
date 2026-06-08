@@ -6,6 +6,7 @@ if (!class_exists('AppHelpers', false)) {
     require_once __DIR__ . '/../../lib/app_helpers.php';
 }
 require_once __DIR__ . '/../../lib/ResumenJugadorNavigation.php';
+require_once __DIR__ . '/../../lib/ResultadosReportePaginacion.php';
 
 $script_actual = basename($_SERVER['PHP_SELF'] ?? '');
 $use_standalone = in_array($script_actual, ['admin_torneo.php', 'panel_torneo.php'], true);
@@ -15,6 +16,13 @@ $action_param = $use_standalone ? '?' : '&';
 $reporte = $reporte ?? [];
 $torneo = $reporte['torneo'] ?? [];
 $grupos = $reporte['grupos'] ?? [];
+$pagina_raw = isset($_GET['pagina']) ? (int) $_GET['pagina'] : 1;
+$pag_grupos = ResultadosReportePaginacion::paginarFilas($grupos, $pagina_raw);
+$gruposPagina = $pag_grupos['filas'];
+$paginaActual = $pag_grupos['pagina'];
+$totalPaginas = $pag_grupos['total_paginas'];
+$totalGrupos = $pag_grupos['total'];
+$itemsPorPagina = $pag_grupos['por_pagina'];
 $minVeces = (int) ($reporte['min_veces'] ?? 2);
 $torneo_id = (int) ($torneo['id'] ?? $torneo_id ?? 0);
 $asset_css = AppHelpers::url('assets/css/reporte-estructura-mesas.css');
@@ -85,10 +93,11 @@ $urlBase = $base_url . $action_param . 'action=reporte_parejas_repetidas&torneo_
         </div>
     <?php else: ?>
         <p class="text-sm text-slate-700 mb-3 rem-no-print">
-            <strong><?php echo (int) ($reporte['total_grupos'] ?? count($grupos)); ?></strong> dupla(s) con repetición.
+            <strong><?php echo (int) ($reporte['total_grupos'] ?? $totalGrupos); ?></strong> dupla(s) con repetición
+            · página <?php echo $paginaActual; ?>/<?php echo max(1, $totalPaginas); ?>
         </p>
 
-        <?php foreach ($grupos as $g): ?>
+        <?php foreach ($gruposPagina as $g): ?>
             <section class="rem-ronda-block mb-5 border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
                 <div class="rem-ronda-head px-4 py-3" style="background: linear-gradient(90deg, #9f1239 0%, #e11d48 100%);">
                     <h2 class="text-base font-bold text-white m-0 flex flex-wrap items-center gap-2">
@@ -173,5 +182,24 @@ $urlBase = $base_url . $action_param . 'action=reporte_parejas_repetidas&torneo_
                 </div>
             </section>
         <?php endforeach; ?>
+
+        <?php if ($totalGrupos > 0): ?>
+            <?php
+            echo ResultadosReportePaginacion::renderForTorneoReport(
+                (int) $paginaActual,
+                (int) $totalPaginas,
+                (int) $totalGrupos,
+                (int) $itemsPorPagina,
+                $base_url,
+                $use_standalone,
+                [
+                    'action' => 'reporte_parejas_repetidas',
+                    'torneo_id' => $torneo_id,
+                    'min_veces' => $minVeces,
+                ],
+                'duplas'
+            );
+            ?>
+        <?php endif; ?>
     <?php endif; ?>
 </div>

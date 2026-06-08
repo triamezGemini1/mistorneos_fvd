@@ -16,6 +16,7 @@ require_once __DIR__ . '/../lib/TorneoCampoNumerico.php';
 require_once __DIR__ . '/../lib/Tournament/Handlers/TournamentActionHandler.php';
 require_once __DIR__ . '/../lib/Tournament/Handlers/RoundManagerHandler.php';
 require_once __DIR__ . '/../lib/Tournament/Handlers/TournamentStatusHandler.php';
+require_once __DIR__ . '/../lib/FvdConfig.php';
 
 // Carga solo funciones (p. ej. actualizarEstadisticasInscritos) sin sesión ni router: definir
 // TORNEO_GESTION_SKIP_AUTH y TORNEO_GESTION_SKIP_ROUTER antes de incluir este archivo.
@@ -29,8 +30,8 @@ if (! defined('TORNEO_GESTION_SKIP_AUTH') || ! TORNEO_GESTION_SKIP_AUTH) {
         $action = $_GET['action'] ?? '';
         $torneo_id = (int)($_GET['torneo_id'] ?? 0);
         $inscrito_id = (int)($_GET['inscrito_id'] ?? 0);
-        $allowed = ($torneo_id > 0 && in_array($action, ['resumen_individual', 'posiciones']));
-        if ($allowed && $action === 'resumen_individual') {
+        $allowed = ($torneo_id > 0 && in_array($action, ['resumen_individual', 'resumen_individual_pdf', 'posiciones'], true));
+        if ($allowed && in_array($action, ['resumen_individual', 'resumen_individual_pdf'], true)) {
             $allowed = ($inscrito_id > 0 && $inscrito_id === $user_id);
         }
         if (! $allowed) {
@@ -2068,8 +2069,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                actualizarEstadisticasInscritos($tid);
-                recalcularRankingSegunModalidad($tid);
+                actualizarEstadisticasInscritos($tid, true);
                 $pdo->commit();
 
                 $msg = "Carga aplicada en tabla {$tabla}. Registros procesados: {$ok}.";
@@ -2195,6 +2195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ensureTournamentsLockedColumn();
             try {
                 if ($torneo_id > 0 && tournamentsLockedColumnExists()) {
+                    actualizarEstadisticasInscritos($torneo_id, true);
                     $stmt = DB::pdo()->prepare("UPDATE tournaments SET locked = 1 WHERE id = ?");
                     $stmt->execute([$torneo_id]);
                     $_SESSION['success'] = 'Torneo cerrado definitivamente. No se podrán realizar más cambios.';
@@ -2309,43 +2310,6 @@ try {
         case 'index':
             $filtro_torneos = isset($_GET['filtro']) && in_array($_GET['filtro'], ['realizados', 'en_proceso', 'por_realizar'], true) ? $_GET['filtro'] : null;
             $torneos = obtenerTorneosGestion($user_id, $is_admin_general, $filtro_torneos);
-            if ($is_admin_general && !empty($torneos)) {
-                $club_ids = array_unique(array_filter(array_column($torneos, 'club_responsable')));
-                $entidad_map = [];
-                try {
-                    $cols = DB::pdo()->query("SHOW COLUMNS FROM entidad")->fetchAll(PDO::FETCH_ASSOC);
-                    $codeCol = $nameCol = null;
-                    foreach ($cols as $c) {
-                        $f = strtolower($c['Field'] ?? '');
-                        if (in_array($f, ['codigo', 'cod_entidad', 'id', 'code'])) $codeCol = $f;
-                        if (in_array($f, ['nombre', 'descripcion', 'entidad', 'nombre_entidad'])) $nameCol = $f;
-                    }
-                    if ($codeCol && $nameCol) {
-                        $entidad_map = DB::pdo()->query("SELECT {$codeCol} AS codigo, {$nameCol} AS nombre FROM entidad ORDER BY {$nameCol}")->fetchAll(PDO::FETCH_KEY_PAIR);
-                    }
-                } catch (Exception $e) { /* ignore */ }
-                if (!empty($club_ids)) {
-                    $placeholders = implode(',', array_fill(0, count($club_ids), '?'));
-                    $stmt_ent = DB::pdo()->prepare("SELECT club_id, entidad FROM usuarios WHERE role = 'admin_club' AND club_id IN ($placeholders)");
-                    $stmt_ent->execute(array_values($club_ids));
-                    $club_to_entidad = [];
-                    foreach ($stmt_ent->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                        $club_to_entidad[(int)$row['club_id']] = (int)($row['entidad'] ?? 0);
-                    }
-                    foreach ($torneos as &$t) {
-                        $ent = $club_to_entidad[(int)($t['club_responsable'] ?? 0)] ?? 0;
-                        $t['entidad_nombre'] = $ent > 0 ? ($entidad_map[$ent] ?? 'Entidad ' . $ent) : 'Sin entidad';
-                    }
-                    unset($t);
-                    usort($torneos, function ($a, $b) {
-                        $na = $a['entidad_nombre'] ?? '';
-                        $nb = $b['entidad_nombre'] ?? '';
-                        $c = strcmp($na, $nb);
-                        if ($c !== 0) return $c;
-                        return strcmp($a['fechator'] ?? '', $b['fechator'] ?? '');
-                    });
-                }
-            }
             $use_standalone = (basename($_SERVER['PHP_SELF'] ?? '') === 'admin_torneo.php');
             $view_file = $use_standalone ? __DIR__ . '/gestion_torneos/index-moderno.php' : __DIR__ . '/gestion_torneos/index.php';
             $view_data = ['torneos' => $torneos, 'filtro_torneos' => $filtro_torneos, 'is_admin_general' => $is_admin_general];
@@ -2952,6 +2916,71 @@ try {
             $view_file = __DIR__ . '/tournament_admin/verificar_actas_index.php';
             $view_data = obtenerTorneosConActasPendientes($user_id, $is_admin_general);
             break;
+
+        case 'reporte_sanciones_ronda':
+            if (!$torneo_id) {
+                throw new Exception('Debe especificar un torneo');
+            }
+            verificarPermisosTorneo($torneo_id, $user_id, $is_admin_general);
+            $torneo = obtenerTorneo($torneo_id, $user_id, $is_admin_general);
+            if (!$torneo) {
+                throw new Exception('Torneo no encontrado o sin permisos');
+            }
+            require_once __DIR__ . '/../lib/ReporteSancionesPorRondaService.php';
+            $rondaFiltroSanc = (int) ($_GET['ronda'] ?? 0);
+            $view_file = __DIR__ . '/gestion_torneos/reporte_sanciones_ronda.php';
+            $view_data = [
+                'torneo' => $torneo,
+                'torneo_id' => $torneo_id,
+                'reporte' => (new ReporteSancionesPorRondaService())->construirReporte($torneo_id, DB::pdo(), $rondaFiltroSanc),
+            ];
+            break;
+
+        case 'reporte_estructura_mesas':
+            if (!$torneo_id) {
+                throw new Exception('Debe especificar un torneo');
+            }
+            verificarPermisosTorneo($torneo_id, $user_id, $is_admin_general);
+            $torneo = obtenerTorneo($torneo_id, $user_id, $is_admin_general);
+            if (!$torneo) {
+                throw new Exception('Torneo no encontrado o sin permisos');
+            }
+            require_once __DIR__ . '/../lib/MesaEstructuraReporteService.php';
+            require_once __DIR__ . '/../lib/ResultadosReportePaginacion.php';
+            $rondaFiltroMesas = (int) ($_GET['ronda'] ?? 0);
+            $paginaMesas = (int) ($_GET['pagina'] ?? 1);
+            $view_file = __DIR__ . '/gestion_torneos/reporte_estructura_mesas.php';
+            $view_data = [
+                'torneo' => $torneo,
+                'torneo_id' => $torneo_id,
+                'reporte' => (new MesaEstructuraReporteService())->construirReporte(
+                    $torneo_id,
+                    DB::pdo(),
+                    $rondaFiltroMesas,
+                    $paginaMesas,
+                    ResultadosReportePaginacion::PER_PAGE
+                ),
+            ];
+            break;
+
+        case 'reporte_parejas_repetidas':
+            if (!$torneo_id) {
+                throw new Exception('Debe especificar un torneo');
+            }
+            verificarPermisosTorneo($torneo_id, $user_id, $is_admin_general);
+            $torneo = obtenerTorneo($torneo_id, $user_id, $is_admin_general);
+            if (!$torneo) {
+                throw new Exception('Torneo no encontrado o sin permisos');
+            }
+            require_once __DIR__ . '/../lib/ReporteParejasRepetidasService.php';
+            $minVecesParejas = max(2, min(20, (int) ($_GET['min_veces'] ?? 2)));
+            $view_file = __DIR__ . '/gestion_torneos/reporte_parejas_repetidas.php';
+            $view_data = [
+                'torneo' => $torneo,
+                'torneo_id' => $torneo_id,
+                'reporte' => (new ReporteParejasRepetidasService())->construirReporte($torneo_id, DB::pdo(), $minVecesParejas),
+            ];
+            break;
             
         default:
             throw new Exception('Acción no válida: ' . $action);
@@ -3062,6 +3091,18 @@ try {
  * @param string|null $filtro 'realizados' | 'en_proceso' | 'por_realizar' | null (todos)
  * @return array
  */
+/**
+ * Etiqueta de entidad/ámbito territorial para filas del listado de gestión de torneos.
+ *
+ * @param array<string, mixed> $torneo
+ */
+function torneo_entidad_nombre_listado(array $torneo, PDO $pdo): string
+{
+    $entidadId = FvdConfig::entidadTerritorioEfectivaTorneo($torneo, $pdo);
+
+    return FvdConfig::etiquetaAmbitoTerritorial($entidadId, $pdo);
+}
+
 function obtenerTorneosGestion($user_id, $is_admin_general, $filtro = null) {
     $pdo = DB::pdo();
     
@@ -3070,7 +3111,7 @@ function obtenerTorneosGestion($user_id, $is_admin_general, $filtro = null) {
     $params = $tournament_filter['params'];
     
     $orgJoin = torneoOrgJoinExpr('t', 'o');
-    $sql = "SELECT t.*, o.nombre as organizacion_nombre,
+    $sql = "SELECT t.*, o.nombre as organizacion_nombre, o.entidad as organizacion_entidad,
             (SELECT COUNT(*) FROM inscritos WHERE torneo_id = t.id) as total_inscritos,
             (SELECT COUNT(*) FROM inscritos WHERE torneo_id = t.id AND " . InscritosHelper::SQL_WHERE_SOLO_CONFIRMADO . ") as inscritos_confirmados
             FROM tournaments t
@@ -3106,6 +3147,12 @@ function obtenerTorneosGestion($user_id, $is_admin_general, $filtro = null) {
         } else {
             $torneo['categoria'] = 'por_realizar';
         }
+
+        if (empty($torneo['organizacion_nombre'])) {
+            $torneo['organizacion_nombre'] = FvdConfig::getOrganizacionNombre();
+        }
+        $torneo['club_nombre'] = $torneo['organizacion_nombre'];
+        $torneo['entidad_nombre'] = torneo_entidad_nombre_listado($torneo, $pdo);
     }
     unset($torneo);
 
@@ -3367,14 +3414,12 @@ function obtenerDatosRondas($torneo_id) {
 
 /**
  * Obtiene datos de posiciones.
- * Procedencia: las estadísticas (ganados, perdidos, efectividad, puntos) y la posición
- * se leen de la tabla inscritos, que debe estar sincronizada con partiresul.
- * Se llama a actualizarEstadisticasInscritos() al cargar el reporte.
- * Tarjeta: se toma la de mayor severidad en el torneo desde partiresul (MAX), con
- * fallback a inscritos.tarjeta; valores 0=ninguna, 1=amarilla, 3=roja, 4=negra.
+ * Procedencia: estadísticas y posición persistidas en `inscritos` (sincronizadas al cerrar ronda o finalizar torneo).
+ * No recalcula clasificación en cada consulta.
  */
 function obtenerDatosPosiciones($torneo_id, $genero_get = null) {
     require_once __DIR__ . '/../lib/ResultadosReporteData.php';
+    require_once __DIR__ . '/../lib/InscritosReporteStatsHelper.php';
     $pdo = DB::pdo();
     
     $stmt = $pdo->prepare("SELECT * FROM tournaments WHERE id = ?");
@@ -3386,23 +3431,10 @@ function obtenerDatosPosiciones($torneo_id, $genero_get = null) {
     }
     
     $es_modalidad_equipos = (int)($torneo['modalidad'] ?? 0) === 3;
-    
-    // Actualizar estadísticas de inscritos desde partiresul y recalcular posiciones (incluye equipos si aplica)
-    try {
-        actualizarEstadisticasInscritos($torneo_id);
-    } catch (Exception $e) {
-        error_log("obtenerDatosPosiciones: Error al actualizar estadísticas para torneo $torneo_id: " . $e->getMessage());
-        // Continuar mostrando lo que haya en inscritos
-    }
 
-    $wRegPr1 = PartiresulEstatusSql::whereRegistradoUno('pr1');
-    $wFf0Pr1 = PartiresulEstatusSql::whereFfCero('pr1');
-    $wFfOpp = PartiresulEstatusSql::whereFfUno('pr_oponente');
-    $wFfComp = PartiresulEstatusSql::whereFfUno('pr_companero');
-    $wRegPbye = PartiresulEstatusSql::whereRegistradoUno('pbye');
-    $wRegPrTar = PartiresulEstatusSql::whereRegistradoUno('pr');
+    InscritosReporteStatsHelper::ensureColumnas($pdo);
+    $cols = InscritosReporteStatsHelper::expresionesSelectClasificacion('i');
     
-    // Obtener TODOS los jugadores individuales con estadísticas completas (ya actualizadas en inscritos)
     $sql = "SELECT 
                 i.*,
                 u.nombre as nombre_completo,
@@ -3412,51 +3444,9 @@ function obtenerDatosPosiciones($torneo_id, $genero_get = null) {
                 c.nombre as nombre_club,
                 e.nombre_equipo,
                 e.codigo_equipo as codigo_equipo_from_equipos,
-                (
-                    SELECT COUNT(DISTINCT pr1.partida, pr1.mesa)
-                    FROM `partiresul` pr1
-                    LEFT JOIN `partiresul` pr_oponente ON pr1.id_torneo = pr_oponente.id_torneo 
-                        AND pr1.partida = pr_oponente.partida 
-                        AND pr1.mesa = pr_oponente.mesa
-                        AND pr_oponente.id_usuario != pr1.id_usuario
-                        AND (
-                            (pr1.secuencia IN (1, 2) AND pr_oponente.secuencia IN (3, 4)) OR
-                            (pr1.secuencia IN (3, 4) AND pr_oponente.secuencia IN (1, 2))
-                        )
-                    LEFT JOIN `partiresul` pr_companero ON pr1.id_torneo = pr_companero.id_torneo 
-                        AND pr1.partida = pr_companero.partida 
-                        AND pr1.mesa = pr_companero.mesa
-                        AND pr_companero.id_usuario != pr1.id_usuario
-                        AND (
-                            (pr1.secuencia IN (1, 2) AND pr_companero.secuencia IN (1, 2) AND pr_companero.secuencia != pr1.secuencia) OR
-                            (pr1.secuencia IN (3, 4) AND pr_companero.secuencia IN (3, 4) AND pr_companero.secuencia != pr1.secuencia)
-                        )
-                    WHERE pr1.id_usuario = i.id_usuario
-                        AND pr1.id_torneo = ?
-                        AND {$wRegPr1}
-                        AND {$wFf0Pr1}
-                        AND pr1.resultado1 = 200
-                        AND pr1.efectividad = 100
-                        AND pr1.resultado1 > pr1.resultado2
-                        AND (
-                            ({$wFfOpp}) OR ({$wFfComp})
-                        )
-                ) as ganadas_por_forfait,
-                (
-                    SELECT COUNT(*)
-                    FROM partiresul pbye
-                    WHERE pbye.id_usuario = i.id_usuario
-                        AND pbye.id_torneo = ?
-                        AND {$wRegPbye}
-                        AND pbye.mesa = 0
-                        AND pbye.resultado1 > pbye.resultado2
-                ) as partidas_bye,
-                COALESCE(
-                    (SELECT MAX(pr.tarjeta) FROM partiresul pr
-                     WHERE pr.id_torneo = i.torneo_id AND pr.id_usuario = i.id_usuario AND ({$wRegPrTar})),
-                    i.tarjeta,
-                    0
-                ) AS tarjeta
+                {$cols['ganadas_por_forfait']},
+                {$cols['partidas_bye']},
+                {$cols['tarjeta']}
             FROM inscritos i
             INNER JOIN usuarios u ON i.id_usuario = u.id
             LEFT JOIN clubes c ON i.id_club = c.id
@@ -3466,14 +3456,14 @@ function obtenerDatosPosiciones($torneo_id, $genero_get = null) {
                      i.posicion ASC, i.ganados DESC, i.efectividad DESC, i.puntos DESC, i.id ASC";
     
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$torneo_id, $torneo_id, $torneo_id]);
+    $stmt->execute([$torneo_id]);
     $posiciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    require_once __DIR__ . '/../lib/NumfvdHelper.php';
+    $posiciones = NumfvdHelper::enriquecerFilas($posiciones);
 
     $genero_ranking = \ResultadosReporteData::generoFiltroDesdeParametro(is_string($genero_get) ? $genero_get : null);
     $modalidadTorneo = (int) ($torneo['modalidad'] ?? 0);
-    $posiciones = \ResultadosReporteData::filtrarFilasClasificacionPorGenero($posiciones, $genero_ranking, $modalidadTorneo);
-    $posiciones = \ResultadosReporteData::ordenarFilasComoPosicionesTorneo($posiciones);
-    $posiciones = \ResultadosReporteData::reenumerarPosicionMostrada($posiciones);
+    $posiciones = \ResultadosReporteData::aplicarRankingPorGenero($posiciones, $genero_ranking, $modalidadTorneo);
     
     // Asegurar que todos los jugadores tengan el nombre del equipo si tienen codigo_equipo
     foreach ($posiciones as &$pos) {
@@ -4085,11 +4075,11 @@ function enviarNotificacionesResultadosAprobados(PDO $pdo, int $torneo_id, int $
 }
 
 /**
- * Org. 32 (nacional): en listados, «club» = entidad federativa (tabla entidad); el encabezado debe reflejar el código/nombre de entidad.
+ * FVD (org. 1): en listados, «club» = entidad federativa (tabla entidad); el encabezado debe reflejar el código/nombre de entidad.
  */
 function torneo_listado_equipos_por_entidad(int $organizacion_id): bool
 {
-    return $organizacion_id === 32;
+    return $organizacion_id === FvdConfig::ORGANIZACION_ID;
 }
 
 /**
@@ -4346,6 +4336,9 @@ function obtenerDatosGestionarInscripcionesEquipos($torneo_id) {
                     i.id as id_inscrito,
                     i.id_usuario,
                     i.codigo_equipo,
+                    " . (InscritosHelper::tieneColumnaActivoMesa($pdo)
+                        ? 'COALESCE(i.activo_mesa, 1) AS activo_mesa'
+                        : '1 AS activo_mesa') . ",
                     u.cedula,
                     u.nombre,
                     u.id as usuario_id
@@ -4354,13 +4347,17 @@ function obtenerDatosGestionarInscripcionesEquipos($torneo_id) {
                 WHERE i.torneo_id = ? 
                     AND i.codigo_equipo = ?
                     AND " . InscritosHelper::sqlWhereSoloConfirmadoConAlias('i') . "
-                ORDER BY i.id ASC
+                ORDER BY activo_mesa DESC, i.id ASC
             ");
             $stmt_jugadores->execute([$torneo_id, $equipo['codigo_equipo']]);
             $jugadores = $stmt_jugadores->fetchAll(PDO::FETCH_ASSOC);
         }
         $equipo['jugadores'] = $jugadores;
         $equipo['total_jugadores'] = count($jugadores);
+        $equipo['titulares'] = count(array_filter($jugadores, static function ($j) {
+            return (int) ($j['activo_mesa'] ?? 1) === 1;
+        }));
+        $equipo['suplentes'] = $equipo['total_jugadores'] - $equipo['titulares'];
     }
     unset($equipo);
     
@@ -5366,6 +5363,9 @@ function obtenerDatosResumenIndividual($torneo_id, $inscrito_id) {
     $torneo = $stmt->fetch(PDO::FETCH_ASSOC);
     
     // Obtener inscrito
+    if (! class_exists('NumfvdHelper', false)) {
+        require_once __DIR__ . '/../lib/NumfvdHelper.php';
+    }
     $sql = "SELECT i.*, u.nombre as nombre_completo, c.nombre as nombre_club
             FROM inscritos i
             INNER JOIN usuarios u ON i.id_usuario = u.id
@@ -5377,6 +5377,10 @@ function obtenerDatosResumenIndividual($torneo_id, $inscrito_id) {
     
     if (!$inscrito) {
         throw new Exception('Jugador no encontrado en este torneo');
+    }
+    $nfInscrito = NumfvdHelper::numfvdInscrito($pdo, $torneo_id, (int) $inscrito_id);
+    if ($nfInscrito > 0) {
+        $inscrito['numfvd'] = $nfInscrito;
     }
     
     $esModalidadEquipos = (int)($torneo['modalidad'] ?? 0) === 3;
@@ -5420,6 +5424,14 @@ function obtenerDatosResumenIndividual($torneo_id, $inscrito_id) {
     $stmt->execute([$torneo_id, $inscrito_id, $ultimaRonda]);
     $partidasJugador = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    if (! function_exists('detectarModoCalculoMesa')) {
+        require_once __DIR__ . '/../lib/partiresul_efectividad_funcs.php';
+    }
+    $puntosTorneo = (int) ($torneo['puntos'] ?? 200);
+    if ($puntosTorneo <= 0) {
+        $puntosTorneo = 200;
+    }
+    
     // Para cada partida, obtener información de pareja y contrarios
     $resumenParticipacion = [];
     
@@ -5429,9 +5441,17 @@ function obtenerDatosResumenIndividual($torneo_id, $inscrito_id) {
         $secuencia = (int)$partidaJugador['secuencia'];
         
         // Obtener todos los jugadores de esta mesa
+        $exprNumfvdMesa = NumfvdHelper::sqlExprNumfvdInscrito('i', $pdo, 'u');
         $sqlMesa = "SELECT 
                         pr.secuencia,
                         pr.id_usuario,
+                        pr.resultado1,
+                        pr.resultado2,
+                        pr.efectividad,
+                        pr.ff,
+                        pr.tarjeta,
+                        pr.sancion,
+                        {$exprNumfvdMesa} AS numfvd,
                         u.nombre as nombre_completo,
                         COALESCE(c.nombre, 'Sin Club') as club_nombre
                     FROM partiresul pr
@@ -5477,14 +5497,16 @@ function obtenerDatosResumenIndividual($torneo_id, $inscrito_id) {
                     $compañero = [
                         'nombre' => $jugador['nombre_completo'],
                         'club' => $jugador['club_nombre'] ?? 'Sin Club',
-                        'id_usuario' => (int)$jugador['id_usuario']
+                        'id_usuario' => (int)$jugador['id_usuario'],
+                        'numfvd' => (int) ($jugador['numfvd'] ?? 0),
                     ];
                 } elseif ($seq == 3 || $seq == 4) {
                     // Es contrario (Pareja B)
                     $contrarios[] = [
                         'nombre' => $jugador['nombre_completo'],
                         'club' => $jugador['club_nombre'] ?? 'Sin Club',
-                        'id_usuario' => (int)$jugador['id_usuario']
+                        'id_usuario' => (int)$jugador['id_usuario'],
+                        'numfvd' => (int) ($jugador['numfvd'] ?? 0),
                     ];
                 }
             } else {
@@ -5494,20 +5516,28 @@ function obtenerDatosResumenIndividual($torneo_id, $inscrito_id) {
                     $compañero = [
                         'nombre' => $jugador['nombre_completo'],
                         'club' => $jugador['club_nombre'] ?? 'Sin Club',
-                        'id_usuario' => (int)$jugador['id_usuario']
+                        'id_usuario' => (int)$jugador['id_usuario'],
+                        'numfvd' => (int) ($jugador['numfvd'] ?? 0),
                     ];
                 } elseif ($seq == 1 || $seq == 2) {
                     // Es contrario (Pareja A)
                     $contrarios[] = [
                         'nombre' => $jugador['nombre_completo'],
                         'club' => $jugador['club_nombre'] ?? 'Sin Club',
-                        'id_usuario' => (int)$jugador['id_usuario']
+                        'id_usuario' => (int)$jugador['id_usuario'],
+                        'numfvd' => (int) ($jugador['numfvd'] ?? 0),
                     ];
                 }
             }
         }
         
         $estaRegistrado = ((int)($partidaJugador['registrado'] ?? 0) == 1);
+        $efectividadFila = $estaRegistrado ? (int)($partidaJugador['efectividad'] ?? 0) : null;
+        
+        if ($estaRegistrado && count($jugadoresMesa) === 4) {
+            $modoMesa = detectarModoCalculoMesa($jugadoresMesa);
+            $efectividadFila = calcularEfectividadJugadorMesa($partidaJugador, $modoMesa, $puntosTorneo);
+        }
         
         // Solo calcular resultados si está registrado
         $hayForfait = false;
@@ -5531,10 +5561,6 @@ function obtenerDatosResumenIndividual($torneo_id, $inscrito_id) {
                 $gano = false; // El jugador con tarjeta grave pierde
             } elseif ($sancion > 0) {
                 // Si hay sanción, evaluar individualmente
-                // Obtener puntos del torneo
-                $puntosTorneo = (int)($torneo['puntos'] ?? 100);
-                
-                // Obtener resultado del oponente (pareja contraria) - buscar en los jugadores de la mesa
                 $resultadoOponente = 0;
                 $sqlOponente = "SELECT resultado1 FROM partiresul 
                                WHERE id_torneo = ? AND partida = ? AND mesa = ?
@@ -5562,7 +5588,7 @@ function obtenerDatosResumenIndividual($torneo_id, $inscrito_id) {
             'contrarios' => $contrarios,
             'resultado1' => $estaRegistrado ? (int)($partidaJugador['resultado1'] ?? 0) : null,
             'resultado2' => $estaRegistrado ? (int)($partidaJugador['resultado2'] ?? 0) : null,
-            'efectividad' => $estaRegistrado ? (int)($partidaJugador['efectividad'] ?? 0) : null,
+            'efectividad' => $efectividadFila,
             'sancion' => $estaRegistrado ? (int)($partidaJugador['sancion'] ?? 0) : null,
             'gano' => $estaRegistrado ? $gano : null,
             'ff' => $estaRegistrado ? $hayForfait : false,
@@ -5859,6 +5885,10 @@ function verificarActaAprobar($user_id, $is_admin_general) {
         }
         $pdo->commit();
         actualizarEstadisticasInscritos($torneo_id);
+        if (! class_exists(\RankingTorneoRecalc::class, false)) {
+            require_once __DIR__ . '/../lib/RankingTorneoRecalc.php';
+        }
+        \RankingTorneoRecalc::reclasificarSiUltimaRondaTorneoCompleta($torneo_id);
         try {
             enviarNotificacionesResultadosAprobados($pdo, $torneo_id, $ronda, $mesa);
         } catch (Exception $e) {
@@ -6160,8 +6190,8 @@ function actualizarEstadisticasManual($torneo_id, $user_id, $is_admin_general) {
     try {
         verificarPermisosTorneo($torneo_id, $user_id, $is_admin_general);
         
-        actualizarEstadisticasInscritos($torneo_id);
-        $_SESSION['success'] = 'Estadísticas y puntos de ranking actualizados exitosamente';
+        actualizarEstadisticasInscritos($torneo_id, true);
+        $_SESSION['success'] = 'Estadísticas y clasificación actualizadas exitosamente';
         
     } catch (Exception $e) {
         $_SESSION['error'] = 'Error al actualizar estadísticas: ' . $e->getMessage();
@@ -6262,7 +6292,7 @@ function marcarNoPresentesRetiradosAntesRonda3($torneo_id) {
  * (mismo id_usuario, id_torneo, partida) y se agrega por (id_usuario, id_torneo).
  * Solo se consideran filas con registrado = 1 (mesas y BYE).
  */
-function actualizarEstadisticasInscritos($torneo_id) {
+function actualizarEstadisticasInscritos($torneo_id, bool $recalcularClasificacion = false) {
     $pdo = DB::pdo();
     
     $stmt = $pdo->prepare("SELECT id FROM tournaments WHERE id = ?");
@@ -6315,10 +6345,7 @@ function actualizarEstadisticasInscritos($torneo_id) {
                 SUM(sancion) AS sancion,
                 SUM(chancletas) AS chancletas,
                 SUM(zapatos) AS zapatos,
-                CAST(SUBSTRING_INDEX(GROUP_CONCAT(
-                    IF(CAST(por_ronda.tarjeta AS CHAR) REGEXP '^[0-9]+$', CAST(por_ronda.tarjeta AS UNSIGNED), 0)
-                    ORDER BY por_ronda.partida DESC SEPARATOR ','
-                ), ',', 1) AS UNSIGNED) AS tarjeta
+                MAX(por_ronda.tarjeta_norm) AS tarjeta
             FROM (
                 SELECT
                     id_usuario,
@@ -6331,7 +6358,12 @@ function actualizarEstadisticasInscritos($torneo_id) {
                     MAX({$prInt('sancion')}) AS sancion,
                     MAX({$prInt('chancleta')}) AS chancletas,
                     MAX({$prInt('zapato')}) AS zapatos,
-                    MAX({$prInt('tarjeta')}) AS tarjeta
+                    MAX(CASE
+                        WHEN {$prInt('tarjeta')} = 5 THEN 1
+                        WHEN {$prInt('tarjeta')} = 6 THEN 3
+                        WHEN {$prInt('tarjeta')} = 8 THEN 4
+                        ELSE {$prInt('tarjeta')}
+                    END) AS tarjeta_norm
                 FROM partiresul
                 WHERE id_torneo = ? AND " . PartiresulEstatusSql::whereRegistradoUno() . "
                 GROUP BY id_usuario, id_torneo, partida
@@ -6364,7 +6396,12 @@ function actualizarEstadisticasInscritos($torneo_id) {
         WHERE i.torneo_id = ? AND has_data.id_usuario IS NULL
     ")->execute([$torneo_id, $torneo_id]);
     
-    recalcularClasificacionEquiposYJugadores($torneo_id);
+    if ($recalcularClasificacion) {
+        recalcularClasificacionEquiposYJugadores($torneo_id);
+    }
+
+    require_once __DIR__ . '/../lib/InscritosReporteStatsHelper.php';
+    InscritosReporteStatsHelper::sincronizarGffYBye($pdo, (int) $torneo_id);
 }
 
 /**

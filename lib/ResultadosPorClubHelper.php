@@ -6,17 +6,16 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/InscritosHelper.php';
 require_once __DIR__ . '/PartiresulEstatusSql.php';
+require_once __DIR__ . '/InscritosReporteStatsHelper.php';
 
 if (!function_exists('obtenerTopJugadoresPorClub')) {
     function obtenerTopJugadoresPorClub($pdo, $torneo_id, $topN)
     {
+        InscritosReporteStatsHelper::ensureColumnas($pdo);
+        $cols = InscritosReporteStatsHelper::expresionesSelectClasificacion('i');
         $ig = InscritosHelper::sqlExprColumnaNumerica('i.ganados');
         $ie = InscritosHelper::sqlExprColumnaNumerica('i.efectividad');
         $ip = InscritosHelper::sqlExprColumnaNumerica('i.puntos');
-        $wRegPr1 = PartiresulEstatusSql::whereRegistradoUno('pr1');
-        $wFf0Pr1 = PartiresulEstatusSql::whereFfCero('pr1');
-        $wFfOpp = PartiresulEstatusSql::whereFfUno('pr_oponente');
-        $wFfComp = PartiresulEstatusSql::whereFfUno('pr_companero');
         $sql = "SELECT 
                 i.*,
                 i.id_club as codigo_club,
@@ -27,36 +26,7 @@ if (!function_exists('obtenerTopJugadoresPorClub')) {
                 c.id as club_id_from_join,
                 c.nombre as club_nombre,
                 c.logo as club_logo,
-                (
-                    SELECT COUNT(DISTINCT pr1.partida, pr1.mesa)
-                    FROM `partiresul` pr1
-                    LEFT JOIN `partiresul` pr_oponente ON pr1.id_torneo = pr_oponente.id_torneo 
-                        AND pr1.partida = pr_oponente.partida 
-                        AND pr1.mesa = pr_oponente.mesa
-                        AND pr_oponente.id_usuario != pr1.id_usuario
-                        AND (
-                            (pr1.secuencia IN (1, 2) AND pr_oponente.secuencia IN (3, 4)) OR
-                            (pr1.secuencia IN (3, 4) AND pr_oponente.secuencia IN (1, 2))
-                        )
-                    LEFT JOIN `partiresul` pr_companero ON pr1.id_torneo = pr_companero.id_torneo 
-                        AND pr1.partida = pr_companero.partida 
-                        AND pr1.mesa = pr_companero.mesa
-                        AND pr_companero.id_usuario != pr1.id_usuario
-                        AND (
-                            (pr1.secuencia IN (1, 2) AND pr_companero.secuencia IN (1, 2) AND pr_companero.secuencia != pr1.secuencia) OR
-                            (pr1.secuencia IN (3, 4) AND pr_companero.secuencia IN (3, 4) AND pr_companero.secuencia != pr1.secuencia)
-                        )
-                    WHERE pr1.id_usuario = i.id_usuario
-                        AND pr1.id_torneo = ?
-                        AND {$wRegPr1}
-                        AND {$wFf0Pr1}
-                        AND pr1.resultado1 = 200
-                        AND pr1.efectividad = 100
-                        AND pr1.resultado1 > pr1.resultado2
-                        AND (
-                            ({$wFfOpp}) OR ({$wFfComp})
-                        )
-                ) as ganadas_por_forfait
+                {$cols['ganadas_por_forfait']}
             FROM inscritos i
             INNER JOIN usuarios u ON i.id_usuario = u.id
             LEFT JOIN clubes c ON i.id_club = c.id
@@ -68,7 +38,7 @@ if (!function_exists('obtenerTopJugadoresPorClub')) {
                      $ip DESC";
 
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$torneo_id, $torneo_id]);
+        $stmt->execute([$torneo_id]);
         $todos_jugadores = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $jugadores_por_club = [];

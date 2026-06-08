@@ -108,6 +108,11 @@ final class TournamentActionHandler
                 error_log('Error al actualizar estadísticas después de guardar resultados: ' . $e->getMessage());
             }
 
+            if (! \class_exists(\RankingTorneoRecalc::class, false)) {
+                require_once dirname(__DIR__, 2) . '/RankingTorneoRecalc.php';
+            }
+            \RankingTorneoRecalc::reclasificarSiUltimaRondaTorneoCompleta($torneo_id);
+
             self::postCommitResultadosMesa($pdo, $torneo_id, $ronda, $mesa);
 
             $out = [
@@ -152,6 +157,9 @@ final class TournamentActionHandler
         if (! \function_exists('calcularEfectividad')) {
             require_once dirname(__DIR__, 2) . '/partiresul_efectividad_funcs.php';
         }
+        require_once dirname(__DIR__, 2) . '/PartiresulTriunfoGffHelper.php';
+        \PartiresulTriunfoGffHelper::ensureColumna($pdo);
+        $persistirTriunfoGff = \PartiresulTriunfoGffHelper::tieneColumna($pdo);
 
         $stmt = $pdo->prepare('SELECT modalidad, puntos FROM tournaments WHERE id = ?');
         $stmt->execute([$torneo_id]);
@@ -233,23 +241,11 @@ final class TournamentActionHandler
             }
         }
 
-        $hayForfaitEnMesa = false;
-        foreach ($jugadores as $jugador) {
-            $ff_temp = isset($jugador['ff']) && ($jugador['ff'] == '1' || $jugador['ff'] === true || $jugador['ff'] === 'on') ? 1 : 0;
-            if ($ff_temp == 1) {
-                $hayForfaitEnMesa = true;
-                break;
-            }
-        }
+        $modoMesa = \detectarModoCalculoMesa($jugadores);
+        $hayTarjetaGraveEnMesa = ($modoMesa === 'tarjeta_grave');
+        $hayForfaitEnMesa = ($modoMesa === 'forfait');
 
-        $hayTarjetaGraveEnMesa = false;
-        foreach ($jugadores as $jugador) {
-            $tarjeta_temp = \TorneoCampoNumerico::codigoTarjeta($jugador['tarjeta'] ?? 0);
-            if ($tarjeta_temp == 3 || $tarjeta_temp == 4) {
-                $hayTarjetaGraveEnMesa = true;
-                break;
-            }
-        }
+        \normalizarResultadosEntradaMesa($jugadores, $hayForfaitEnMesa, $hayTarjetaGraveEnMesa, $puntosTorneo);
 
         $esEmpateManoNula = false;
         if (! $hayForfaitEnMesa && ! $hayTarjetaGraveEnMesa) {
@@ -277,7 +273,7 @@ final class TournamentActionHandler
             $secuencia = (int) ($jugador['secuencia'] ?? 0);
             $resultado1 = \TorneoCampoNumerico::intEstadistica($jugador['resultado1'] ?? 0);
             $resultado2 = \TorneoCampoNumerico::intEstadistica($jugador['resultado2'] ?? 0);
-            $ff = isset($jugador['ff']) && ($jugador['ff'] == '1' || $jugador['ff'] === true || $jugador['ff'] === 'on') ? 1 : 0;
+            $ff = \torneoFfDesdeEntrada($jugador['ff'] ?? 0);
             $tarjeta = \TorneoCampoNumerico::codigoTarjeta($jugador['tarjeta'] ?? 0);
             $sancion = \TorneoCampoNumerico::intEstadistica($jugador['sancion'] ?? 0);
             $sancion = min(80, max(0, $sancion));
@@ -285,19 +281,70 @@ final class TournamentActionHandler
             $zapato = \TorneoCampoNumerico::intEstadistica($jugador['zapato'] ?? 0);
 
             if ($resultado1 < 0 || $resultado2 < 0) {
-                throw new Exception('Los puntos (resultado1/resultado2) no pueden ser negativos (jugador ' . ($index + 1) . ').');
+                throw new Exception(sprintf(
+                    'Los puntos (resultado1/resultado2) no pueden ser negativos (jugador %d). Contexto: torneo=%d ronda=%d mesa=%d | id_usuario=%d secuencia=%d | resultado1=%d resultado2=%d | ff=%d tarjeta=%d sancion=%d | mesa_ff=%s mesa_tarjeta_grave=%s',
+                    $index + 1,
+                    $torneo_id,
+                    $ronda,
+                    $mesa,
+                    $id_usuario,
+                    $secuencia,
+                    $resultado1,
+                    $resultado2,
+                    $ff,
+                    $tarjeta,
+                    $sancion,
+                    $hayForfaitEnMesa ? 'si' : 'no',
+                    $hayTarjetaGraveEnMesa ? 'si' : 'no'
+                ));
             }
 
             if ($id_usuario == 0 || $secuencia == 0) {
-                throw new Exception("Datos incompletos para el jugador " . ($index + 1) . ": id_usuario=$id_usuario, secuencia=$secuencia");
+                throw new Exception(sprintf(
+                    'Datos incompletos para el jugador %d. Contexto: torneo=%d ronda=%d mesa=%d | id_usuario=%d secuencia=%d',
+                    $index + 1,
+                    $torneo_id,
+                    $ronda,
+                    $mesa,
+                    $id_usuario,
+                    $secuencia
+                ));
             }
 
             $maximoPermitido = (int) round($puntosTorneo * 1.6);
             if ($resultado1 > $maximoPermitido) {
-                throw new Exception("El resultado1 del jugador " . ($index + 1) . " ($resultado1) excede el máximo permitido ($maximoPermitido = puntos del torneo + 60%)");
+                throw new Exception(sprintf(
+                    'El resultado1 del jugador %d (%d) excede el máximo permitido (%d). Contexto: torneo=%d ronda=%d mesa=%d | id_usuario=%d secuencia=%d | resultado2=%d ff=%d tarjeta=%d sancion=%d',
+                    $index + 1,
+                    $resultado1,
+                    $maximoPermitido,
+                    $torneo_id,
+                    $ronda,
+                    $mesa,
+                    $id_usuario,
+                    $secuencia,
+                    $resultado2,
+                    $ff,
+                    $tarjeta,
+                    $sancion
+                ));
             }
             if ($resultado2 > $maximoPermitido) {
-                throw new Exception("El resultado2 del jugador " . ($index + 1) . " ($resultado2) excede el máximo permitido ($maximoPermitido = puntos del torneo + 60%)");
+                throw new Exception(sprintf(
+                    'El resultado2 del jugador %d (%d) excede el máximo permitido (%d). Contexto: torneo=%d ronda=%d mesa=%d | id_usuario=%d secuencia=%d | resultado1=%d ff=%d tarjeta=%d sancion=%d',
+                    $index + 1,
+                    $resultado2,
+                    $maximoPermitido,
+                    $torneo_id,
+                    $ronda,
+                    $mesa,
+                    $id_usuario,
+                    $secuencia,
+                    $resultado1,
+                    $ff,
+                    $tarjeta,
+                    $sancion
+                ));
             }
 
             $esParejaA = ($secuencia == 1 || $secuencia == 2);
@@ -354,16 +401,16 @@ final class TournamentActionHandler
                 $efectividad = 0;
                 $resultado1 = 0;
                 $resultado2 = 0;
-            } elseif ($hayForfaitEnMesa) {
-                $calculoForfait = \calcularEfectividadForfait($ff == 1, $puntosTorneo);
-                $efectividad = $calculoForfait['efectividad'];
-                $resultado1 = $calculoForfait['resultado1'];
-                $resultado2 = $calculoForfait['resultado2'];
             } elseif ($hayTarjetaGraveEnMesa) {
                 $calculoTarjeta = \calcularEfectividadTarjetaGrave($tarjeta == 3 || $tarjeta == 4, $puntosTorneo);
                 $efectividad = $calculoTarjeta['efectividad'];
                 $resultado1 = $calculoTarjeta['resultado1'];
                 $resultado2 = $calculoTarjeta['resultado2'];
+            } elseif ($hayForfaitEnMesa) {
+                $calculoForfait = \calcularEfectividadForfait($ff == 1, $puntosTorneo);
+                $efectividad = $calculoForfait['efectividad'];
+                $resultado1 = $calculoForfait['resultado1'];
+                $resultado2 = $calculoForfait['resultado2'];
             } else {
                 $sancionParaCalc = $jugador['sancion_para_calculo'] ?? $jugador['sancion'] ?? 0;
                 if ($sancionParaCalc > 0) {
@@ -373,6 +420,22 @@ final class TournamentActionHandler
                     $efectividad = \calcularEfectividad($resultado1Ajustado, $resultado2, $puntosTorneo, $ff, $tarjeta, 0);
                 }
             }
+
+            $triunfoGff = 0;
+            if (! $esEmpateManoNula) {
+                $triunfoGff = \calcularTriunfoGffJugadorMesa(
+                    $hayForfaitEnMesa,
+                    $hayTarjetaGraveEnMesa,
+                    $ff,
+                    $tarjeta,
+                    $resultado1,
+                    $resultado2,
+                    $efectividad
+                );
+            }
+
+            $setTriunfoGff = $persistirTriunfoGff ? ",\n                        triunfo_gff = ?" : '';
+            $paramsTriunfoGff = $persistirTriunfoGff ? [$triunfoGff] : [];
 
             if ($id > 0) {
                 $sql = 'UPDATE partiresul SET 
@@ -386,14 +449,14 @@ final class TournamentActionHandler
                         zapato = ?,
                         fecha_partida = NOW(),
                         registrado_por = ?,
-                        registrado = 1
+                        registrado = 1' . $setTriunfoGff . '
                         WHERE id = ?';
 
                 $stmt = $pdo->prepare($sql);
-                $result = $stmt->execute([
+                $result = $stmt->execute(array_merge([
                     $resultado1, $resultado2, $efectividad, $ff, $tarjeta,
-                    $sancion, $chancleta, $zapato, $userId, $id,
-                ]);
+                    $sancion, $chancleta, $zapato, $userId,
+                ], $paramsTriunfoGff, [$id]));
 
                 if (! $result || $stmt->rowCount() == 0) {
                     throw new Exception('No se pudo actualizar el registro del jugador ' . ($idx + 1) . " (ID: $id)");
@@ -410,16 +473,17 @@ final class TournamentActionHandler
                         zapato = ?,
                         fecha_partida = NOW(),
                         registrado_por = ?,
-                        registrado = 1
+                        registrado = 1' . $setTriunfoGff . '
                         WHERE id_torneo = ? AND partida = ? AND mesa = ? 
                         AND id_usuario = ? AND secuencia = ?';
 
                 $stmt = $pdo->prepare($sql);
-                $result = $stmt->execute([
+                $result = $stmt->execute(array_merge([
                     $resultado1, $resultado2, $efectividad, $ff, $tarjeta,
                     $sancion, $chancleta, $zapato, $userId,
+                ], $paramsTriunfoGff, [
                     $torneo_id, $ronda, $mesa, $id_usuario, $secuencia,
-                ]);
+                ]));
 
                 if (! $result || $stmt->rowCount() == 0) {
                     throw new Exception('No se pudo actualizar el registro del jugador ' . ($idx + 1) . " (usuario: $id_usuario, secuencia: $secuencia)");

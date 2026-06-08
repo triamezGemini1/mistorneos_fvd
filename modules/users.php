@@ -788,7 +788,7 @@ function sqlOrderUsuariosPorRol(string $alias = 'u'): string {
     END ASC, {$nombre} ASC, {$id} ASC";
 }
 
-function getUsers($page = 1, $per_page = 25, $admin_id = null, $search = null, $club_id = null, $role_filter = null) {
+function getUsers($page = 1, $per_page = Pagination::DEFAULT_PER_PAGE, $admin_id = null, $search = null, $club_id = null, $role_filter = null) {
     $pdo = DB::pdo();
     $current_user = Auth::user();
     $is_admin_club = $current_user['role'] === 'admin_club';
@@ -1037,7 +1037,7 @@ function getUser($id) {
     return $stmt->fetch();
 }
 
-function getUserRequests($page = 1, $per_page = 25) {
+function getUserRequests($page = 1, $per_page = Pagination::DEFAULT_PER_PAGE) {
     $pdo = DB::pdo();
     
     // Contar total de registros
@@ -1110,7 +1110,7 @@ function getEntidadesOptions(): array {
 
 // Obtener datos para la vista con paginación
 $current_page = isset($_GET['p']) ? max(1, (int)$_GET['p']) : 1;
-$per_page = isset($_GET['per_page']) ? max(10, min(100, (int)$_GET['per_page'])) : 25;
+$per_page = Pagination::DEFAULT_PER_PAGE;
 $admin_id = isset($_GET['admin_id']) ? (int)$_GET['admin_id'] : null;
 $club_id = isset($_GET['club_id']) ? ($_GET['club_id'] === 'all' ? 'all' : (int)$_GET['club_id']) : null;
 $search = isset($_GET['search']) ? trim($_GET['search']) : null;

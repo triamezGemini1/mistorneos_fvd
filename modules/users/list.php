@@ -38,6 +38,36 @@ $current_user = Auth::user();
         box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
         transform: translateY(-2px);
     }
+    /* Pestañas Usuarios / Solicitudes — pasteles, texto negro */
+    #userTabs.fvd-users-tabs {
+        border-bottom: 1px solid rgba(10, 61, 71, 0.12);
+        gap: 0.35rem;
+    }
+    #userTabs.fvd-users-tabs .nav-item {
+        margin-bottom: -1px;
+    }
+    #userTabs.fvd-users-tabs .nav-link {
+        color: #212529 !important;
+        font-weight: 600;
+        border: 1px solid rgba(10, 61, 71, 0.12);
+        border-bottom: none;
+        border-radius: 0.4rem 0.4rem 0 0;
+        padding: 0.45rem 0.85rem;
+        background: #c8e6f5;
+    }
+    #userTabs.fvd-users-tabs .nav-link#requests-tab {
+        background: #f5dcc8;
+    }
+    #userTabs.fvd-users-tabs .nav-link:hover {
+        filter: brightness(0.97);
+        color: #212529 !important;
+    }
+    #userTabs.fvd-users-tabs .nav-link.active {
+        background: #fff0c8 !important;
+        color: #212529 !important;
+        border-color: rgba(10, 61, 71, 0.18);
+        box-shadow: inset 0 -2px 0 #212529;
+    }
 </style>
 <?php
 $users_bulk_batch_url = class_exists('AppHelpers')
@@ -49,6 +79,7 @@ $users_bulk_asset_base = class_exists('AppHelpers')
 ?>
 <link rel="stylesheet" href="<?= htmlspecialchars($users_bulk_asset_base) ?>/assets/users-bulk-notify.css">
 
+<div class="fvd-app-page py-2">
 <?php
 // Cargar estadísticas para widgets
 require_once __DIR__ . '/../../lib/StatisticsHelper.php';
@@ -174,7 +205,7 @@ if (!empty($stats) && !isset($stats['error'])):
     </div>
 </div>
 <!-- Pestañas -->
-<ul class="nav nav-tabs" id="userTabs" role="tablist">
+<ul class="nav nav-tabs fvd-users-tabs" id="userTabs" role="tablist">
     <li class="nav-item" role="presentation">
         <button class="nav-link <?= $action !== 'requests' ? 'active' : '' ?>" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab" aria-controls="users" aria-selected="true">
             <i class="fas fa-users"></i> Usuarios
@@ -833,7 +864,7 @@ $is_admin_club = $current_user['role'] === 'admin_club';
             
             <!-- Paginación -->
             <?php if (isset($pagination)): ?>
-                <?= $pagination->render() ?>
+                <?= $pagination->render('usuarios') ?>
             <?php endif; ?>
 
             <div id="users-bulk-bar" role="region" aria-live="polite" aria-label="Acciones masivas">
@@ -1389,12 +1420,13 @@ $is_admin_club = $current_user['role'] === 'admin_club';
 
                 <!-- Paginación -->
                 <?php if (isset($pagination)): ?>
-                    <?= $pagination->render() ?>
+                    <?= $pagination->render('solicitudes') ?>
                 <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>
 </div>
+</div><!-- /.fvd-app-page -->
 
 <!-- Modal Aprobar Solicitud -->
 <div class="modal fade" id="approveRequestModal" tabindex="-1">

@@ -9,7 +9,8 @@ declare(strict_types=1);
  */
 final class TorneoCampoNumerico
 {
-    public static function intEstadistica(mixed $v): int
+    /** @param mixed $v */
+    public static function intEstadistica($v): int
     {
         if (is_int($v)) {
             return $v;
@@ -31,19 +32,37 @@ final class TorneoCampoNumerico
     /**
      * Valor para aritmética (restas de sanción, efectividad): mismo saneamiento que intEstadistica.
      */
-    public static function floatCalculo(mixed $v): float
+    /** @param mixed $v */
+    public static function floatCalculo($v): float
     {
         return (float) self::intEstadistica($v);
     }
 
     /**
      * Códigos de tarjeta en partiresul/inscritos: 0 ninguna, 1 amarilla, 3 roja, 4 negra.
-     * Cualquier otro número o texto → 0.
+     * Legacy Access PARTI2017: 5 amarilla, 6 roja, 8 negra.
      */
-    public static function codigoTarjeta(mixed $v): int
+    /** @param mixed $v */
+    public static function codigoTarjeta($v): int
     {
         $n = self::intEstadistica($v);
+        if (in_array($n, [0, 1, 3, 4], true)) {
+            return $n;
+        }
+        $legacyAccess = [5 => 1, 6 => 3, 8 => 4];
 
-        return in_array($n, [0, 1, 3, 4], true) ? $n : 0;
+        return $legacyAccess[$n] ?? 0;
+    }
+
+    /**
+     * Marca disciplinaria en origen Access (PARTI2017.Sancion / Tarjeta): solo 5, 6 u 8.
+     * 0, 1, 40, 80 u otros valores → sin tarjeta (no confundir Sancion=1 con amarilla).
+     */
+    public static function codigoTarjetaDesdeAccess($v): int
+    {
+        $n = self::intEstadistica($v);
+        $soloMarcasAccess = [5 => 1, 6 => 3, 8 => 4];
+
+        return $soloMarcasAccess[$n] ?? 0;
     }
 }

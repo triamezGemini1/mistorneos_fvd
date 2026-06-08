@@ -19,7 +19,7 @@ try {
     // Paginaci?n (usar 'pag' en lugar de 'page' para evitar conflictos)
     $pagination_page = isset($_GET['pag']) ? (int)$_GET['pag'] : 1;
     $pagination_page = max(1, $pagination_page); // Asegurar que sea al menos 1
-    $per_page = 15;
+    $per_page = 10;
     $offset = ($pagination_page - 1) * $per_page;
     
     // Filtros

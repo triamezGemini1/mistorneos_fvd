@@ -10,4 +10,4 @@ if (!defined('APP_BOOTSTRAPPED')) {
 require_once __DIR__ . '/../../config/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 
-Auth::requireRole(['admin_club']);
+Auth::requireRole(['admin_club', 'admin_general', 'admin_torneo']);

@@ -45,7 +45,8 @@ class SancionesHelper {
      *   - sancion_para_calculo: puntos a restar en resultado1 para efectividad (40 → 0)
      *   - sancion_guardar: valor a guardar en partiresul.sancion (para registro)
      */
-    public static function procesar(mixed $sancion, mixed $tarjetaForm, mixed $tarjetaInscritos): array {
+    /** @param mixed $sancion @param mixed $tarjetaForm @param mixed $tarjetaInscritos */
+    public static function procesar($sancion, $tarjetaForm, $tarjetaInscritos): array {
         $sancion = TorneoCampoNumerico::intEstadistica($sancion);
         $sancion = (int) max(0, min($sancion, self::SANCION_ROJA));
         $tarjetaInscritos = TorneoCampoNumerico::codigoTarjeta($tarjetaInscritos);

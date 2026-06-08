@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/bootstrap.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/auth.php';
+require_once __DIR__ . '/../../lib/ClubHelper.php';
 
 Auth::requireRole(['admin_general']);
 
@@ -109,14 +110,20 @@ if ($view === 'detail' && $admin_id) {
         }
         
         // Usuarios creados por este admin (admin_torneo y operador de sus clubes)
+        $codigosAsoc = ClubHelper::codigosAsociacionDesdeClubIds($pdo, $club_ids);
+        if ($codigosAsoc === []) {
+            $codigosAsoc = $club_ids;
+        }
+        $phCod = implode(',', array_fill(0, count($codigosAsoc), '?'));
+        $joinClubEnt = ClubHelper::sqlJoinClubesOnUsuariosEntidad($pdo, 'u', 'c');
         $stmt = $pdo->prepare("
             SELECT u.*, c.nombre as club_nombre
             FROM usuarios u
-            LEFT JOIN clubes c ON u.entidad = c.id
-            WHERE u.entidad IN ($placeholders) AND u.id != ?
+            LEFT JOIN clubes c ON {$joinClubEnt}
+            WHERE u.entidad IN ($phCod) AND u.id != ?
             ORDER BY u.created_at DESC
         ");
-        $stmt->execute(array_merge($club_ids, [$admin_id]));
+        $stmt->execute(array_merge($codigosAsoc, [$admin_id]));
         $admin_usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Estadísticas

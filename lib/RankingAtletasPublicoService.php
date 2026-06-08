@@ -5,10 +5,7 @@ require_once __DIR__ . '/InscritosHelper.php';
 
 /**
  * Ranking público de atletas por sexo: acumula rendimiento en torneos finalizados
- * visibles (publicar_landing), alineado con datos de inscritos (ptosrnk, efectividad, posición).
- *
- * Antes de leer datos, se recalcula el ranking de cada torneo que cumple el filtro (misma regla que
- * {@see RankingTorneoRecalc} / {@see recalcularPosiciones} en torneo_gestion).
+ * visibles (publicar_landing), alineado con datos persistidos en inscritos (ptosrnk, efectividad, posición).
  */
 final class RankingAtletasPublicoService
 {
@@ -58,41 +55,6 @@ final class RankingAtletasPublicoService
      *
      * @param list<array<string, mixed>> $filas
      */
-    /** Recalcula estadísticas y ptosrnk en BD para cada torneo que entrará en la consulta del ranking. */
-    private function asegurarRecalculoRankingTorneosFiltrados(string $sexo, int $organizacionId, string $pub, string $whereOrg, array $orgParams): void
-    {
-        require_once __DIR__ . '/RankingTorneoRecalc.php';
-        $wEst = InscritosHelper::sqlWhereActivoConAlias('i');
-        $sql = "
-            SELECT DISTINCT i.torneo_id
-            FROM inscritos i
-            INNER JOIN usuarios u ON i.id_usuario = u.id
-            INNER JOIN tournaments t ON i.torneo_id = t.id
-            WHERE u.sexo = ?
-            AND $wEst
-            AND t.estatus = 1
-            AND COALESCE(t.ranking, 0) = 1
-            AND DATE(t.fechator) < CURDATE()
-            {$pub}
-            {$whereOrg}
-        ";
-        try {
-            $st = $this->pdo->prepare($sql);
-            $st->execute(array_merge([$sexo], $orgParams));
-            $ids = $st->fetchAll(PDO::FETCH_COLUMN) ?: [];
-        } catch (Throwable $e) {
-            error_log('RankingAtletasPublicoService::asegurarRecalculoRankingTorneosFiltrados: ' . $e->getMessage());
-
-            return;
-        }
-        foreach ($ids as $tid) {
-            $tid = (int) $tid;
-            if ($tid > 0) {
-                RankingTorneoRecalc::actualizarEstadisticasYRanking($tid);
-            }
-        }
-    }
-
     private function normalizarPtosrnkPorUnidad(array &$filas): void
     {
         $grupos = [];
@@ -154,8 +116,6 @@ final class RankingAtletasPublicoService
                 $orgParams = [$organizacionId];
             }
         }
-        $this->asegurarRecalculoRankingTorneosFiltrados($sexo, $organizacionId, $pub, $whereOrg, $orgParams);
-
         $wEst = InscritosHelper::sqlWhereActivoConAlias('i');
         $ig = InscritosHelper::sqlExprColumnaNumerica('i.ganados');
         $ie = InscritosHelper::sqlExprColumnaNumerica('i.efectividad');

@@ -192,10 +192,12 @@ try {
     $cuenta_id = !empty($_POST['cuenta_id']) ? (int)$_POST['cuenta_id'] : null;
     $permite_inscripcion_linea = isset($_POST['permite_inscripcion_linea']) ? 1 : 0;
     $publicar_landing = isset($_POST['publicar_landing']) ? 1 : 0;
-    $hora_torneo = !empty($_POST['hora_torneo']) ? trim($_POST['hora_torneo']) : null;
-    if ($hora_torneo !== null && !preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', $hora_torneo)) {
-        $hora_torneo = null;
+    $hora_torneo = !empty($_POST['hora_torneo']) ? trim($_POST['hora_torneo']) : '';
+    if ($hora_torneo === '') {
+        throw new Exception('La hora del torneo es requerida');
     }
+    require_once __DIR__ . '/../../lib/TournamentCreateHelper.php';
+    $hora_torneo = TournamentCreateHelper::normalizeHoraTorneo($hora_torneo);
     // tipo_torneo: entero (índice) 0=no definido, 1=interclubes, 2=suizo_puro, 3=suizo_sin_repetir
     $tipo_torneo_raw = isset($_POST['tipo_torneo']) ? trim((string)$_POST['tipo_torneo']) : '';
     $tipo_torneo = null;

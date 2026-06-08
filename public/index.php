@@ -326,6 +326,11 @@ if ($page === 'torneo_gestion' && in_array($action, ['export_resultados_pdf', 'e
     exit;
 }
 
+if ($page === 'torneo_gestion' && $action === 'resumen_individual_pdf') {
+    require_once __DIR__ . '/../modules/tournament_admin/resumen_individual_export_pdf.php';
+    exit;
+}
+
 // Descargas / exportaciones torneo_gestion: ejecutar antes del layout (cabeceras HTTP)
 $torneo_gestion_sin_layout = [
     'inscripciones_export_xls',

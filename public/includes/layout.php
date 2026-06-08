@@ -148,17 +148,52 @@ $modo_prueba_badge_class = $role_badge_class[$role_activo_layout] ?? 'bg-warning
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-dashboard-compact.css') ?>">
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-tokens.css') ?>">
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-identidad.css') ?>">
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-app-page.css') ?>">
   <?php if (($current_page ?? '') === 'home'): ?>
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-dashboard-home-page.css') ?>">
+  <?php endif; ?>
+  <?php if (($current_page ?? '') === 'organizaciones' && (int) ($_GET['id'] ?? 0) > 0 && empty($_GET['club_id'])): ?>
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-organizacion-page.css') ?>">
+  <?php endif; ?>
+  <?php if (($current_page ?? '') === 'mi_organizacion'): ?>
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-organizacion-page.css') ?>">
+  <?php endif; ?>
+  <?php
+  $layout_es_listado_fvd = in_array($current_page ?? '', ['clubes_asociados'], true)
+      || (($current_page ?? '') === 'clubs' && in_array($_GET['action'] ?? 'list', ['list', 'detail', 'afiliado_detail'], true))
+      || (($current_page ?? '') === 'organizaciones'
+          && (int) ($_GET['id'] ?? 0) > 0
+          && ((int) ($_GET['club_id'] ?? 0) > 0 || (int) ($_GET['entidad_id'] ?? 0) > 0));
+  if ($layout_es_listado_fvd):
+  ?>
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-listado-page.css') ?>">
   <?php endif; ?>
   <?php if (($current_page ?? '') === 'registrants'): ?>
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/registrants-page.css') ?>">
   <?php endif; ?>
+  <?php if (($current_page ?? '') === 'importacion_torneo_externo'): ?>
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/importacion-torneo-externo-page.css') ?>">
+  <?php endif; ?>
   <?php if (($current_page ?? '') === 'torneo_gestion' && ($_GET['action'] ?? '') === 'inscribir_sitio'): ?>
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/inscribir-sitio-page.css') ?>">
   <?php endif; ?>
+  <?php
+  $layout_accion_tg = trim((string) ($_GET['action'] ?? ''));
+  $layout_es_reporte_resultados = ($current_page ?? '') === 'torneo_gestion' && in_array($layout_accion_tg, [
+      'posiciones', 'resultados_general', 'resultados_por_club', 'resultados_equipos_resumido',
+      'resultados_equipos_detallado', 'resultados_reportes', 'podios', 'podios_equipos', 'equipos_detalle',
+  ], true);
+  if ($layout_es_reporte_resultados):
+  ?>
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-reportes-resultados.css') ?>">
+  <?php endif; ?>
 </head>
 <?php
+require_once __DIR__ . '/../../lib/FvdAppPage.php';
+$layout_fvd_app_shell = FvdAppPage::shouldApplyGlobalShell(
+    (string) ($current_page ?? 'home'),
+    trim((string) ($_GET['action'] ?? ''))
+);
 $is_panel_control_torneos = ($current_page === 'torneo_gestion' && ($_GET['action'] ?? '') === 'panel');
 $nav_origin = '';
 $from_url = $_GET['from'] ?? $_GET['return_to'] ?? '';
@@ -205,6 +240,24 @@ if ($current_page === 'registrants') {
 if ($current_page === 'home') {
     $body_page_extra .= ' page-dashboard-home';
 }
+if ($current_page === 'importacion_torneo_externo') {
+    $body_page_extra .= ' page-importacion-torneo-externo';
+}
+if ($current_page === 'organizaciones' && (int) ($_GET['id'] ?? 0) > 0 && empty($_GET['club_id'])) {
+    $body_page_extra .= ' page-organizacion-detalle';
+}
+if ($current_page === 'mi_organizacion') {
+    $body_page_extra .= ' page-mi-organizacion';
+}
+if ($layout_es_listado_fvd ?? false) {
+    $body_page_extra .= ' page-fvd-listado';
+}
+if ($layout_fvd_app_shell) {
+    $body_page_extra .= ' page-fvd-app-shell';
+}
+if (($current_page ?? '') === 'fvd_guia_ui') {
+    $body_page_extra .= ' page-fvd-guia-ui';
+}
 ?>
 <body class="bg-light fvd-dashboard-compact<?= $is_panel_control_torneos ? ' page-panel-control-torneos' : '' ?><?= !empty($layout_hide_sidebar) ? ' layout-no-sidebar' : '' ?><?= htmlspecialchars($body_page_extra, ENT_QUOTES, 'UTF-8') ?>"<?= $nav_origin !== '' ? ' data-nav-origin="' . $nav_origin . '"' : '' ?>>
   <!-- Contenedor para notificaciones toast (Push + tarjeta visual) -->
@@ -250,7 +303,7 @@ if ($current_page === 'home') {
     <nav id="sidebar" class="fvd-sidebar-nav text-white border-end shadow d-flex flex-column">
       <div class="sidebar-header p-3 border-bottom">
         <h4 class="mb-0 text-center d-flex align-items-center justify-content-center flex-nowrap">
-          <?= AppHelpers::appLogo('me-2', $fvd_nombre_layout, 35, true, $layout_logo_href) ?>
+          <?= AppHelpers::appLogo('me-2', $fvd_nombre_layout, 32, true, $layout_logo_href) ?>
           <span class="sidebar-brand text-truncate" title="<?= htmlspecialchars($fvd_nombre_layout) ?>"><?= htmlspecialchars(FvdBranding::siglas()) ?></span>
         </h4>
       </div>
@@ -298,13 +351,6 @@ if ($current_page === 'home') {
           </a>
         </li>
         <?php endif; ?>
-        <!-- Menú al mismo nivel (sin agrupación Organizaciones) -->
-        <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('torneo_gestion', ['action' => 'index'])) ?>" class="nav-link <?= ($current_page === 'torneo_gestion' && ($_GET['action'] ?? '') === 'index') ? 'active' : '' ?>">
-            <i class="fas fa-trophy me-3"></i>
-            <span class="nav-text">Torneos</span>
-          </a>
-        </li>
         <?php if ($layout_modulos_extendidos && (!empty($show_link_panel_asociacion) || (($user['role'] ?? '') === 'admin_club' && (int) ($user['entidad'] ?? 0) > 0))): ?>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('finanzas/resumen_asociacion')) ?>" class="nav-link <?= $current_page === 'finanzas/resumen_asociacion' ? 'active' : '' ?>">
@@ -399,7 +445,7 @@ if ($current_page === 'home') {
         ], true);
         $is_recursos_open = in_array($current_page, [
             'control_admin', 'admin_atletas_sync', 'importacion_torneo_externo',
-            'torneo_split_ranking', 'archivos_web',
+            'torneo_split_ranking', 'archivos_web', 'fvd_guia_ui',
         ], true);
         $nav_fvd_org_id = class_exists('FvdConfig') ? FvdConfig::ORGANIZACION_ID : 1;
         $nav_mi_org_href = $dashboard_href('organizaciones', ['id' => $nav_fvd_org_id]);
@@ -427,12 +473,6 @@ if ($current_page === 'home') {
           <a href="<?= htmlspecialchars($nav_mi_org_href) ?>" class="nav-link <?= $nav_mi_org_active ? 'active' : '' ?>">
             <i class="fas fa-building me-3"></i>
             <span class="nav-text">Mi organización</span>
-          </a>
-        </li>
-        <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('torneo_gestion', ['action' => 'index'])) ?>" class="nav-link <?= ($current_page === 'torneo_gestion' && ($_GET['action'] ?? '') === 'index') ? 'active' : '' ?>">
-            <i class="fas fa-trophy me-3"></i>
-            <span class="nav-text">Torneos</span>
           </a>
         </li>
         <?php if ($layout_modulos_extendidos): ?>
@@ -561,6 +601,12 @@ if ($current_page === 'home') {
                 <span>Archivos descargables</span>
               </a>
             </li>
+            <li class="mb-1">
+              <a href="<?= htmlspecialchars($dashboard_href('fvd_guia_ui')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'fvd_guia_ui' ? 'active' : '' ?>">
+                <i class="fas fa-palette me-2"></i>
+                <span>Guía UI / Identidad</span>
+              </a>
+            </li>
           </ul>
         </li>
         <li class="mb-2">
@@ -583,12 +629,6 @@ if ($current_page === 'home') {
           <a href="<?= htmlspecialchars($href_mi_org_at) ?>" class="nav-link <?= $active_mi_org_at ? 'active' : '' ?>">
             <i class="fas fa-building me-3"></i>
             <span class="nav-text">Mi organización</span>
-          </a>
-        </li>
-        <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('torneo_gestion', ['action' => 'index'])) ?>" class="nav-link <?= ($current_page === 'torneo_gestion' && ($_GET['action'] ?? '') === 'index') ? 'active' : '' ?>">
-            <i class="fas fa-trophy me-3"></i>
-            <span class="nav-text">Torneos</span>
           </a>
         </li>
         <?php if ($layout_modulos_extendidos): ?>
@@ -654,7 +694,7 @@ if ($current_page === 'home') {
     <div id="page-content-wrapper" class="flex-grow-1"<?= !empty($layout_hide_sidebar) ? ' style="min-width:0; width:100%;"' : '' ?>>
       
       <!-- Topbar -->
-      <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
+      <nav class="navbar navbar-expand-lg fvd-app-topbar border-bottom shadow-sm">
         <div class="container-fluid">
           <?php if (empty($layout_hide_sidebar)): ?>
           <button class="btn btn-outline-secondary me-3" id="menu-toggle" type="button">
@@ -667,9 +707,9 @@ if ($current_page === 'home') {
             $topbar_logo_src = FvdBranding::logoHref($layout_logo_href);
             $topbar_nombre = htmlspecialchars($fvd_nombre_layout);
             ?>
-            <img src="<?= htmlspecialchars($topbar_logo_src) ?>" alt="<?= $topbar_nombre ?>" height="39" class="me-2 fvd-topbar-logo" style="object-fit: contain; width: auto; max-height: 39px;">
-            <h5 class="mb-0 text-muted d-none d-md-block"><?= $topbar_nombre ?></h5>
-            <h6 class="mb-0 text-muted d-md-none"><?= strlen($topbar_nombre) > 20 ? 'Dashboard' : $topbar_nombre ?></h6>
+            <img src="<?= htmlspecialchars($topbar_logo_src) ?>" alt="<?= $topbar_nombre ?>" height="32" class="me-2 fvd-topbar-logo" style="object-fit: contain; width: auto; max-height: 32px;">
+            <h5 class="mb-0 text-white d-none d-md-block"><?= $topbar_nombre ?></h5>
+            <h6 class="mb-0 text-white d-md-none"><?= strlen($topbar_nombre) > 20 ? 'Dashboard' : $topbar_nombre ?></h6>
             <?php if (!empty($layout_operativo_asoc) && ($current_page ?? '') !== 'asociacion_panel'): ?>
             <a href="<?= htmlspecialchars($dashboard_href('asociacion_panel')) ?>" class="btn btn-sm btn-primary ms-2 ms-md-3">
               <i class="fas fa-city me-1"></i><span class="d-none d-sm-inline">Panel</span> asociación
@@ -696,7 +736,7 @@ if ($current_page === 'home') {
             <?php endif; ?>
             
             <!-- Barra de búsqueda -->
-            <div class="search-box me-3 d-none d-lg-block">
+            <div class="search-box fvd-topbar-search me-3 d-none d-lg-block">
               <div class="input-group">
                 <span class="input-group-text bg-light border-end-0">
                   <i class="fas fa-search text-muted"></i>
@@ -711,7 +751,7 @@ if ($current_page === 'home') {
             </button>
 
             <!-- Campanita: notificaciones web pendientes -->
-            <a href="<?= htmlspecialchars($dashboard_href('user_notificaciones')) ?>" class="btn btn-outline-secondary position-relative me-2" id="campana-link" title="Notificaciones">
+            <a href="<?= htmlspecialchars($dashboard_href('user_notificaciones')) ?>" class="btn btn-outline-secondary fvd-topbar-chip fvd-topbar-chip--notify position-relative me-2" id="campana-link" title="Notificaciones">
               <i class="fas fa-bell"></i>
               <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="campana-badge" style="display: none;">0</span>
             </a>
@@ -730,7 +770,7 @@ if ($current_page === 'home') {
                 : $dashboard_href('mi_organizacion');
             ?>
             <!-- Mismo destino que «Mi organización» en el menú lateral -->
-            <a href="<?= htmlspecialchars($topbar_org_href) ?>" class="btn btn-outline-primary me-2" title="Mi organización: resumen, asociaciones y afiliados">
+            <a href="<?= htmlspecialchars($topbar_org_href) ?>" class="btn btn-outline-primary fvd-topbar-chip fvd-topbar-chip--org me-2" title="Mi organización: resumen, asociaciones y afiliados">
               <i class="fas fa-building me-1"></i>
               <span class="d-none d-md-inline">Mi organización</span>
             </a>

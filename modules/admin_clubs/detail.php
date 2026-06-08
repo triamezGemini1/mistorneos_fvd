@@ -67,7 +67,7 @@ try {
                 SUM(CASE WHEN u.sexo = 'F' OR UPPER(u.sexo) = 'F' THEN 1 ELSE 0 END) as mujeres,
                 $sql_torneos_sub as total_torneos
             FROM clubes c
-            LEFT JOIN usuarios u ON u.entidad = c.id
+            LEFT JOIN usuarios u ON " . ClubHelper::sqlJoinUsuariosAfiliadosOnClub(DB::pdo(), 'c') . "
             WHERE c.id IN ($placeholders)
             GROUP BY c.id, c.nombre, c.delegado, c.telefono, c.direccion, c.estatus
             ORDER BY c.nombre ASC

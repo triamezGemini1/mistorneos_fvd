@@ -41,7 +41,7 @@ $clubId = (int) ($club['id'] ?? 0);
 $q = trim((string) ($_GET['q'] ?? ''));
 $filtro = trim((string) ($_GET['filtro'] ?? 'todos'));
 $pagina = max(1, (int) ($_GET['p'] ?? 1));
-$porPagina = 25;
+$porPagina = 10;
 
 $urlPanel = AppHelpers::dashboard('asociacion_panel', array_filter(['torneo_id' => $torneoId ?: null]));
 $cssFvd = AppHelpers::assetVersion('assets/css/fvd-afiliacion-forms.css');

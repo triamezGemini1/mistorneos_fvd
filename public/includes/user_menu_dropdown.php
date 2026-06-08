@@ -39,7 +39,7 @@ $current_uri = class_exists('AppHelpers') ? AppHelpers::returnToForPost() : ($_S
 ?>
 <!-- Menú usuario: centralizado para que todas las opciones (incl. logout) estén siempre disponibles -->
 <div class="dropdown" id="user-menu-dropdown" data-bs-boundary="viewport">
-  <button class="btn btn-outline-primary dropdown-toggle" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">
+  <button class="btn btn-outline-primary fvd-topbar-chip fvd-topbar-chip--user dropdown-toggle" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">
     <i class="fas fa-user me-2"></i>
     <?= htmlspecialchars($user['username'] ?? 'Usuario') ?>
   </button>

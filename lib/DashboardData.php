@@ -32,6 +32,7 @@ class DashboardData
 
     public static function loadEntidadSummary(array $entidad_map): array
     {
+        require_once __DIR__ . '/EntidadFvdCatalogo.php';
         $data = [];
         try {
             $sqlSummary = "
@@ -76,7 +77,7 @@ class DashboardData
                 if ($ent <= 0) continue;
                 $data[] = [
                     'entidad' => $ent,
-                    'entidad_nombre' => $entidad_map[$ent] ?? ("Entidad " . $ent),
+                    'entidad_nombre' => EntidadFvdCatalogo::normalizarNombre($ent, $entidad_map[$ent] ?? null),
                     'admin_clubs' => (int)$r['admin_clubs'],
                     'total_clubes' => $clubesByEntidad[$ent] ?? 0,
                     'hombres' => (int)$r['hombres'],

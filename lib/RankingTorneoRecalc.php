@@ -2,72 +2,150 @@
 declare(strict_types=1);
 
 /**
- * Punto de entrada único para recalcular estadísticas desde partiresul y puntos de ranking (ptosrnk)
- * cada vez que se consultan resultados públicos o el ranking acumulado de atletas.
+ * Punto de entrada para sincronizar estadísticas desde partiresul hacia inscritos.
  *
- * POLÍTICA DE NEGOCIO (implementación detallada en {@see recalcularPosiciones()} de modules/torneo_gestion.php):
+ * POLÍTICA (implementación en modules/torneo_gestion.php):
+ * - Sincronizar ganados/puntos/efectividad: al guardar resultados de mesa (sin reclasificar).
+ * - Recalcular posición y ptosrnk: al cerrar ronda (generar la siguiente), al completar la última mesa
+ *   de la última ronda, finalizar torneo, carga masiva o acción manual «Actualizar estadísticas».
+ * - Consultas y reportes: leen posición persistida; no recalculan.
  *
- * 1) Tabla `clasiranking`: por `tipo_torneo` (1=individual, 2=parejas/parejas fijas, 3=equipos) define
- *    filas por número de clasificación con: puntos por posición, puntos por partida ganada, puntos de asistencia/participación.
- *
- * 2) Límite de filas de tabla aplicables por modalidad (variable `$limitePosiciones` en código):
- *    - Individual: 30
- *    - Parejas (2) y parejas fijas (4): 20
- *    - Equipos (3): 10
- *
- * 3) Hasta ese límite (clasificación 1..N dentro del límite):
- *    ptosrnk = puntos_posicion_tabla + (partidas_ganadas × puntos_por_partida_ganada_fila) + puntos_asistencia_fila
- *    - Individual: la clasificación es la posición del jugador en el torneo (orden por ganados/efectividad/puntos).
- *    - Parejas / equipos: la componente "puntos_posicion" de la tabla es la de la UNIDAD (misma fila para todos
- *      los integrantes según `clasiequi` / posición del equipo o pareja); las partidas ganadas aplican como
- *      rendimiento (agregado por unidad en modalidades 2 y 4; individuales en modalidad 3 equipos).
- *
- * 4) Por encima del límite (últimos puestos): no se aplican puntos_posicion de tabla; se usan la tarifa de
- *    partidas ganadas y asistencia definida para "fuera de tabla" (misma referencia que la última fila dentro
- *    del límite o respaldo desde `clasiranking`).
- *
- * 5) Flujo técnico al solicitar datos: {@see actualizarEstadisticasInscritos()} agrega resultados desde
- *    `partiresul` hacia `inscritos`, luego recalcula clasificación de equipos/parejas si aplica y `ptosrnk`.
+ * @see actualizarEstadisticasInscritos()
+ * @see recalcularPosiciones()
  */
 final class RankingTorneoRecalc
 {
-    /** @var array<int, true> Evita repetir el recálculo del mismo torneo en una sola petición HTTP. */
-    private static array $recalculadoEnEstaPeticion = [];
+    /** @var array<int, true> Evita repetir reclasificación final en la misma petición HTTP. */
+    private static array $reclasificadoUltimaRondaEnPeticion = [];
+
+    /** @var array<int, true> Evita repetir la sincronización del mismo torneo en una sola petición HTTP. */
+    private static array $sincronizadoEnEstaPeticion = [];
 
     /**
-     * Actualiza estadísticas de partidas y recalcula ranking del torneo (misma lógica que la gestión interna).
-     * Requiere definir TORNEO_GESTION_SKIP_AUTH y TORNEO_GESTION_SKIP_ROUTER antes de cargar torneo_gestion.php.
+     * True si la ronda programada final del torneo existe y todas sus mesas tienen resultados registrados.
+     */
+    public static function esUltimaRondaTorneoCompleta(int $torneo_id): bool
+    {
+        $torneo_id = (int) $torneo_id;
+        if ($torneo_id <= 0) {
+            return false;
+        }
+        try {
+            $pdo = \DB::pdo();
+            $stmt = $pdo->prepare('SELECT rondas FROM tournaments WHERE id = ? LIMIT 1');
+            $stmt->execute([$torneo_id]);
+            $totalRondas = (int) $stmt->fetchColumn();
+            if ($totalRondas <= 0) {
+                return false;
+            }
+            $stmt = $pdo->prepare('SELECT MAX(partida) FROM partiresul WHERE id_torneo = ?');
+            $stmt->execute([$torneo_id]);
+            $ultimaRonda = (int) $stmt->fetchColumn();
+            if ($ultimaRonda < $totalRondas) {
+                return false;
+            }
+            self::cargarTorneoGestion();
+            if (! \function_exists('contarMesasIncompletas')) {
+                return false;
+            }
+
+            return \contarMesasIncompletas($torneo_id, $ultimaRonda) === 0;
+        } catch (\Throwable $e) {
+            error_log('RankingTorneoRecalc::esUltimaRondaTorneoCompleta: ' . $e->getMessage());
+
+            return false;
+        }
+    }
+
+    /**
+     * Cierra la clasificación final cuando se ingresa la última mesa de la última ronda (stats ya sincronizados).
+     */
+    public static function reclasificarSiUltimaRondaTorneoCompleta(int $torneo_id): bool
+    {
+        $torneo_id = (int) $torneo_id;
+        if ($torneo_id <= 0 || isset(self::$reclasificadoUltimaRondaEnPeticion[$torneo_id])) {
+            return false;
+        }
+        if (! self::esUltimaRondaTorneoCompleta($torneo_id)) {
+            return false;
+        }
+        self::$reclasificadoUltimaRondaEnPeticion[$torneo_id] = true;
+        self::cargarTorneoGestion();
+        if (! \function_exists('recalcularRankingSegunModalidad')) {
+            return false;
+        }
+        try {
+            \recalcularRankingSegunModalidad($torneo_id);
+
+            return true;
+        } catch (\Throwable $e) {
+            error_log('RankingTorneoRecalc::reclasificarSiUltimaRondaTorneoCompleta: ' . $e->getMessage());
+
+            return false;
+        }
+    }
+
+    /**
+     * Solo agrega estadísticas de partiresul → inscritos (sin reclasificar posiciones).
+     */
+    public static function sincronizarEstadisticasPartidas(int $torneo_id): void
+    {
+        self::ejecutar($torneo_id, false);
+    }
+
+    /**
+     * Sincroniza partidas y recalcula clasificación (cierre de ronda / finalización).
+     */
+    public static function sincronizarClasificacionCompleta(int $torneo_id): void
+    {
+        self::ejecutar($torneo_id, true);
+    }
+
+    /**
+     * @deprecated Usar sincronizarEstadisticasPartidas() en lecturas o sincronizarClasificacionCompleta() al cerrar ronda.
      */
     public static function actualizarEstadisticasYRanking(int $torneo_id): void
+    {
+        self::sincronizarEstadisticasPartidas($torneo_id);
+    }
+
+    private static function ejecutar(int $torneo_id, bool $recalcularClasificacion): void
     {
         $torneo_id = (int) $torneo_id;
         if ($torneo_id <= 0) {
             return;
         }
-        if (isset(self::$recalculadoEnEstaPeticion[$torneo_id])) {
+        $cacheKey = $recalcularClasificacion ? -$torneo_id : $torneo_id;
+        if (isset(self::$sincronizadoEnEstaPeticion[$cacheKey])) {
             return;
         }
-        self::$recalculadoEnEstaPeticion[$torneo_id] = true;
-        $path = dirname(__DIR__) . '/modules/torneo_gestion.php';
-        if (! is_readable($path)) {
-            return;
-        }
-        if (! function_exists('actualizarEstadisticasInscritos')) {
-            if (! defined('TORNEO_GESTION_SKIP_AUTH')) {
-                define('TORNEO_GESTION_SKIP_AUTH', true);
-            }
-            if (! defined('TORNEO_GESTION_SKIP_ROUTER')) {
-                define('TORNEO_GESTION_SKIP_ROUTER', true);
-            }
-            require_once $path;
-        }
+        self::$sincronizadoEnEstaPeticion[$cacheKey] = true;
+        self::cargarTorneoGestion();
         if (! function_exists('actualizarEstadisticasInscritos')) {
             return;
         }
         try {
-            actualizarEstadisticasInscritos($torneo_id);
+            actualizarEstadisticasInscritos($torneo_id, $recalcularClasificacion);
         } catch (Throwable $e) {
-            error_log('RankingTorneoRecalc::actualizarEstadisticasYRanking: ' . $e->getMessage());
+            error_log('RankingTorneoRecalc: ' . $e->getMessage());
         }
+    }
+
+    private static function cargarTorneoGestion(): void
+    {
+        if (\function_exists('actualizarEstadisticasInscritos')) {
+            return;
+        }
+        $path = dirname(__DIR__) . '/modules/torneo_gestion.php';
+        if (! is_readable($path)) {
+            return;
+        }
+        if (! defined('TORNEO_GESTION_SKIP_AUTH')) {
+            define('TORNEO_GESTION_SKIP_AUTH', true);
+        }
+        if (! defined('TORNEO_GESTION_SKIP_ROUTER')) {
+            define('TORNEO_GESTION_SKIP_ROUTER', true);
+        }
+        require_once $path;
     }
 }

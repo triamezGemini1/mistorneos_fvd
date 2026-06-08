@@ -98,6 +98,7 @@ class MesaAsignacionEquiposService
                 INNER JOIN inscritos i ON i.torneo_id = e.id_torneo
                     AND i.codigo_equipo = e.codigo_equipo
                     AND i.estatus != 4
+                    AND " . InscritosHelper::sqlWhereActivoMesaConAlias($this->pdo, 'i') . "
                 INNER JOIN usuarios u ON u.id = i.id_usuario
                 WHERE e.id_torneo = ?
                   AND e.estatus = 0
@@ -587,6 +588,7 @@ WITH eu_base AS (
   INNER JOIN inscritos i ON i.torneo_id = e.id_torneo
     AND i.codigo_equipo = e.codigo_equipo
     AND i.estatus != 4
+    AND (i.activo_mesa IS NULL OR i.activo_mesa = 1)
   WHERE e.id_torneo = ? AND e.estatus = 0
     AND e.codigo_equipo IS NOT NULL AND e.codigo_equipo != ''
 ),

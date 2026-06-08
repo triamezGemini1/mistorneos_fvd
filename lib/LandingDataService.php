@@ -595,8 +595,6 @@ class LandingDataService
         if ($torneo_id <= 0) {
             return [];
         }
-        require_once __DIR__ . '/RankingTorneoRecalc.php';
-        RankingTorneoRecalc::actualizarEstadisticasYRanking($torneo_id);
         try {
             $stmt = $this->pdo->prepare("
                 SELECT

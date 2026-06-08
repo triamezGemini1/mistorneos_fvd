@@ -17,6 +17,7 @@ $etiqueta_equipos = $es_parejas ? 'Parejas' : 'Equipos';
 // Obtener CSRF token
 require_once __DIR__ . '/../../config/csrf.php';
 $csrf_token = class_exists('CSRF') ? CSRF::token() : '';
+$sustitucion_api = AppHelpers::url('api/equipo_sustitucion.php');
 ?>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
@@ -161,6 +162,20 @@ $csrf_token = class_exists('CSRF') ? CSRF::token() : '';
         font-size: 0.85rem;
         font-weight: 500;
     }
+    .badge-jugador-titular {
+        background: #198754;
+        color: #fff;
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
+    .badge-jugador-banca {
+        background: #6c757d;
+        color: #fff;
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
 </style>
 
 <div class="container-fluid py-4">
@@ -214,6 +229,15 @@ $csrf_token = class_exists('CSRF') ? CSRF::token() : '';
         </div>
     </div>
 
+    <?php if (!$es_parejas): ?>
+    <div class="alert alert-info small mb-4">
+        <strong>Plantilla ampliada:</strong> puede inscribir más de <?= (int) $jugadores_por_equipo ?> jugadores por equipo.
+        Los <strong>titulares</strong> (activos para mesas) son <?= (int) $jugadores_por_equipo ?>; los demás quedan en <strong>banca</strong>
+        y pueden reemplazar a un titular en cualquier momento. El reemplazado conserva el código de equipo y sus estadísticas,
+        pero deja de recibir mesas.
+    </div>
+    <?php endif; ?>
+
     <?php if (empty($equipos_por_club)): ?>
         <!-- Sin equipos -->
         <div class="card border-0 shadow-sm">
@@ -261,9 +285,12 @@ $csrf_token = class_exists('CSRF') ? CSRF::token() : '';
                         }
                     }
                     $total_jugadores = count($jugadores);
+                    $titulares = (int)($equipo['titulares'] ?? $total_jugadores);
+                    $suplentes = (int)($equipo['suplentes'] ?? 0);
                     $jugadores_requeridos = $jugadores_por_equipo;
-                    $es_completo = $total_jugadores >= $jugadores_requeridos;
+                    $es_completo = $titulares >= $jugadores_requeridos;
                     $equipo_id_js = htmlspecialchars(json_encode($equipo_id));
+                    $codigo_js = htmlspecialchars(json_encode($equipo['codigo_equipo'] ?? ''), ENT_QUOTES);
                 ?>
                     <div class="equipo-row" id="equipo-row-<?php echo $equipo_id; ?>">
                         <div class="equipo-info">
@@ -284,12 +311,22 @@ $csrf_token = class_exists('CSRF') ? CSRF::token() : '';
                             <div class="equipo-actions">
                                 <?php if ($es_completo): ?>
                                     <span class="badge-equipo-completo">
-                                        <i class="fas fa-check-circle me-1"></i>Completo (<?php echo $total_jugadores; ?>/<?php echo $jugadores_requeridos; ?>)
+                                        <i class="fas fa-check-circle me-1"></i>Titulares <?= $titulares; ?>/<?= $jugadores_requeridos; ?>
+                                        <?php if ($suplentes > 0): ?><span class="ms-1">· Banca <?= $suplentes; ?></span><?php endif; ?>
                                     </span>
                                 <?php else: ?>
                                     <span class="badge-equipo-incompleto">
-                                        <i class="fas fa-exclamation-triangle me-1"></i>Incompleto (<?php echo $total_jugadores; ?>/<?php echo $jugadores_requeridos; ?>)
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Titulares <?= $titulares; ?>/<?= $jugadores_requeridos; ?>
+                                        (plantilla <?= $total_jugadores; ?>)
                                     </span>
+                                <?php endif; ?>
+                                
+                                <?php if (!$es_parejas && $suplentes > 0 && $titulares >= $jugadores_requeridos): ?>
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            onclick="abrirSustitucion(<?= $equipo_id_js ?>, <?= $codigo_js ?>, '<?= htmlspecialchars($nombre_equipo, ENT_QUOTES); ?>')"
+                                            title="Reemplazo titular ↔ banca">
+                                        <i class="fas fa-people-arrows"></i> Sustituir
+                                    </button>
                                 <?php endif; ?>
                                 
                                 <?php if (!empty($jugadores)): ?>
@@ -313,11 +350,18 @@ $csrf_token = class_exists('CSRF') ? CSRF::token() : '';
                                 <div class="mb-2 fw-semibold text-muted" style="font-size: 0.9rem;">
                                     <i class="fas fa-users me-1"></i>Jugadores de la <?php echo $etiqueta_equipo; ?>:
                                 </div>
-                                <?php foreach ($jugadores as $jugador): ?>
+                                <?php foreach ($jugadores as $jugador): 
+                                    $esTitular = (int)($jugador['activo_mesa'] ?? 1) === 1;
+                                ?>
                                     <div class="jugador-item">
                                         <span class="jugador-id">ID: <?php echo htmlspecialchars($jugador['id_usuario'] ?? '-'); ?></span>
                                         <span class="jugador-cedula"><?php echo htmlspecialchars($jugador['cedula'] ?? '-'); ?></span>
                                         <span class="jugador-nombre"><?php echo htmlspecialchars($jugador['nombre'] ?? 'Sin nombre'); ?></span>
+                                        <?php if (!$es_parejas): ?>
+                                        <span class="<?= $esTitular ? 'badge-jugador-titular' : 'badge-jugador-banca' ?>">
+                                            <?= $esTitular ? 'Titular mesas' : 'Banca' ?>
+                                        </span>
+                                        <?php endif; ?>
                                     </div>
                                 <?php endforeach; ?>
                             </div>
@@ -331,6 +375,82 @@ $csrf_token = class_exists('CSRF') ? CSRF::token() : '';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+<script>
+const SUSTITUCION_API = <?= json_encode($sustitucion_api, JSON_UNESCAPED_UNICODE) ?>;
+const CSRF_SUST = <?= json_encode($csrf_token, JSON_UNESCAPED_UNICODE) ?>;
+const TORNEO_ID_SUST = <?= (int) ($torneo['id'] ?? 0) ?>;
+
+async function abrirSustitucion(equipoId, codigoEquipo, nombreEquipo) {
+    const fd = new FormData();
+    fd.append('csrf_token', CSRF_SUST);
+    fd.append('action', 'listar_plantilla');
+    fd.append('torneo_id', String(TORNEO_ID_SUST));
+    fd.append('codigo_equipo', codigoEquipo);
+    let plantilla = [];
+    try {
+        const r = await fetch(SUSTITUCION_API, { method: 'POST', body: fd, credentials: 'same-origin' });
+        const j = await r.json();
+        if (!j.success) throw new Error(j.error || 'Error al cargar plantilla');
+        plantilla = j.plantilla || [];
+    } catch (e) {
+        Swal.fire('Error', e.message || 'No se pudo cargar la plantilla', 'error');
+        return;
+    }
+    const titulares = plantilla.filter(function (p) { return parseInt(p.activo_mesa, 10) === 1; });
+    const banca = plantilla.filter(function (p) { return parseInt(p.activo_mesa, 10) !== 1; });
+    if (!titulares.length || !banca.length) {
+        Swal.fire('Sin sustitución', 'Se necesita al menos un titular y un suplente en banca.', 'info');
+        return;
+    }
+    const optsSale = titulares.map(function (p) {
+        return '<option value="' + p.id_usuario + '">' + (p.nombre || p.cedula) + ' (titular)</option>';
+    }).join('');
+    const optsEntra = banca.map(function (p) {
+        return '<option value="' + p.id_usuario + '">' + (p.nombre || p.cedula) + ' (banca)</option>';
+    }).join('');
+    const html = '<div class="text-start small">'
+        + '<p><strong>' + codigoEquipo + '</strong> · ' + nombreEquipo + '</p>'
+        + '<label class="form-label">Titular que sale (pasa a banca, conserva estadísticas)</label>'
+        + '<select id="swal-sale" class="form-select mb-2">' + optsSale + '</select>'
+        + '<label class="form-label">Suplente que entra (activo en mesas resto del torneo)</label>'
+        + '<select id="swal-entra" class="form-select mb-2">' + optsEntra + '</select>'
+        + '<label class="form-label">Observación (opcional)</label>'
+        + '<input type="text" id="swal-obs" class="form-control" maxlength="200" placeholder="Motivo del cambio">'
+        + '</div>';
+    const result = await Swal.fire({
+        title: 'Sustitución de jugador',
+        html: html,
+        showCancelButton: true,
+        confirmButtonText: 'Aplicar sustitución',
+        cancelButtonText: 'Cancelar',
+        preConfirm: function () {
+            return {
+                sale: document.getElementById('swal-sale').value,
+                entra: document.getElementById('swal-entra').value,
+                obs: document.getElementById('swal-obs').value
+            };
+        }
+    });
+    if (!result.isConfirmed || !result.value) return;
+    const fd2 = new FormData();
+    fd2.append('csrf_token', CSRF_SUST);
+    fd2.append('action', 'sustituir');
+    fd2.append('torneo_id', String(TORNEO_ID_SUST));
+    fd2.append('codigo_equipo', codigoEquipo);
+    fd2.append('id_usuario_sale', result.value.sale);
+    fd2.append('id_usuario_entra', result.value.entra);
+    fd2.append('observacion', result.value.obs || '');
+    try {
+        const r2 = await fetch(SUSTITUCION_API, { method: 'POST', body: fd2, credentials: 'same-origin' });
+        const j2 = await r2.json();
+        if (!j2.success) throw new Error(j2.error || j2.message || 'Error');
+        await Swal.fire('Listo', j2.message || 'Sustitución aplicada', 'success');
+        location.reload();
+    } catch (e) {
+        Swal.fire('Error', e.message || 'No se pudo aplicar', 'error');
+    }
+}
+</script>
 <script>
 function toggleJugadores(equipoId) {
     const lista = document.getElementById('jugadores-' + equipoId);

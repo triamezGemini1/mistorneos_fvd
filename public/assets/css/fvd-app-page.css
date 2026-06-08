@@ -1,0 +1,574 @@
+/**
+ * FVD — Shell unificado de páginas administrativas
+ * Modelo canónico: Mi organización + listados (#00D6F8 → #0E85A3)
+ * Usar wrapper .fvd-app-page en container-fluid o body.page-fvd-app-shell en layout.
+ */
+:root {
+  --fvd-app-scale: 1.25;
+  --fvd-app-font: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --fvd-app-bg-soft: #7ae8fb;
+  --fvd-app-bg: #00d6f8;
+  --fvd-app-bg-deep: #0e85a3;
+  --fvd-app-bg-dark: #065a6e;
+
+  --fvd-app-ink: #0a3d47;
+  --fvd-app-ink-muted: #155a66;
+  --fvd-app-ink-on-dark: #ffffff;
+
+  --fvd-app-ocre: #8a5a08;
+  --fvd-app-ocre-dark: #7a5208;
+
+  --fvd-app-card-solid: rgba(255, 255, 255, 0.92);
+  --fvd-app-card-glass: linear-gradient(145deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%);
+  --fvd-app-header-glass: rgba(255, 255, 255, 0.12);
+
+  --fvd-app-kpi-blue: #c8e6f5;
+  --fvd-app-kpi-green: #c8f0d4;
+  --fvd-app-kpi-yellow: #fff0c8;
+  --fvd-app-kpi-lavender: #e8d4f5;
+  --fvd-app-kpi-peach: #f5dcc8;
+  --fvd-app-kpi-sky: #d4eef5;
+  --fvd-app-kpi-rose: #f5d4e0;
+
+  --fvd-header-bg: #173b7e;
+  --fvd-listado-bg: var(--fvd-app-bg);
+  --fvd-listado-bg-deep: var(--fvd-app-bg-deep);
+  --fvd-listado-bg-soft: var(--fvd-app-bg-soft);
+  --fvd-listado-ink: var(--fvd-app-ink);
+  --fvd-listado-ink-muted: var(--fvd-app-ink-muted);
+  --fvd-listado-ocre: var(--fvd-app-ocre);
+  --fvd-listado-card: var(--fvd-app-card-solid);
+  --fvd-org-bg: var(--fvd-app-bg-deep);
+  --fvd-org-bg-dark: var(--fvd-app-bg-dark);
+  --fvd-org-bg-light: var(--fvd-app-bg-soft);
+  --fvd-org-ocre: var(--fvd-app-ocre);
+  --fvd-org-ocre-dark: var(--fvd-app-ocre-dark);
+}
+
+/* Fondo institucional en main del dashboard */
+body.fvd-dashboard-compact.page-fvd-app-shell main.fvd-main-scroll {
+  background: linear-gradient(
+    165deg,
+    var(--fvd-app-bg-soft) 0%,
+    var(--fvd-app-bg) 42%,
+    var(--fvd-app-bg-deep) 100%
+  );
+  font-family: var(--fvd-app-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Páginas sin wrapper explícito: tipografía y color base */
+body.page-fvd-app-shell main.fvd-main-scroll > .container-fluid:not(.no-fvd-app-page):not(.fvd-app-page):not(.fvd-listado-page):not(.fvd-org-page) {
+  padding-top: 0.5rem;
+  padding-bottom: 0.75rem;
+  color: var(--fvd-app-ink);
+  font-family: var(--fvd-app-font);
+  font-size: calc(0.875rem * var(--fvd-app-scale));
+  line-height: 1.38;
+}
+
+body.page-fvd-app-shell main.fvd-main-scroll > .container-fluid:not(.no-fvd-app-page) .card:not(.no-fvd-app):not(.card-modern):not(.bg-dark) {
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--fvd-app-card-solid);
+  box-shadow: 0 0.2rem 0.65rem rgba(10, 61, 71, 0.1);
+}
+
+body.page-fvd-app-shell main.fvd-main-scroll > .container-fluid:not(.no-fvd-app-page) .card:not(.no-fvd-app) .card-header {
+  background: var(--fvd-header-bg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-weight: 700;
+  font-size: calc(0.8125rem * var(--fvd-app-scale));
+  padding: 0.32rem 0.65rem;
+  line-height: 1.25;
+}
+
+body.page-fvd-app-shell main.fvd-main-scroll > .container-fluid:not(.no-fvd-app-page) .table:not(.no-fvd-app):not(.table-dark) {
+  font-size: calc(0.8125rem * var(--fvd-app-scale));
+}
+
+body.page-fvd-app-shell main.fvd-main-scroll > .container-fluid:not(.no-fvd-app-page) .table:not(.no-fvd-app) thead th {
+  padding: 0.24rem 0.4rem;
+  font-size: calc(0.7rem * var(--fvd-app-scale));
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: rgba(23, 59, 126, 0.1);
+  color: var(--fvd-app-ink-muted);
+  line-height: 1.2;
+}
+
+body.page-fvd-app-shell main.fvd-main-scroll > .container-fluid:not(.no-fvd-app-page) .table:not(.no-fvd-app) tbody td {
+  padding: 0.22rem 0.4rem;
+  vertical-align: middle;
+  line-height: 1.22;
+}
+
+body.page-fvd-app-shell main.fvd-main-scroll .breadcrumb-item a {
+  color: var(--fvd-app-ink-muted);
+}
+
+body.page-fvd-app-shell main.fvd-main-scroll .breadcrumb-item.active,
+body.page-fvd-app-shell main.fvd-main-scroll .breadcrumb-item + .breadcrumb-item::before {
+  color: rgba(10, 61, 71, 0.65);
+}
+
+/* ========== Shell .fvd-app-page ========== */
+.fvd-app-page {
+  --fvd-app-scale: 1.25;
+  color: var(--fvd-app-ink);
+  font-family: var(--fvd-app-font);
+  font-size: calc(0.875rem * var(--fvd-app-scale));
+  line-height: 1.38;
+  letter-spacing: 0.012em;
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.75rem !important;
+}
+
+.fvd-app-page--compact {
+  padding-top: 0.35rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
+.fvd-app-page .breadcrumb {
+  margin-bottom: 0.35rem !important;
+  padding: 0;
+  font-size: calc(0.8125rem * var(--fvd-app-scale));
+}
+
+.fvd-app-page .breadcrumb-item a {
+  color: var(--fvd-app-ink-muted);
+  text-decoration: none;
+}
+
+.fvd-app-page .breadcrumb-item.active,
+.fvd-app-page .breadcrumb-item + .breadcrumb-item::before {
+  color: rgba(10, 61, 71, 0.65);
+}
+
+/* Toolbar */
+.fvd-app-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.fvd-app-toolbar-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.fvd-app-title {
+  font-size: calc(1.15rem * var(--fvd-app-scale));
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.25;
+  color: var(--fvd-app-ink);
+}
+
+.fvd-app-subtitle {
+  font-size: calc(0.78rem * var(--fvd-app-scale));
+  color: var(--fvd-app-ink-muted);
+  margin: 0;
+}
+
+.fvd-app-filtros .btn {
+  font-size: calc(0.78rem * var(--fvd-app-scale));
+  padding: 0.2rem 0.55rem;
+  font-weight: 600;
+}
+
+/* Tarjetas */
+.fvd-app-card,
+.fvd-app-page .card.fvd-app-card {
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--fvd-app-card-solid);
+  box-shadow: 0 0.2rem 0.65rem rgba(10, 61, 71, 0.12);
+  overflow: hidden;
+}
+
+.fvd-app-card > .card-header,
+.fvd-app-page .card.fvd-app-card > .card-header {
+  background: var(--fvd-header-bg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: calc(0.32rem * var(--fvd-app-scale)) calc(0.65rem * var(--fvd-app-scale));
+  font-size: calc(0.8125rem * var(--fvd-app-scale));
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.25;
+}
+
+.fvd-app-card > .card-body,
+.fvd-app-page .card.fvd-app-card > .card-body {
+  color: var(--fvd-app-ink);
+}
+
+.fvd-app-card > .card-body.p-0 {
+  padding: 0 !important;
+}
+
+/* Variante glass (Mi organización sobre gradiente) */
+.fvd-app-page--glass .fvd-app-card,
+.fvd-app-page.fvd-app-page--glass .card.fvd-app-card {
+  background: var(--fvd-app-card-glass);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.12);
+}
+
+.fvd-app-page--glass {
+  color: var(--fvd-app-ink-on-dark);
+}
+
+.fvd-app-page--glass .fvd-app-card > .card-header,
+.fvd-app-page--glass .card.fvd-app-card > .card-header {
+  background: var(--fvd-header-bg);
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.fvd-app-page--glass .fvd-app-card > .card-body,
+.fvd-app-page--glass .card.fvd-app-card > .card-body {
+  color: var(--fvd-app-ink-on-dark);
+}
+
+.fvd-app-page--glass .breadcrumb-item a {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.fvd-app-page--glass .breadcrumb-item.active,
+.fvd-app-page--glass .breadcrumb-item + .breadcrumb-item::before {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.fvd-app-page--glass .fvd-app-meta,
+.fvd-app-page--glass .text-muted {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+.fvd-app-page--glass .fvd-app-table .table {
+  --bs-table-bg: rgba(255, 255, 255, 0.92);
+  --bs-table-color: #212529;
+}
+
+.fvd-app-page--glass .alert {
+  background: rgba(255, 255, 255, 0.92);
+  color: #212529;
+}
+
+/* KPIs pasteles */
+.fvd-app-kpi-row {
+  margin-bottom: 0 !important;
+}
+
+.fvd-app-kpi {
+  text-align: center;
+  padding: calc(0.35rem * var(--fvd-app-scale)) calc(0.4rem * var(--fvd-app-scale));
+  border-radius: 0.4rem;
+  min-height: calc(2.65rem * var(--fvd-app-scale));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.fvd-app-kpi strong,
+.fvd-app-kpi .fvd-app-kpi-num {
+  font-size: calc(1.05rem * var(--fvd-app-scale));
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--fvd-app-ocre-dark);
+}
+
+.fvd-app-kpi span,
+.fvd-app-kpi small {
+  font-size: calc(0.65rem * var(--fvd-app-scale));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fvd-app-ocre);
+}
+
+.fvd-app-kpi--blue { background: var(--fvd-app-kpi-blue); }
+.fvd-app-kpi--green { background: var(--fvd-app-kpi-green); }
+.fvd-app-kpi--yellow { background: var(--fvd-app-kpi-yellow); }
+.fvd-app-kpi--lavender { background: var(--fvd-app-kpi-lavender); }
+.fvd-app-kpi--peach { background: var(--fvd-app-kpi-peach); }
+.fvd-app-kpi--sky { background: var(--fvd-app-kpi-sky); }
+.fvd-app-kpi--rose { background: var(--fvd-app-kpi-rose); }
+
+/* Tablas compactas */
+.fvd-app-table .table {
+  margin-bottom: 0;
+  font-size: calc(0.8125rem * var(--fvd-app-scale));
+}
+
+.fvd-app-table .table thead th {
+  padding: 0.24rem 0.4rem;
+  font-size: calc(0.68rem * var(--fvd-app-scale));
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 700;
+  color: var(--fvd-app-ink-muted);
+  background: rgba(23, 59, 126, 0.1);
+  border-bottom-width: 1px;
+  vertical-align: middle;
+  line-height: 1.2;
+}
+
+.fvd-app-table .table tbody td {
+  padding: 0.22rem 0.4rem;
+  vertical-align: middle;
+  line-height: 1.22;
+}
+
+.fvd-app-table .badge {
+  font-size: calc(0.68rem * var(--fvd-app-scale));
+  font-weight: 600;
+  padding: 0.18em 0.45em;
+}
+
+.fvd-app-table .btn-sm {
+  font-size: calc(0.72rem * var(--fvd-app-scale));
+  padding: 0.15rem 0.45rem;
+}
+
+/* Paginación */
+.fvd-app-paginacion,
+.fvd-listado-paginacion {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  padding: calc(0.4rem * var(--fvd-app-scale)) calc(0.75rem * var(--fvd-app-scale));
+  background: rgba(255, 255, 255, 0.5);
+  border-top: 1px solid rgba(10, 61, 71, 0.08);
+}
+
+.fvd-app-paginacion-info,
+.fvd-listado-paginacion-info {
+  color: var(--fvd-app-ink-muted);
+  font-size: calc(0.78rem * var(--fvd-app-scale));
+}
+
+.fvd-app-paginacion .pagination,
+.fvd-listado-paginacion .pagination {
+  margin: 0;
+}
+
+.fvd-app-paginacion .page-link,
+.fvd-listado-paginacion .page-link {
+  padding: calc(0.2rem * var(--fvd-app-scale)) calc(0.45rem * var(--fvd-app-scale));
+  font-size: calc(0.78rem * var(--fvd-app-scale));
+  color: var(--fvd-app-ink);
+}
+
+.fvd-app-page--glass .fvd-app-paginacion,
+.fvd-app-page--glass .fvd-listado-paginacion {
+  background: rgba(255, 255, 255, 0.35);
+  border-top-color: rgba(255, 255, 255, 0.25);
+}
+
+.fvd-app-page--glass .fvd-app-paginacion-info,
+.fvd-app-page--glass .fvd-listado-paginacion-info {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.fvd-app-empty {
+  padding: 1rem;
+  text-align: center;
+  color: var(--fvd-app-ink-muted);
+  font-size: calc(0.875rem * var(--fvd-app-scale));
+}
+
+.fvd-app-page .btn-outline-secondary {
+  border-color: rgba(10, 61, 71, 0.35);
+  color: var(--fvd-app-ink);
+}
+
+.fvd-app-page .btn-outline-secondary:hover {
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--fvd-app-ink);
+}
+
+.fvd-app-logo-sm {
+  width: calc(52px * var(--fvd-app-scale));
+  height: calc(52px * var(--fvd-app-scale));
+  object-fit: cover;
+  border-radius: 0.375rem;
+}
+
+.fvd-app-meta {
+  font-size: calc(0.72rem * var(--fvd-app-scale));
+  opacity: 0.9;
+}
+
+.fvd-app-contact-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.75rem;
+  font-size: calc(0.72rem * var(--fvd-app-scale));
+}
+
+/* Guía UI — bloques de muestra */
+.fvd-app-swatch {
+  border-radius: 0.35rem;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--fvd-app-ink);
+}
+
+.fvd-app-swatch--bg { background: var(--fvd-app-bg); }
+.fvd-app-swatch--deep { background: var(--fvd-app-bg-deep); color: #fff; }
+.fvd-app-swatch--soft { background: var(--fvd-app-bg-soft); }
+
+@media (max-width: 575.98px) {
+  .fvd-app-toolbar-main {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .fvd-app-filtros {
+    width: 100%;
+  }
+  .fvd-app-filtros .btn-group {
+    width: 100%;
+  }
+  .fvd-app-filtros .btn {
+    flex: 1;
+  }
+}
+
+/* ========== Aliases retrocompatibles (listado / organización) ========== */
+.fvd-listado-page,
+.fvd-org-page.fvd-org-page--compact,
+.fvd-org-page--compact {
+  --fvd-app-scale: 1.25;
+  color: var(--fvd-app-ink);
+  font-family: var(--fvd-app-font);
+  font-size: calc(0.875rem * var(--fvd-app-scale));
+  line-height: 1.38;
+  letter-spacing: 0.012em;
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.75rem !important;
+}
+
+.fvd-listado-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.fvd-listado-toolbar-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.fvd-listado-title {
+  font-size: calc(1.15rem * var(--fvd-app-scale));
+  font-weight: 700;
+  margin: 0;
+  color: var(--fvd-app-ink);
+}
+
+.fvd-listado-subtitle {
+  font-size: calc(0.78rem * var(--fvd-app-scale));
+  color: var(--fvd-app-ink-muted);
+  margin: 0;
+}
+
+.fvd-listado-kpi {
+  text-align: center;
+  padding: calc(0.35rem * var(--fvd-app-scale)) calc(0.4rem * var(--fvd-app-scale));
+  border-radius: 0.4rem;
+  min-height: calc(2.65rem * var(--fvd-app-scale));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.fvd-listado-kpi strong {
+  font-size: calc(1.05rem * var(--fvd-app-scale));
+  font-weight: 800;
+  color: var(--fvd-app-ocre-dark);
+}
+
+.fvd-listado-kpi span {
+  font-size: calc(0.65rem * var(--fvd-app-scale));
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--fvd-app-ink-muted);
+}
+
+.fvd-listado-kpi--blue { background: var(--fvd-app-kpi-blue); }
+.fvd-listado-kpi--green { background: var(--fvd-app-kpi-green); }
+.fvd-listado-kpi--sky { background: var(--fvd-app-kpi-sky); }
+.fvd-listado-kpi--rose { background: var(--fvd-app-kpi-rose); }
+
+.fvd-listado-card {
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--fvd-app-card-solid);
+  box-shadow: 0 0.2rem 0.65rem rgba(10, 61, 71, 0.12);
+  overflow: hidden;
+}
+
+.fvd-listado-card .card-header {
+  background: var(--fvd-header-bg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.32rem 0.65rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.25;
+}
+
+.fvd-org-kpi-pastel {
+  text-align: center;
+  padding: calc(0.3rem * var(--fvd-app-scale)) calc(0.35rem * var(--fvd-app-scale));
+  border-radius: 0.4rem;
+  min-height: calc(2.55rem * var(--fvd-app-scale));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.fvd-org-kpi-pastel strong,
+.fvd-org-kpi-pastel .fvd-org-kpi-num {
+  font-size: calc(1rem * var(--fvd-app-scale));
+  font-weight: 800;
+  color: var(--fvd-app-ocre-dark);
+}
+
+.fvd-org-kpi-pastel span,
+.fvd-org-kpi-pastel small {
+  font-size: calc(0.62rem * var(--fvd-app-scale));
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--fvd-app-ocre);
+}
+
+.fvd-org-kpi-pastel--blue { background: var(--fvd-app-kpi-blue); }
+.fvd-org-kpi-pastel--green { background: var(--fvd-app-kpi-green); }
+.fvd-org-kpi-pastel--yellow { background: var(--fvd-app-kpi-yellow); }
+.fvd-org-kpi-pastel--lavender { background: var(--fvd-app-kpi-lavender); }
+.fvd-org-kpi-pastel--peach { background: var(--fvd-app-kpi-peach); }

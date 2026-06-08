@@ -110,6 +110,12 @@ final class RegistrationHandler
             ];
         }
 
+        require_once __DIR__ . '/../../CampeonatoTorneoHelper.php';
+        $errEleg = CampeonatoTorneoHelper::mensajeErrorElegibilidad($pdo, $torneo_id, $id_usuario);
+        if ($errEleg !== null) {
+            return ['ok' => false, 'error' => $errEleg];
+        }
+
         $stmt = $pdo->prepare(
             'SELECT id FROM inscritos WHERE id_usuario = ? AND torneo_id = ? AND ' . InscritosHelper::SQL_WHERE_SOLO_CONFIRMADO
         );
