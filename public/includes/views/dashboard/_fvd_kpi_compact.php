@@ -54,7 +54,13 @@ $filaInferior = [
 
 
 
-if (!$fvd_show_atletas_cintillo) {
+if (!class_exists('FvdAdminGate', false)) {
+    require_once dirname(__DIR__, 4) . '/lib/FvdAdminGate.php';
+}
+if (FvdAdminGate::isRestricted()) {
+    $filaSuperior = [$kpiTorneos, $kpiEventos];
+    $filaInferior = [];
+} elseif (!$fvd_show_atletas_cintillo) {
 
     $filaSuperior = [$kpiAtletas, $kpiAsociaciones, $kpiTorneos, $kpiEventos];
 

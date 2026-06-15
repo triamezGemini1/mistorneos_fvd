@@ -12,6 +12,10 @@ require_once __DIR__ . '/../../config/csrf.php';
 require_once __DIR__ . '/../../lib/app_helpers.php';
 require_once __DIR__ . '/../../lib/UrlHelper.php';
 require_once __DIR__ . '/../../lib/LandingDataService.php';
+require_once __DIR__ . '/../../lib/PodiosAsociacionesLandingService.php';
+require_once __DIR__ . '/../../lib/AsociacionesActivasLandingService.php';
+require_once __DIR__ . '/../../lib/TournamentPhotoService.php';
+require_once __DIR__ . '/../../lib/InvitacionesFvdWebService.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
@@ -47,7 +51,7 @@ function landingDataCacheKey(int $entidadParam): string
     } catch (Throwable $e) {
     }
 
-    return 'landing_data_v1_' . hash('sha256', json_encode([$entidadParam, $uid, $role]));
+    return 'landing_data_v2_' . hash('sha256', json_encode([$entidadParam, $uid, $role, 'galeria_v1', 'inv_vigencia_v1']));
 }
 
 function landingDataCacheGet(string $key): ?array
@@ -124,6 +128,17 @@ function enriquecerEvento(&$ev, $baseUrl) {
     $ev['logo_url'] = getLogoOrganizacionUrlApi($ev, $baseUrl);
     $ev['afiche_url'] = getAficheUrlApi($ev, $baseUrl);
     $ev['nombre_limpio'] = limpiarNombreTorneo($ev['nombre'] ?? '');
+    $tid = (int) ($ev['id'] ?? 0);
+    $ev['detalle_url'] = $tid > 0 ? ($baseUrl . 'torneo_detalle.php?torneo_id=' . $tid) : null;
+    $ev['total_fotos'] = (int) ($ev['total_fotos'] ?? 0);
+    $primera = trim((string) ($ev['primera_foto'] ?? ''));
+    if ($primera !== '') {
+        $ev['portada_url'] = TournamentPhotoService::publicUrl($primera, $baseUrl);
+    } elseif (!empty($ev['afiche_url'])) {
+        $ev['portada_url'] = $ev['afiche_url'];
+    } else {
+        $ev['portada_url'] = $ev['logo_url'] ?? null;
+    }
 }
 
 try {
@@ -148,6 +163,14 @@ try {
     }
 
     $service = new LandingDataService($pdo);
+    $podios_asociaciones = (new PodiosAsociacionesLandingService($pdo))->construirResumen();
+    $asociaciones_activas = (new AsociacionesActivasLandingService($pdo))->listarParaLanding();
+    foreach ($asociaciones_activas as &$asocRow) {
+        $logoPath = AppHelpers::normalizeStoragePath((string) ($asocRow['logo_path'] ?? ''));
+        $logoUrl = $logoPath !== '' ? AppHelpers::publicImageUrl($logoPath, $baseUrl) : '';
+        $asocRow['logo_url'] = $logoUrl !== '' ? $logoUrl : null;
+    }
+    unset($asocRow);
 
     // Eventos realizados (LandingDataService)
     $eventos_realizados = $service->getEventosRealizados(50);
@@ -306,17 +329,30 @@ try {
         }
     }
 
-    $invitaciones_fvd = [];
-    $inv_dir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'upload' . DIRECTORY_SEPARATOR . 'invitaciones_fvd';
-    $inv_extensions = ['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'];
-    if (is_dir($inv_dir)) {
-        foreach (new DirectoryIterator($inv_dir) as $f) {
-            if ($f->isDot() || !$f->isFile()) continue;
-            $ext = strtolower($f->getExtension());
-            if (in_array($ext, $inv_extensions, true)) {
-                $invitaciones_fvd[] = ['titulo' => pathinfo($f->getFilename(), PATHINFO_FILENAME), 'path' => 'upload/invitaciones_fvd/' . $f->getFilename()];
-            }
+    $invitaciones_fvd = InvitacionesFvdWebService::listarActivos($pdo);
+    foreach ($invitaciones_fvd as &$invRow) {
+        if (!empty($invRow['fecha_limite'])) {
+            $invRow['fecha_limite'] = date('d/m/Y', strtotime((string) $invRow['fecha_limite']));
         }
+    }
+    unset($invRow);
+
+    $galeria_destacada = [];
+    foreach ($service->getGaleriaDestacada(12) as $fotoRow) {
+        $url = TournamentPhotoService::publicUrl((string) ($fotoRow['ruta_imagen'] ?? ''), $baseUrl);
+        if ($url === '') {
+            continue;
+        }
+        $tid = (int) ($fotoRow['torneo_id'] ?? 0);
+        $galeria_destacada[] = [
+            'id' => (int) ($fotoRow['id'] ?? 0),
+            'url' => $url,
+            'titulo' => (string) ($fotoRow['titulo'] ?? ''),
+            'torneo_id' => $tid,
+            'torneo_nombre' => (string) ($fotoRow['torneo_nombre'] ?? ''),
+            'organizacion_nombre' => (string) ($fotoRow['organizacion_nombre'] ?? ''),
+            'detalle_url' => $tid > 0 ? ($baseUrl . 'torneo_detalle.php?torneo_id=' . $tid) : null,
+        ];
     }
 
     $csrf_token = CSRF::token();
@@ -345,6 +381,9 @@ try {
         'logos_clientes' => $logos_clientes,
         'documentos_oficiales' => $documentos_oficiales,
         'invitaciones_fvd' => $invitaciones_fvd,
+        'podios_asociaciones' => $podios_asociaciones,
+        'asociaciones_activas' => $asociaciones_activas,
+        'galeria_destacada' => $galeria_destacada,
     ];
 
     if (!$skipCache) {

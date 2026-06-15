@@ -7,22 +7,10 @@
 require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../lib/app_helpers.php';
+require_once __DIR__ . '/../lib/TournamentPhotoService.php';
 
-// Función helper para construir URL de imagen
 function getImageUrl($ruta_imagen) {
-    if (empty($ruta_imagen)) {
-        return '';
-    }
-    
-    $app_url = AppHelpers::getBaseUrl();
-    
-    // Si la ruta ya empieza con 'upload/', usar directamente
-    if (strpos($ruta_imagen, 'upload/') === 0) {
-        return $app_url . '/' . $ruta_imagen;
-    }
-    
-    // Si no, construir la ruta completa
-    return $app_url . '/upload/tournaments/photos/' . basename($ruta_imagen);
+    return TournamentPhotoService::publicUrl($ruta_imagen);
 }
 
 $pdo = DB::pdo();
@@ -94,7 +82,7 @@ try {
             FROM club_photos tp
             INNER JOIN tournaments t ON tp.torneo_id = t.id
             {$org_join}
-            WHERE t.estatus = 1
+            WHERE t.estatus = 1 AND (tp.activa = 1 OR tp.activa IS NULL)
         ";
         
         $params = [];
@@ -137,8 +125,9 @@ foreach ($fotos as $foto) {
     $fotos_por_torneo[$torneo_key]['fotos'][] = $foto;
 }
 
-$app_url = AppHelpers::getBaseUrl();
+$app_url = rtrim(AppHelpers::getPublicUrl(), '/');
 $logo_url = AppHelpers::getAppLogo();
+$landing_url = $app_url . '/landing-spa.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -228,12 +217,12 @@ $logo_url = AppHelpers::getAppLogo();
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="<?= $app_url ?>/public/landing.php">
+            <a class="navbar-brand d-flex align-items-center" href="<?= htmlspecialchars($landing_url) ?>">
                 <img src="<?= htmlspecialchars($logo_url) ?>" alt="Logo" style="height: 40px; width: auto;" class="me-2">
-                <span class="fw-bold">La Estación del Dominó</span>
+                <span class="fw-bold">Portal de Torneos</span>
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="<?= $app_url ?>/public/landing.php">
+                <a class="nav-link" href="<?= htmlspecialchars($landing_url) ?>">
                     <i class="fas fa-home me-1"></i>Inicio
                 </a>
             </div>
@@ -245,6 +234,36 @@ $logo_url = AppHelpers::getAppLogo();
             <h1 class="text-center mb-4">
                 <i class="fas fa-images me-2"></i>Galería de Fotos de Torneos
             </h1>
+
+            <div class="filter-card">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold" for="club_id">Organización</label>
+                        <select name="club_id" id="club_id" class="form-select">
+                            <option value="0">Todas las organizaciones</option>
+                            <?php foreach ($organizaciones_filtro as $orgRow): ?>
+                                <option value="<?= (int) $orgRow['id'] ?>" <?= $club_id === (int) $orgRow['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars((string) $orgRow['nombre']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold" for="torneo_id">Torneo</label>
+                        <select name="torneo_id" id="torneo_id" class="form-select">
+                            <option value="0">Todos los torneos</option>
+                            <?php foreach ($torneos as $tRow): ?>
+                                <option value="<?= (int) $tRow['id'] ?>" <?= $torneo_id === (int) $tRow['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars((string) $tRow['nombre']) ?> (<?= date('d/m/Y', strtotime((string) $tRow['fechator'])) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filtrar</button>
+                    </div>
+                </form>
+            </div>
 
             <!-- Resultados -->
             <?php if (empty($fotos_por_torneo)): ?>
@@ -297,6 +316,9 @@ $logo_url = AppHelpers::getAppLogo();
                                         <?= date('d/m/Y', strtotime($torneo_data['fechator'])) ?>
                                     </span>
                                 <?php endif; ?>
+                                <a href="torneo_detalle.php?torneo_id=<?= (int) $torneo_data['torneo_id'] ?>" class="btn btn-sm btn-light ms-auto">
+                                    <i class="fas fa-info-circle me-1"></i>Ver torneo
+                                </a>
                                 <span>
                                     <i class="fas fa-images me-1"></i>
                                     <?= count($torneo_data['fotos']) ?> foto(s)

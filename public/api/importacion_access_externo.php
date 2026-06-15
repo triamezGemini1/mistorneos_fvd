@@ -134,7 +134,16 @@ try {
                 throw new RuntimeException($leidoC['error']);
             }
             $statsC = ImportacionAccessExternoService::analizarClasiequi($pdo, $torneoId, $leidoC['rows'], $modalidad);
-            $statsE = ['ok' => true, 'equipos_incompletos' => []];
+            $statsE = [
+                'ok' => false,
+                'equipos_incompletos' => ['Suba el archivo parejas inscritas para comparar con clasiequi.'],
+                'equipos_incompletos_detalle' => [],
+                'situaciones_detalle' => [
+                    ImportacionAccessExternoService::situacionImportacion('parejas_ref_faltante', [
+                        'explicacion' => 'No se subió parejas inscritas al analizar clasiequi; no es posible comparar equipos.',
+                    ]),
+                ],
+            ];
             if ($filePar && ($filePar['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
                 $leidoPar = ImportacionAccessExternoService::leerArchivo((string) $filePar['tmp_name'], (string) $filePar['name']);
                 if (!$leidoPar['error']) {
@@ -148,12 +157,18 @@ try {
                 }
             }
             $statsC['integridad_equipos'] = $statsE;
+            $statsC['situaciones_detalle'] = array_merge(
+                $statsC['situaciones_detalle'] ?? [],
+                $statsE['situaciones_detalle'] ?? []
+            );
+            $statsC['reporte_banca'] = $statsE['reporte_banca'] ?? ['total' => 0, 'por_asociacion' => [], 'detalle' => []];
             $statsC['ok'] = ($statsC['ok'] ?? false) && ($statsE['ok'] ?? false);
             echo json_encode(['success' => true, 'stats' => $statsC]);
             exit;
 
         case 'ejecutar':
-            $reemplazar = !empty($_POST['reemplazar_partiresul']);
+            $reemplazarPartiresul = !empty($_POST['reemplazar_partiresul']);
+            $reemplazarInscripcion = !empty($_POST['reemplazar_inscripcion']);
             $files = [
                 'parejas' => $_FILES['archivo_parejas'] ?? null,
                 'parti' => $_FILES['archivo_parti'] ?? null,
@@ -196,7 +211,8 @@ try {
                 $rowsR['rows'],
                 $rowsC,
                 $modalidad,
-                $reemplazar
+                $reemplazarPartiresul,
+                $reemplazarInscripcion
             );
             echo json_encode(['success' => !empty($res['ok']), 'resultado' => $res]);
             exit;

@@ -1,5 +1,5 @@
 /**
- * Layout crítico del landing FVD — funciona aunque output.css (Tailwind) no cargue.
+ * Layout crítico del landing FVD — complementa landing-precompiled.css (Tailwind precompilado).
  */
 html.fvd-landing-page,
 body.fvd-theme {

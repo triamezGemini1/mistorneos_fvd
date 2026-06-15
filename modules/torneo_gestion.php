@@ -2173,6 +2173,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             guardarMesaAdicional($torneo_id, $ronda, $user_id, $is_admin_general);
             break;
             
+        case 'cargar_inscritos_movimiento':
+            $torneo_id = (int) ($_POST['torneo_id'] ?? 0);
+            cargarInscritosDesdeMovimiento($torneo_id, $user_id, $is_admin_general);
+            break;
+
         case 'actualizar_estadisticas':
             $torneo_id = (int)($_POST['torneo_id'] ?? 0);
             actualizarEstadisticasManual($torneo_id, $user_id, $is_admin_general);
@@ -3218,6 +3223,58 @@ function obtenerRondasGeneradas($torneo_id) {
  */
 function obtenerDatosPanel($torneo_id) {
     return \Tournament\Handlers\TournamentStatusHandler::getTournamentSummary((int) $torneo_id);
+}
+
+/**
+ * Carga inscritos confirmados desde movimiento_torneo (pagos de inscripción) hacia inscritos.
+ */
+function cargarInscritosDesdeMovimiento(int $torneo_id, int $user_id, bool $is_admin_general): void
+{
+    try {
+        verificarPermisosTorneo($torneo_id, $user_id, $is_admin_general);
+        $torneo = obtenerTorneo($torneo_id, $user_id, $is_admin_general);
+        if (!$torneo) {
+            throw new Exception('Torneo no encontrado.');
+        }
+        if (!empty($torneo['locked']) && (int) $torneo['locked'] === 1) {
+            throw new Exception('El torneo está cerrado; no se pueden cargar inscripciones.');
+        }
+
+        require_once __DIR__ . '/../lib/MovimientoTorneoInscripcionImportService.php';
+        $pdo = DB::pdo();
+        $res = MovimientoTorneoInscripcionImportService::importarInscritos($pdo, $torneo_id, $user_id > 0 ? $user_id : null);
+
+        if ($res['insertados'] > 0) {
+            foreach (array_keys($res['por_torneo']) as $tidAfectado) {
+                actualizarEstadisticasInscritos((int) $tidAfectado, true);
+            }
+            $msg = 'Se cargaron ' . (int) $res['insertados'] . ' inscrito(s) desde movimiento_torneo.';
+            if ($res['omitidos'] > 0) {
+                $msg .= ' Omitidos: ' . (int) $res['omitidos'] . '.';
+            }
+            if (!empty($res['por_torneo'])) {
+                $det = [];
+                foreach ($res['por_torneo'] as $tid => $cnt) {
+                    $det[] = 'torneo #' . (int) $tid . ': ' . (int) $cnt;
+                }
+                $msg .= ' (' . implode(', ', $det) . ')';
+            }
+            $_SESSION['success'] = $msg;
+        } elseif ($res['errores'] !== []) {
+            $_SESSION['error'] = 'No se cargaron inscripciones. ' . implode(' ', array_slice($res['errores'], 0, 5));
+        } else {
+            $_SESSION['error'] = 'No hay inscripciones pendientes por cargar desde movimiento_torneo.';
+        }
+
+        if ($res['insertados'] > 0 && count($res['errores']) > 0) {
+            $_SESSION['warning'] = 'Algunas filas no se importaron: ' . implode(' | ', array_slice($res['errores'], 0, 6));
+        }
+    } catch (Throwable $e) {
+        $_SESSION['error'] = 'Error al cargar inscripciones: ' . $e->getMessage();
+    }
+
+    header('Location: ' . buildRedirectUrl('panel', ['torneo_id' => $torneo_id]));
+    exit;
 }
 
 /**

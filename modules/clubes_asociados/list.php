@@ -94,6 +94,63 @@ function clubes_asociados_puede_gestionar_club(PDO $pdo, int $userId, int $clubI
     return in_array($clubId, $idsPermitidos, true);
 }
 
+/**
+ * Sube logo de asociación. Retorna ['path' => ?string, 'error' => ?string].
+ *
+ * @return array{path: ?string, error: ?string}
+ */
+function clubes_asociados_procesar_logo_upload(int $club_id = 0): array
+{
+    $result = ['path' => null, 'error' => null];
+    if (!isset($_FILES['logo']) || !is_array($_FILES['logo'])) {
+        return $result;
+    }
+    $err = (int) ($_FILES['logo']['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($err === UPLOAD_ERR_NO_FILE) {
+        return $result;
+    }
+    if ($err !== UPLOAD_ERR_OK) {
+        $result['error'] = 'Error al subir el logo (código ' . $err . '). Verifique tamaño máximo del servidor.';
+        return $result;
+    }
+    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    $ext = strtolower(pathinfo((string) ($_FILES['logo']['name'] ?? ''), PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowed, true)) {
+        $result['error'] = 'Formato de logo no permitido. Use JPG, PNG, GIF o WEBP.';
+        return $result;
+    }
+    if ((int) ($_FILES['logo']['size'] ?? 0) > 5 * 1024 * 1024) {
+        $result['error'] = 'El logo no puede superar 5 MB.';
+        return $result;
+    }
+    $upload_dir = __DIR__ . '/../../upload/logos';
+    if (!is_dir($upload_dir) && !@mkdir($upload_dir, 0755, true) && !is_dir($upload_dir)) {
+        $result['error'] = 'No se pudo crear la carpeta upload/logos.';
+        return $result;
+    }
+    if ($club_id > 0) {
+        try {
+            $stmt_old = DB::pdo()->prepare('SELECT logo FROM clubes WHERE id = ?');
+            $stmt_old->execute([$club_id]);
+            $old_logo = $stmt_old->fetchColumn();
+            if ($old_logo && file_exists(__DIR__ . '/../../' . $old_logo)) {
+                @unlink(__DIR__ . '/../../' . $old_logo);
+            }
+        } catch (Throwable $e) {
+            error_log('clubes_asociados logo cleanup: ' . $e->getMessage());
+        }
+    }
+    $suffix = $club_id > 0 ? ('_' . $club_id . '_') : '_';
+    $logo_name = 'logo' . $suffix . time() . '_' . uniqid('', true) . '.' . $ext;
+    $dest = $upload_dir . DIRECTORY_SEPARATOR . $logo_name;
+    if (!move_uploaded_file($_FILES['logo']['tmp_name'], $dest)) {
+        $result['error'] = 'No se pudo guardar el logo en el servidor.';
+        return $result;
+    }
+    $result['path'] = 'upload/logos/' . $logo_name;
+    return $result;
+}
+
 // Solo admin_club (admin organización) puede acceder
 Auth::requireRole(['admin_club', 'admin_general', 'admin_torneo']);
 
@@ -116,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $redirect_msg = '';
     $redirect_error = '';
-    
+    $pdo = DB::pdo();
     // Crear nuevo club (estructura tabla: id, rif, nombre, direccion, delegado, delegado_user_id, telefono, email, admin_club_id, organizacion_id, entidad, indica, estatus, permite_inscripcion_linea, logo, created_at, updated_at)
     if ($action === 'crear') {
         $rif = trim($_POST['rif'] ?? '');
@@ -132,7 +189,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $redirect_error = 'El nombre del club es requerido';
         } else {
             try {
-                $pdo = DB::pdo();
                 $pdo->beginTransaction();
                 
                 // Responsable: debe ser usuario registrado; si no se elige, se asigna el admin de la organización
@@ -176,17 +232,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $tiene_permite_col = (bool)$pdo->query("SHOW COLUMNS FROM clubes LIKE 'permite_inscripcion_linea'")->fetch();
                         $tiene_logo_col = (bool)$pdo->query("SHOW COLUMNS FROM clubes LIKE 'logo'")->fetch();
                         $logo_path = null;
-                        if ($tiene_logo_col && isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
-                            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-                            $ext = strtolower(pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION));
-                            if (in_array($ext, $allowed) && $_FILES['logo']['size'] <= 5 * 1024 * 1024) {
-                                $upload_dir = __DIR__ . '/../../upload/logos';
-                                if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
-                                $logo_name = 'logo_' . time() . '_' . uniqid() . '.' . $ext;
-                                if (move_uploaded_file($_FILES['logo']['tmp_name'], $upload_dir . '/' . $logo_name)) {
-                                    $logo_path = 'upload/logos/' . $logo_name;
-                                }
-                            }
+                        $logo_upload_error = null;
+                        if ($tiene_logo_col) {
+                            $logoUpload = clubes_asociados_procesar_logo_upload(0);
+                            $logo_path = $logoUpload['path'];
+                            $logo_upload_error = $logoUpload['error'];
                         }
                         try {
                             $tiene_cod_org_fk = (bool) $pdo->query("SHOW COLUMNS FROM clubes LIKE 'cod_org'")->fetch(PDO::FETCH_ASSOC);
@@ -216,6 +266,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt->execute([$nuevo_club_id, $admin_club_user_id]);
                     }
                     $redirect_msg = "Club '$nombre' creado correctamente";
+                    if (!empty($logo_upload_error)) {
+                        $redirect_msg .= ' Advertencia: ' . $logo_upload_error;
+                    }
+                } elseif (!empty($logo_upload_error) && empty($redirect_error)) {
+                    $redirect_error = $logo_upload_error;
                 }
                 $pdo->commit();
             } catch (Exception $e) {
@@ -243,7 +298,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $redirect_error = 'El nombre del club es requerido';
         } else {
             try {
-                $pdo = DB::pdo();
                 $club_ids = ClubHelper::getClubesByAdminClubId($admin_club_user_id);
                 // Responsable: usuario registrado; si no se elige (0), se asigna el admin de la organización
                 $delegado_nombre = trim($current_user['nombre'] ?? $current_user['username'] ?? '');
@@ -269,21 +323,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $tiene_permite_col = (bool)$pdo->query("SHOW COLUMNS FROM clubes LIKE 'permite_inscripcion_linea'")->fetch();
                 $tiene_logo_col = (bool)$pdo->query("SHOW COLUMNS FROM clubes LIKE 'logo'")->fetch();
                 $logo_path = null;
-                if ($tiene_logo_col && isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
-                    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-                    $ext = strtolower(pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION));
-                    if (in_array($ext, $allowed) && $_FILES['logo']['size'] <= 5 * 1024 * 1024) {
-                        $upload_dir = __DIR__ . '/../../upload/logos';
-                        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
-                        $stmt_old = $pdo->prepare("SELECT logo FROM clubes WHERE id = ?");
-                        $stmt_old->execute([$club_id]);
-                        $old_logo = $stmt_old->fetchColumn();
-                        if ($old_logo && file_exists(__DIR__ . '/../../' . $old_logo)) @unlink(__DIR__ . '/../../' . $old_logo);
-                        $logo_name = 'logo_' . $club_id . '_' . time() . '.' . $ext;
-                        if (move_uploaded_file($_FILES['logo']['tmp_name'], $upload_dir . '/' . $logo_name)) {
-                            $logo_path = 'upload/logos/' . $logo_name;
-                        }
-                    }
+                $logo_upload_error = null;
+                if ($tiene_logo_col) {
+                    $logoUpload = clubes_asociados_procesar_logo_upload($club_id);
+                    $logo_path = $logoUpload['path'];
+                    $logo_upload_error = $logoUpload['error'];
                 }
                 $set_parts = ['nombre = ?', 'delegado = ?', 'delegado_user_id = ?', 'telefono = ?', 'direccion = ?', 'updated_at = NOW()'];
                 $set_params = [$nombre, $delegado_nombre, $delegado_user_id_final, $telefono, $direccion];
@@ -311,6 +355,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 $redirect_msg = "Club '$nombre' actualizado correctamente. Responsable: " . ($delegado_nombre ?: 'Administrador de la organización');
+                if (!empty($logo_upload_error)) {
+                    $redirect_msg .= ' Advertencia: ' . $logo_upload_error;
+                }
             } catch (Exception $e) {
                 $redirect_error = 'Error al actualizar: ' . $e->getMessage();
                 error_log("Error al actualizar club $club_id: " . $e->getMessage());
@@ -512,6 +559,7 @@ $clubes_paginados = $clubes_total_rows > 0
     ? array_slice($mis_clubes, ($clubes_page - 1) * $clubes_per_page, $clubes_per_page)
     : [];
 $qsBase = 'index.php?page=clubes_asociados';
+$clubes_form_action = class_exists('AppHelpers') ? AppHelpers::dashboard('clubes_asociados') : $qsBase;
 
 $hay_club_cod_distinto = false;
 if ($organizacion_cod_org && !empty($mis_clubes)) {
@@ -695,7 +743,7 @@ if ($organizacion_cod_org && !empty($mis_clubes)) {
 <div class="modal fade" id="crearClubModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" enctype="multipart/form-data">
+            <form method="POST" enctype="multipart/form-data" action="<?= htmlspecialchars($clubes_form_action) ?>">
                 <input type="hidden" name="action" value="crear">
                 <div class="modal-header bg-success text-white">
                     <h5 class="modal-title"><i class="fas fa-plus"></i> Crear Club</h5>
@@ -742,8 +790,9 @@ if ($organizacion_cod_org && !empty($mis_clubes)) {
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Logo del club</label>
-                        <input type="file" name="logo" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp">
+                        <input type="file" name="logo" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp" data-preview-target="crear_logo_preview">
                         <small class="text-muted">JPG, PNG, GIF o WEBP. Máximo 5MB.</small>
+                        <div id="crear_logo_preview" class="mt-2"></div>
                     </div>
                     <div class="mb-3">
                         <div class="form-check">
@@ -767,7 +816,7 @@ if ($organizacion_cod_org && !empty($mis_clubes)) {
 <div class="modal fade" id="editarClubModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" enctype="multipart/form-data">
+            <form method="POST" enctype="multipart/form-data" action="<?= htmlspecialchars($clubes_form_action) ?>">
                 <input type="hidden" name="action" value="editar">
                 <input type="hidden" name="club_id" id="edit_club_id" value="" autocomplete="off"><?php /* PK clubes.id; no cod_org */ ?>
                 <div class="modal-header bg-primary text-white">
@@ -819,8 +868,9 @@ if ($organizacion_cod_org && !empty($mis_clubes)) {
                     <div class="mb-3">
                         <label class="form-label">Logo del club</label>
                         <div id="edit_logo_actual" class="mb-2"></div>
-                        <input type="file" name="logo" id="edit_logo_file" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp">
+                        <input type="file" name="logo" id="edit_logo_file" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp" data-preview-target="edit_logo_preview">
                         <small class="text-muted">JPG, PNG, GIF o WEBP. Máximo 5MB. Si eliges otro archivo, se reemplazará el actual.</small>
+                        <div id="edit_logo_preview" class="mt-2"></div>
                     </div>
                     <div class="mb-3">
                         <div class="form-check">
@@ -844,7 +894,7 @@ if ($organizacion_cod_org && !empty($mis_clubes)) {
 <div class="modal fade" id="eliminarClubModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST">
+            <form method="POST" action="<?= htmlspecialchars($clubes_form_action) ?>">
                 <input type="hidden" name="action" value="eliminar">
                 <input type="hidden" name="club_id" id="delete_club_id">
                 <div class="modal-header bg-danger text-white">
@@ -934,7 +984,9 @@ function editarClub(club) {
     if (permiteEl) permiteEl.checked = (club.permite_inscripcion_linea == 1 || club.permite_inscripcion_linea === '1');
     var logoActual = document.getElementById('edit_logo_actual');
     var logoFile = document.getElementById('edit_logo_file');
+    var logoPreview = document.getElementById('edit_logo_preview');
     if (logoFile) logoFile.value = '';
+    if (logoPreview) logoPreview.innerHTML = '';
     if (logoActual) {
         if (club.logo && baseViewImageUrl) {
             var sep = baseViewImageUrl.indexOf('?') >= 0 ? '&' : '?';
@@ -942,6 +994,9 @@ function editarClub(club) {
         } else {
             logoActual.innerHTML = '<span class="text-muted small">Sin logo</span>';
         }
+    }
+    if (logoFile && typeof window.FvdImagePreview !== 'undefined') {
+        window.FvdImagePreview.bindInput(logoFile);
     }
     const modal = new bootstrap.Modal(document.getElementById('editarClubModal'));
     modal.show();

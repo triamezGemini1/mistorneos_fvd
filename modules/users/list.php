@@ -700,9 +700,12 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                             <th>Nombre</th>
                             <th>Usuario</th>
                             <th>Email</th>
-                            <th>Club</th>  
+                            <th>Entidad</th>
                             <th>Rol</th>
                             <th>Estado</th>
+                            <?php if (Auth::isAdminGeneral()): ?>
+                                <th class="text-center" title="Reportes PDF personales">Reportes PDF</th>
+                            <?php endif; ?>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -728,10 +731,19 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                 </td>
                                 <td><?= htmlspecialchars($u['email'] ?: '-') ?></td>
                                 <td>
-                                    <?php if ($u['club_nombre']): ?>
-                                        <?= htmlspecialchars($u['club_nombre']) ?>
+                                    <?php
+                                    $codEntidad = isset($u['entidad']) ? (int) $u['entidad'] : 0;
+                                    $entidadLabel = $codEntidad > 0
+                                        ? ($entidad_map[(string) $codEntidad] ?? ('Código ' . $codEntidad))
+                                        : '';
+                                    ?>
+                                    <?php if ($entidadLabel !== ''): ?>
+                                        <span title="usuarios.entidad = <?= $codEntidad ?>">
+                                            <?= htmlspecialchars($entidadLabel) ?>
+                                        </span>
+                                        <small class="text-muted d-block"><?= $codEntidad ?></small>
                                     <?php else: ?>
-                                        <span class="text-muted">Sin asignar</span>
+                                        <span class="text-muted">Sin entidad</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -762,10 +774,37 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                                         <span class="badge bg-secondary status-badge">Inactivo</span>
                                     <?php endif; ?>
                                 </td>
+                                <?php if (Auth::isAdminGeneral()): ?>
+                                    <td class="text-center">
+                                        <form method="POST" action="" class="d-inline-block toggle-reportes-form"
+                                              title="Habilitar reportes personales en PDF (solo datos propios)">
+                                            <input type="hidden" name="action" value="toggle_reportes_personales">
+                                            <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
+                                            <input type="hidden" name="enabled" value="<?= !empty($u['permite_reportes_personales']) ? '1' : '0' ?>"
+                                                   id="reportes_enabled_<?= (int) $u['id'] ?>">
+                                            <?php if (!empty($_GET['search'])): ?>
+                                                <input type="hidden" name="return_search" value="<?= htmlspecialchars((string) $_GET['search']) ?>">
+                                            <?php endif; ?>
+                                            <?php if (!empty($_GET['admin_id'])): ?>
+                                                <input type="hidden" name="return_admin_id" value="<?= (int) $_GET['admin_id'] ?>">
+                                            <?php endif; ?>
+                                            <?php if (!empty($_GET['club_id'])): ?>
+                                                <input type="hidden" name="return_club_id" value="<?= htmlspecialchars((string) $_GET['club_id']) ?>">
+                                            <?php endif; ?>
+                                            <div class="form-check form-switch d-inline-block mb-0">
+                                                <input class="form-check-input" type="checkbox" role="switch"
+                                                       id="reportes_switch_<?= (int) $u['id'] ?>"
+                                                       <?= !empty($u['permite_reportes_personales']) ? 'checked' : '' ?>
+                                                       onchange="document.getElementById('reportes_enabled_<?= (int) $u['id'] ?>').value = this.checked ? '1' : '0'; this.form.submit();"
+                                                       aria-label="Reportes PDF personales para <?= htmlspecialchars($u['username'] ?? '') ?>">
+                                            </div>
+                                        </form>
+                                    </td>
+                                <?php endif; ?>
                                 <td class="table-actions">
                                     <div class="btn-group" role="group">
                                         <button type="button" class="btn btn-sm btn-outline-primary" 
-                                                onclick="editUser(<?= $u['id'] ?>, '<?= htmlspecialchars($u['username']) ?>', '<?= htmlspecialchars($u['email']) ?>', '<?= $u['role'] ?>', <?= $u['club_id'] ?: 'null' ?>, <?= isset($u['entidad']) ? (int)$u['entidad'] : 0 ?>)"
+                                                onclick="editUser(<?= $u['id'] ?>, '<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>', '<?= htmlspecialchars($u['email'], ENT_QUOTES) ?>', '<?= $u['role'] ?>', <?= $u['club_id'] ?: 'null' ?>, <?= isset($u['entidad']) ? (int)$u['entidad'] : 0 ?>, <?= !empty($u['permite_reportes_personales']) ? '1' : '0' ?>)"
                                                 title="Editar usuario">
                                             <i class="fas fa-edit"></i>
                                         </button>
@@ -1166,6 +1205,21 @@ $is_admin_club = $current_user['role'] === 'admin_club';
                         </select>
                     </div>
                     
+                    <?php if (Auth::isAdminGeneral()): ?>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1"
+                                   id="edit_permite_reportes_personales" name="permite_reportes_personales">
+                            <label class="form-check-label" for="edit_permite_reportes_personales">
+                                Habilitar reportes personales en PDF
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            El usuario verá el botón para descargar solo su ranking e historial personal (cuando esté disponible).
+                        </small>
+                    </div>
+                    <?php endif; ?>
+
                     <div class="mb-3" id="club_field_edit">
                         <label for="edit_club_id" class="form-label">
                             Club Asignado
@@ -1683,13 +1737,17 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleClubField('create');
 });
 
-function editUser(id, username, email, role, club_id, entidad) {
+function editUser(id, username, email, role, club_id, entidad, permiteReportes) {
     document.getElementById('edit_user_id').value = id;
     document.getElementById('edit_username').value = username;
     document.getElementById('edit_email').value = email;
     document.getElementById('edit_role').value = role;
     document.getElementById('edit_club_id').value = club_id || '';
     document.getElementById('edit_entidad').value = entidad || '';
+    const chkReportes = document.getElementById('edit_permite_reportes_personales');
+    if (chkReportes) {
+        chkReportes.checked = permiteReportes === 1 || permiteReportes === '1' || permiteReportes === true;
+    }
     
     // Actualizar visibilidad del campo club según el rol
     toggleClubField('edit');

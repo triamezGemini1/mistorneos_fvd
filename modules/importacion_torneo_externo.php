@@ -210,7 +210,7 @@ $basePage = 'index.php?page=importacion_torneo_externo';
                         </button>
                     </div>
                 </div>
-                <div class="imp-access-stats" id="stats-clasiequi">Comprueba equipos por asociación e integridad (<?= (int) $jugadoresUnidad ?> jugadores por equipo).</div>
+                <div class="imp-access-stats" id="stats-clasiequi">Comprueba clasiequi vs parejas inscritas (mapa por equipo, <?= (int) $jugadoresUnidad ?> jug./equipo). Suba también parejas al analizar.</div>
             </div>
         </div>
 
@@ -218,6 +218,10 @@ $basePage = 'index.php?page=importacion_torneo_externo';
             <div class="card-body">
                 <h2 class="h6 mb-2"><i class="fas fa-play-circle text-success me-1"></i>Ejecutar importación</h2>
                 <p class="small text-muted mb-2">Complete el paso 0 (atletas) y las verificaciones 1–3. Luego confirme la importación.</p>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="chk-reemplazar-inscripcion" checked>
+                    <label class="form-check-label small" for="chk-reemplazar-inscripcion">Reemplazar inscritos y equipos del torneo (recomendado en importación completa)</label>
+                </div>
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="checkbox" id="chk-reemplazar" checked>
                     <label class="form-check-label small" for="chk-reemplazar">Reemplazar partiresul existentes del torneo</label>
@@ -284,7 +288,9 @@ $basePage = 'index.php?page=importacion_torneo_externo';
                         html += ' · numfvd arch. ' + (d.numfvd_archivo || '—') + ' / usr ' + (d.numfvd_usuario || '—');
                     }
                     if (d.sexo) html += ' · sexo ' + escapeHtml(String(d.sexo));
-                    html += '<br><span class="text-danger">' + escapeHtml(String(d.explicacion || '')) + '</span></li>';
+                    html += '<br><span class="text-danger">' + escapeHtml(String(d.explicacion || '')) + '</span>';
+                    html += renderSituacionMeta(d);
+                    html += '</li>';
                 });
                 if ((bloque.items || []).length > 25) {
                     html += '<li class="text-muted">… y ' + ((bloque.items || []).length - 25) + ' más</li>';
@@ -296,9 +302,69 @@ $basePage = 'index.php?page=importacion_torneo_externo';
         return html;
     }
 
+    function renderResumenParejas(integ) {
+        if (!integ || !integ.resumen_parejas_por_equipo || !integ.resumen_parejas_por_equipo.length) {
+            if (integ && integ.por_torneo) {
+                var all = [];
+                var reqMerged = integ.jugadores_requeridos;
+                Object.keys(integ.por_torneo).forEach(function (slot) {
+                    var pt = integ.por_torneo[slot] || {};
+                    if (!reqMerged && pt.jugadores_requeridos) reqMerged = pt.jugadores_requeridos;
+                    (pt.resumen_parejas_por_equipo || []).forEach(function (r) {
+                        all.push(Object.assign({ slot: slot }, r));
+                    });
+                });
+                if (!all.length) return '';
+                integ = { resumen_parejas_por_equipo: all, jugadores_requeridos: reqMerged };
+            } else {
+                return '';
+            }
+        }
+        var req = integ.jugadores_requeridos || '?';
+        var html = '<div class="mt-2 mb-2"><strong>Parejas inscritas por equipo</strong> '
+            + '<span class="text-muted">(requeridos: ' + req + ')</span><ul class="mb-0 small">';
+        integ.resumen_parejas_por_equipo.forEach(function (r) {
+            var cls = r.ok ? 'text-success' : (r.aviso_banca ? 'text-warning' : 'text-danger');
+            var pref = r.slot ? ('T' + r.slot + ' ') : '';
+            var extra = '';
+            if (r.banca > 0) extra += ' · banca ' + r.banca;
+            if (r.en_clasiequi === false) extra += ' · sin clasiequi';
+            html += '<li class="' + cls + '">' + escapeHtml(pref + (r.codigo_equipo || ''))
+                + ': ' + (r.total || 0) + '/' + req
+                + ' (tit. ' + (r.titulares || 0) + '/' + req + ')' + extra + '</li>';
+        });
+        html += '</ul></div>';
+        return html;
+    }
+
+    function renderReporteBancaPorAsociacion(rb) {
+        if (!rb || !(rb.total > 0)) return '';
+        var html = '<div class="border rounded p-2 mb-2 mt-2 bg-white"><strong>Jugadores en banca al importar (' + rb.total + ')</strong>';
+        var porAsoc = rb.por_asociacion || {};
+        html += '<ul class="small mb-2">';
+        Object.keys(porAsoc).forEach(function (k) {
+            var b = porAsoc[k];
+            html += '<li><strong>' + escapeHtml(String(b.asociacion || k)) + '</strong>';
+            if (b.sin_clasiequi) html += ' · sin clasiequi: ' + b.sin_clasiequi;
+            if (b.exceso_plantilla) html += ' · exceso plantilla: ' + b.exceso_plantilla;
+            html += '</li>';
+        });
+        html += '</ul>';
+        html += renderSituacionesLista('Detalle banca', rb.situaciones_detalle || rb.detalle, 20);
+        html += '</div>';
+        return html;
+    }
+
     function renderEquiposIncompletosDetalle(integ) {
         if (!integ) return '';
-        let html = '';
+        let html = renderResumenParejas(integ);
+        html += renderReporteBancaPorAsociacion(integ.reporte_banca);
+        if (!integ.reporte_banca && integ.por_torneo) {
+            Object.keys(integ.por_torneo).forEach(function (slot) {
+                var pt = integ.por_torneo[slot] || {};
+                html += renderReporteBancaPorAsociacion(pt.reporte_banca);
+            });
+        }
         if (integ.leyenda_integridad) {
             html += '<div class="small text-muted mb-2 p-2 border rounded bg-white">'
                 + escapeHtml(integ.leyenda_integridad) + '</div>';
@@ -325,10 +391,12 @@ $basePage = 'index.php?page=importacion_torneo_externo';
             html += '</div>';
             html += '<div>' + escapeHtml(String(d.asociacion || '—'))
                 + ' · Estatus equipo: ' + escapeHtml(String(d.estatus_equipo_etiqueta || '—'))
-                + ' · <strong class="text-danger">' + escapeHtml(String(d.formato || '')) + ' jugadores</strong></div>';
+                + ' · <strong class="text-danger">parejas ' + escapeHtml(String(d.formato || ''))
+                + '</strong> · tit. ' + escapeHtml(String(d.formato_titulares || '')) + '</div>';
             if (d.explicacion) html += '<div class="text-danger">' + escapeHtml(String(d.explicacion)) + '</div>';
+            html += renderSituacionMeta(d);
             if (d.jugadores && d.jugadores.length) {
-                html += '<div class="mt-1">Jugadores en archivo:</div><ul class="mb-0">';
+                html += '<div class="mt-1">Jugadores en parejas (' + d.jugadores.length + '):</div><ul class="mb-0">';
                 d.jugadores.forEach(function (j) {
                     html += '<li>' + escapeHtml(String(j.cedula || ''))
                         + ' · ' + escapeHtml(String(j.nombre || '—'))
@@ -338,6 +406,8 @@ $basePage = 'index.php?page=importacion_torneo_externo';
                         + '</li>';
                 });
                 html += '</ul>';
+            } else {
+                html += '<div class="text-muted mt-1">Sin filas en parejas inscritas para este código.</div>';
             }
             html += '</div>';
         });
@@ -370,6 +440,58 @@ $basePage = 'index.php?page=importacion_torneo_externo';
         return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
+    function renderSituacionMeta(d) {
+        if (!d || (!d.origen_tabla_access && !d.origen_archivo && !d.tabla_destino)) return '';
+        var html = '<div class="imp-situacion-meta small border-start border-3 border-secondary ps-2 mt-1 mb-1">';
+        if (d.origen_tabla_access || d.origen_archivo) {
+            html += '<div><strong>Origen Access:</strong> '
+                + escapeHtml(String(d.origen_tabla_access || d.origen_archivo || '')) + '</div>';
+        }
+        if (d.tabla_destino) {
+            html += '<div><strong>Tabla destino:</strong> <code>' + escapeHtml(String(d.tabla_destino)) + '</code>';
+            if (d.campo_destino) {
+                html += ' · campo <code>' + escapeHtml(String(d.campo_destino)) + '</code>';
+            }
+            html += '</div>';
+        }
+        if (d.elemento) html += '<div><strong>Elemento:</strong> ' + escapeHtml(String(d.elemento)) + '</div>';
+        if (d.fila_archivo) html += '<div><strong>Fila archivo:</strong> ' + escapeHtml(String(d.fila_archivo)) + '</div>';
+        if (d.valor_archivo) html += '<div><strong>Valor archivo:</strong> ' + escapeHtml(String(d.valor_archivo)) + '</div>';
+        if (d.valor_sistema) html += '<div><strong>Valor sistema:</strong> ' + escapeHtml(String(d.valor_sistema)) + '</div>';
+        if (d.como_resolver) {
+            html += '<div class="text-primary mt-1"><strong>Cómo resolver:</strong> '
+                + escapeHtml(String(d.como_resolver)) + '</div>';
+        }
+        html += '</div>';
+        return html;
+    }
+
+    function renderSituacionesLista(title, items, max) {
+        if (!items || !items.length) return '';
+        var slice = items.slice(0, max || 20);
+        var html = '<div class="border rounded p-2 mb-2 bg-white"><strong>' + escapeHtml(title)
+            + ' (' + items.length + ')</strong>';
+        slice.forEach(function (d) {
+            html += '<div class="mt-2 pb-2 border-bottom">';
+            var titulo = d.cedula || d.codigo_equipo || d.elemento || d.numfvd || '';
+            if (titulo) {
+                html += '<div><strong>' + escapeHtml(String(titulo)) + '</strong>';
+                if (d.nombre) html += ' · ' + escapeHtml(String(d.nombre));
+                html += '</div>';
+            }
+            if (d.explicacion) {
+                html += '<div class="text-danger">' + escapeHtml(String(d.explicacion)) + '</div>';
+            }
+            html += renderSituacionMeta(d);
+            html += '</div>';
+        });
+        if (items.length > slice.length) {
+            html += '<div class="small text-muted">… y ' + (items.length - slice.length) + ' más</div>';
+        }
+        html += '</div>';
+        return html;
+    }
+
     function setStats(el, ok, html) {
         el.classList.remove('is-error', 'is-ok');
         el.classList.add(ok ? 'is-ok' : 'is-error');
@@ -384,9 +506,10 @@ $basePage = 'index.php?page=importacion_torneo_externo';
         if (s.pendiente_actualizar) html += '<div>Pendiente actualizar (numfvd/datos): <strong class="text-info">' + s.pendiente_actualizar + '</strong></div>';
         if (s.usuarios_creados) html += '<div class="text-success">Usuarios creados: ' + s.usuarios_creados + '</div>';
         if (s.usuarios_actualizados) html += '<div class="text-success">Usuarios actualizados: ' + s.usuarios_actualizados + ' (numfvd: ' + (s.numfvd_actualizados || 0) + ')</div>';
-        html += renderList('Sin registro en atletas', s.sin_atleta, 20);
         html += renderList('Errores', s.errores, 10);
-        if (s.detalle_pendientes && s.detalle_pendientes.length) {
+        if (s.situaciones_detalle && s.situaciones_detalle.length) {
+            html += renderSituacionesLista('Incidencias — origen y corrección', s.situaciones_detalle, 25);
+        } else if (s.detalle_pendientes && s.detalle_pendientes.length) {
             html += '<strong>Cambios pendientes (' + s.detalle_pendientes.length + '):</strong><ul class="mb-1 small">';
             s.detalle_pendientes.slice(0, 20).forEach(function (d) {
                 html += '<li>' + escapeHtml(String(d.cedula || '')) + ' · ' + escapeHtml(String(d.accion || ''));
@@ -438,7 +561,9 @@ $basePage = 'index.php?page=importacion_torneo_externo';
         if (s.usuarios_creados) html += '<div class="text-success">Usuarios creados: ' + s.usuarios_creados + '</div>';
         if (s.usuarios_actualizados) html += '<div class="text-success">Usuarios actualizados: ' + s.usuarios_actualizados + ' (numfvd: ' + (s.numfvd_actualizados || 0) + ')</div>';
         html += renderList('Errores', s.errores, 10);
-        if (s.detalle_pendientes && s.detalle_pendientes.length) {
+        if (s.situaciones_detalle && s.situaciones_detalle.length) {
+            html += renderSituacionesLista('Incidencias — origen y corrección', s.situaciones_detalle, 25);
+        } else if (s.detalle_pendientes && s.detalle_pendientes.length) {
             html += '<strong>Muestra de cambios pendientes:</strong><ul class="mb-1 small">';
             s.detalle_pendientes.slice(0, 15).forEach(function (d) {
                 html += '<li>' + escapeHtml(String(d.cedula || '')) + ' · ' + escapeHtml(String(d.accion || ''));
@@ -582,6 +707,9 @@ $basePage = 'index.php?page=importacion_torneo_externo';
             html += '</div>';
             html += renderMuestra(s.muestra);
             html += renderDetalleDivergencias(s.resumen_divergencias, s.divergencias_detalle);
+            if (s.situaciones_detalle && s.situaciones_detalle.length && (!s.divergencias_detalle || !s.divergencias_detalle.length)) {
+                html += renderSituacionesLista('Situaciones detectadas', s.situaciones_detalle, 25);
+            }
             html += renderList('Cédulas repetidas en archivo', s.cedulas_duplicadas_archivo);
             html += renderList('numfvd repetido en archivo', s.numfvd_duplicados_resueltos);
             if (!s.divergencias_detalle || !s.divergencias_detalle.length) {
@@ -597,7 +725,10 @@ $basePage = 'index.php?page=importacion_torneo_externo';
                 html += renderList('Torneo distinto en archivo (aviso)', s.torneo_archivo_distinto);
             }
             if (s.errores_columnas && s.errores_columnas.length) {
-                html += renderList('Columnas', s.errores_columnas);
+                html += renderSituacionesLista('Columnas faltantes o inválidas', s.situaciones_detalle, 15);
+                if (!s.situaciones_detalle || !s.situaciones_detalle.length) {
+                    html += renderList('Columnas', s.errores_columnas);
+                }
             }
             html += s.ok ? '<div class="text-success fw-bold mt-1">✓ Verificación OK</div>' : '<div class="text-danger fw-bold mt-1">✗ Hay divergencias</div>';
             setStats(el, !!s.ok, html);
@@ -636,7 +767,11 @@ $basePage = 'index.php?page=importacion_torneo_externo';
                 html += '</ul>';
             }
             html += renderList('numfvd sin inscrito', s.numfvd_sin_inscrito, 20);
-            if (s.errores_columnas && s.errores_columnas.length) html += renderList('Columnas', s.errores_columnas);
+            if (s.situaciones_detalle && s.situaciones_detalle.length) {
+                html += renderSituacionesLista('Situaciones detectadas (parti2017)', s.situaciones_detalle, 25);
+            } else if (s.errores_columnas && s.errores_columnas.length) {
+                html += renderList('Columnas', s.errores_columnas);
+            }
             html += s.ok ? '<div class="text-success fw-bold mt-1">✓ Todos los numfvd están en inscritos</div>' : '<div class="text-danger fw-bold mt-1">✗ Faltan inscritos</div>';
             setStats(el, !!s.ok, html);
             refreshEjecutarBtn();
@@ -667,6 +802,13 @@ $basePage = 'index.php?page=importacion_torneo_externo';
                 html += renderPorAsoc(s.por_asociacion);
                 html += renderList('Equipos incompletos (clasiequi)', s.equipos_incompletos);
                 html += renderEquiposIncompletosDetalle(integ);
+                var sitClas = (s.situaciones_detalle || []).filter(function (d) {
+                    var c = String(d.codigo || d.tipo || '');
+                    return c.indexOf('equipo_') !== 0;
+                });
+                if (sitClas.length) {
+                    html += renderSituacionesLista('Otras situaciones (clasiequi)', sitClas, 25);
+                }
                 if (integ.campeonato_genero) {
                     html += '<div class="small text-muted">Verificación por sub-torneo (1=hombres, 2=mujeres)</div>';
                 }
@@ -685,6 +827,7 @@ $basePage = 'index.php?page=importacion_torneo_externo';
         fd.append('csrf_token', csrf);
         fd.append('action', 'ejecutar');
         fd.append('torneo_id', torneoId);
+        if (document.getElementById('chk-reemplazar-inscripcion').checked) fd.append('reemplazar_inscripcion', '1');
         if (document.getElementById('chk-reemplazar').checked) fd.append('reemplazar_partiresul', '1');
         fd.append('archivo_parejas', document.getElementById('file-parejas').files[0]);
         fd.append('archivo_parti', document.getElementById('file-parti').files[0]);
@@ -696,17 +839,59 @@ $basePage = 'index.php?page=importacion_torneo_externo';
             .then(function (res) {
                 if (!res.success) {
                     const msg = res.error || (res.resultado && res.resultado.error) || 'Error';
-                    setStats(el, false, escapeHtml(msg));
+                    let html = escapeHtml(msg);
+                    const sit = (res.resultado && res.resultado.situaciones_detalle) || res.situaciones_detalle;
+                    if (sit && sit.length) {
+                        html += renderSituacionesLista('Incidencias — origen y corrección', sit, 15);
+                    }
+                    setStats(el, false, html);
                     return;
                 }
                 const r = res.resultado || {};
                 let html = '<strong>Importación completada</strong><ul class="mb-0">';
-                html += '<li>Inscritos nuevos: ' + (r.inscritos_insertados || 0) + ' (omitidos ya existentes: ' + (r.inscritos_omitidos || 0) + ')</li>';
-                html += '<li>Equipos nuevos: ' + (r.equipos_insertados || 0) + '</li>';
+                html += '<li>Inscritos nuevos: ' + (r.inscritos_insertados || 0);
+                if (r.inscritos_actualizados) html += ' · actualizados: ' + r.inscritos_actualizados;
+                html += ' (omitidos: ' + (r.inscritos_omitidos || 0) + ')</li>';
+                if (r.inscritos_banca) {
+                    html += '<li>Inscritos en banca: <strong>' + r.inscritos_banca + '</strong></li>';
+                }
+                html += '<li>Equipos nuevos: ' + (r.equipos_insertados || 0);
+                if (r.equipos_actualizados) html += ' · actualizados: ' + r.equipos_actualizados;
+                if (r.equipos_asegurados_parejas) html += ' · desde parejas: ' + r.equipos_asegurados_parejas;
+                if (r.equipos_omitidos) html += ' · omitidos: ' + r.equipos_omitidos;
+                html += '</li>';
+                if (r.numeros_sincronizados) {
+                    html += '<li>Números inscripción sincronizados (numfvd): ' + r.numeros_sincronizados + '</li>';
+                }
                 html += '<li>partiresul insertados: ' + (r.partiresul_insertados || 0);
+                if (r.partiresul_omitidos) html += ' · omitidos: ' + r.partiresul_omitidos;
                 if (r.partiresul_reemplazados) html += ' (reemplazados: ' + r.partiresul_reemplazados + ')';
                 html += '</li></ul>';
-                setStats(el, true, html);
+                if (r.incidencias_resumen) {
+                    var ir = r.incidencias_resumen;
+                    var partes = [];
+                    if (ir.jugadores_no_importados) partes.push('jugadores no importados: ' + ir.jugadores_no_importados);
+                    if (ir.equipos_no_importados) partes.push('equipos no importados: ' + ir.equipos_no_importados);
+                    if (ir.partiresul_omitidos) partes.push('filas partiresul omitidas: ' + ir.partiresul_omitidos);
+                    if (partes.length) {
+                        html += '<div class="small text-warning mt-1">' + escapeHtml(partes.join(' · ')) + '</div>';
+                    }
+                }
+                html += renderReporteBancaPorAsociacion(r.reporte_banca);
+                if (r.situaciones_detalle && r.situaciones_detalle.length) {
+                    html += renderSituacionesLista('Incidencias al ejecutar — origen y corrección', r.situaciones_detalle, 30);
+                }
+                if (r.incidencias_truncadas) {
+                    html += '<div class="small text-muted">Se muestran las primeras 200 incidencias; corrija y vuelva a importar.</div>';
+                }
+                if (r.advertencias && r.advertencias.length) {
+                    html += '<div class="text-warning mt-2">' + r.advertencias.map(escapeHtml).join('<br>') + '</div>';
+                }
+                const okEjec = !(r.incidencias_resumen && (
+                    (r.incidencias_resumen.jugadores_no_importados && !r.inscritos_insertados && !r.inscritos_actualizados)
+                    || (r.incidencias_resumen.partiresul_omitidos && !r.partiresul_insertados)
+                ));
+                setStats(el, okEjec, html);
             })
             .catch(function () { setStats(el, false, 'Error de red.'); });
     });

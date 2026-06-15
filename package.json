@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build:vendor": "node scripts/sync-vendor-assets.mjs",
-    "build:css": "tailwindcss -i ./src/input.css -o ./public/assets/dist/output.css --minify",
+    "build:css": "tailwindcss -i ./src/input.css -o ./public/assets/dist/output.css --minify && node scripts/copy-landing-output-css.mjs",
     "build:css:dev": "tailwindcss -i ./src/input.css -o ./public/assets/dist/output.css",
     "watch:css": "tailwindcss -i ./src/input.css -o ./public/assets/dist/output.css --watch",
     "build:assets": "npm run build:vendor && npm run build:css"

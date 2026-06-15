@@ -20,7 +20,8 @@ $landing_page_script = $landing_page_script ?? 'landing-spa.php';
                 <a href="#galeria" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Galería</a>
                 <a href="#faq" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">FAQ</a>
                 <a href="#comentarios" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Comentarios</a>
-                <a href="<?= htmlspecialchars($base_url . 'ranking_atletas.php') ?>" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Ranking atletas</a>
+                <a href="#ranking-oficial" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Ranking oficial</a>
+                <a href="#asociaciones-activas" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Asociaciones</a>
                 <a href="<?= htmlspecialchars($base_url . 'login.php') ?>" class="ml-4 px-6 py-2.5 fvd-btn-primary rounded-lg font-semibold transition-all shadow-lg"><i class="fas fa-sign-in-alt mr-2"></i>Iniciar Sesión</a>
             </div>
             <button type="button" class="fvd-landing-nav__menu-btn" id="landing-mobile-menu-btn" aria-label="Abrir menú" aria-expanded="false"><i class="fas fa-bars text-xl"></i></button>
@@ -34,7 +35,8 @@ $landing_page_script = $landing_page_script ?? 'landing-spa.php';
                 <a href="#galeria" class="px-4 py-2 fvd-nav-link rounded-lg">Galería</a>
                 <a href="#faq" class="px-4 py-2 fvd-nav-link rounded-lg">FAQ</a>
                 <a href="#comentarios" class="px-4 py-2 fvd-nav-link rounded-lg">Comentarios</a>
-                <a href="<?= htmlspecialchars($base_url . 'ranking_atletas.php') ?>" class="px-4 py-2 fvd-nav-link rounded-lg">Ranking atletas</a>
+                <a href="#ranking-oficial" class="px-4 py-2 fvd-nav-link rounded-lg">Ranking oficial</a>
+                <a href="#asociaciones-activas" class="px-4 py-2 fvd-nav-link rounded-lg">Asociaciones</a>
                 <a href="<?= htmlspecialchars($base_url . 'login.php') ?>" class="mt-2 px-4 py-2.5 fvd-btn-primary rounded-lg text-center inline-block"><i class="fas fa-sign-in-alt mr-2"></i>Iniciar Sesión</a>
             </div>
         </div>
@@ -66,6 +68,7 @@ $landing_page_script = $landing_page_script ?? 'landing-spa.php';
                 </div>
             </div>
         </div>
-        <div class="absolute bottom-0 left-0 right-0 pointer-events-none" aria-hidden="true"><svg class="w-full h-10 md:h-14 block" viewBox="0 0 1200 80" preserveAspectRatio="none"><path d="M0,40 C200,80 400,0 600,30 C800,60 1000,20 1200,40 L1200,80 L0,80 Z" fill="#ffffff"></path></svg></div>
+        <div class="absolute bottom-0 left-0 right-0 pointer-events-none" aria-hidden="true"><svg class="w-full h-10 md:h-14 block" viewBox="0 0 1200 80" preserveAspectRatio="none"><path d="M0,40 C200,80 400,0 600,30 C800,60 1000,20 1200,40 L1200,80 L0,80 Z" fill="#f8fafc"></path></svg></div>
     </section>
+    <?php require __DIR__ . '/landing_ranking_oficial_section.php'; ?>
 </div>

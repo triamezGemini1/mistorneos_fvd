@@ -10,12 +10,20 @@ requireAdminGeneral();
 require_once __DIR__ . '/../../../lib/OrganizacionesData.php';
 require_once __DIR__ . '/../../../lib/ActasPendientesHelper.php';
 require_once __DIR__ . '/../../../lib/FvdConfig.php';
+require_once __DIR__ . '/../../../lib/FvdAdminGate.php';
 
 $current_user = Auth::user();
-$stats = OrganizacionesData::loadStatsGlobales();
+$torneosSolo = FvdAdminGate::isRestricted();
+
+if ($torneosSolo) {
+    $stats = [];
+    $panel_badges = [];
+} else {
+    $stats = OrganizacionesData::loadStatsGlobales();
+    $panel_badges = OrganizacionesData::loadAdminGeneralPanelBadges();
+}
 $actas_pendientes = ActasPendientesHelper::contar();
 $actas_ultimo_envio = ActasPendientesHelper::ultimoEnvio();
-$panel_badges = OrganizacionesData::loadAdminGeneralPanelBadges();
 
 extract([
     'stats' => $stats,
@@ -27,6 +35,7 @@ extract([
     'user_role' => 'admin_general',
     'current_user' => $current_user,
     'fvd_org_id' => (int) FvdConfig::ORGANIZACION_ID,
+    'torneos_solo' => $torneosSolo,
 ]);
 
 include __DIR__ . '/../views/home.php';

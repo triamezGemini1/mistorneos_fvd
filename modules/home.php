@@ -1,7 +1,7 @@
 <?php
 /**
  * Punto de entrada al Dashboard (page=home)
- * Admin General: estadísticas + panel operativo.
+ * Admin General: estadísticas de torneos (gestión de competencias).
  * Otros roles admin: estadísticas vía admin_dashboard.php.
  */
 if (!defined('APP_BOOTSTRAPPED')) {

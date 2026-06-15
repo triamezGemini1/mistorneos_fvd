@@ -9,7 +9,10 @@ $path = $_GET['path'] ?? '';
 
 // Solo permitir rutas bajo upload/ (logos, fotos, etc.) y sin directory traversal
 $path = str_replace(['../', '..\\'], '', $path);
-$path = ltrim($path, '/\\');
+$path = str_replace('\\', '/', ltrim($path, '/\\'));
+if (strpos($path, 'public/') === 0) {
+    $path = substr($path, 7);
+}
 
 // upload/ y uploads/ (raíz del proyecto): logos y adjuntos locales (WAMP: …\mistorneos\upload y …\uploads)
 $allowed_prefixes = ['upload/', 'uploads/', 'lib/Assets/'];

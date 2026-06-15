@@ -30,23 +30,54 @@ function getEntidadesOptions(): array {
 }
 
 $entidades = getEntidadesOptions();
-$entidad_actual = $_SESSION['user']['entidad'] ?? 0;
-$email_actual = $_SESSION['user']['email'] ?? '';
+$entidad_actual = (int)($_SESSION['user']['entidad'] ?? 0);
+$email_actual = (string)($_SESSION['user']['email'] ?? '');
 $telegram_chat_id_actual = '';
+$photo_actual = (string)($_SESSION['user']['photo_path'] ?? '');
+$numfvd_actual = (int)($_SESSION['user']['numfvd'] ?? 0);
 try {
-    $stmt = DB::pdo()->prepare("SELECT telegram_chat_id FROM usuarios WHERE id = ?");
+    $pdoPerfil = DB::pdo();
+    $tieneNumfvd = (bool)$pdoPerfil->query("SHOW COLUMNS FROM usuarios LIKE 'numfvd'")->fetch();
+    $sqlPerfil = $tieneNumfvd
+        ? 'SELECT email, entidad, photo_path, telegram_chat_id, numfvd FROM usuarios WHERE id = ? LIMIT 1'
+        : 'SELECT email, entidad, photo_path, telegram_chat_id FROM usuarios WHERE id = ? LIMIT 1';
+    $stmt = $pdoPerfil->prepare($sqlPerfil);
     $stmt->execute([$_SESSION['user']['id']]);
-    $telegram_chat_id_actual = $stmt->fetchColumn() ?: '';
-} catch (Exception $e) { }
-$photo_actual = $_SESSION['user']['photo_path'] ?? '';
-$photo_url = '';
-if ($photo_actual) {
-    // Si viene con subruta, úsala; si no, asumir carpeta upload (legacy)
-    $photo_url = (str_contains($photo_actual, '/'))
-        ? AppHelpers::getBaseUrl() . '/' . ltrim($photo_actual, '/')
-        : AppHelpers::getBaseUrl() . '/upload/' . $photo_actual;
+    $rowPerfil = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($rowPerfil) {
+        if (!empty($rowPerfil['email'])) {
+            $email_actual = (string)$rowPerfil['email'];
+            $_SESSION['user']['email'] = $email_actual;
+        }
+        if (array_key_exists('entidad', $rowPerfil)) {
+            $entidad_actual = (int)$rowPerfil['entidad'];
+            $_SESSION['user']['entidad'] = $entidad_actual;
+        }
+        if (!empty($rowPerfil['photo_path'])) {
+            $photo_actual = (string)$rowPerfil['photo_path'];
+            $_SESSION['user']['photo_path'] = $photo_actual;
+        }
+        $numfvd_actual = (int)($rowPerfil['numfvd'] ?? 0);
+        $_SESSION['user']['numfvd'] = $numfvd_actual;
+        $telegram_chat_id_actual = trim((string)($rowPerfil['telegram_chat_id'] ?? ''));
+    }
+} catch (Exception $e) {
+    error_log('Perfil: no se pudo cargar datos de usuario: ' . $e->getMessage());
 }
-$form_action = AppHelpers::url('profile_save.php');
+$carnet_fvd_label = $numfvd_actual > 0 ? (string)$numfvd_actual : 'Sin asignar';
+$photo_url = AppHelpers::userPhotoUrl($photo_actual);
+if ($photo_url !== '' && isset($_GET['photo_ok'])) {
+    $photo_url .= (strpos($photo_url, '?') !== false ? '&' : '?') . 't=' . time();
+}
+$telegram_bot_username = trim((string)($_ENV['TELEGRAM_BOT_USERNAME'] ?? ''));
+$telegram_bot_link = $telegram_bot_username ? 'https://t.me/' . ltrim($telegram_bot_username, '@') : '';
+$tiene_telegram = !empty(trim($telegram_chat_id_actual));
+$profile_asset_base = rtrim(AppHelpers::getPublicBaseHref(), '/');
+$profile_script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$form_action = (str_ends_with($profile_script, '/profile.php') || str_ends_with($profile_script, '/public/profile.php'))
+    ? 'profile_save.php'
+    : AppHelpers::url('profile_save.php');
+$form_photo_action = AppHelpers::url('profile.php');
 $role_original = (string)($_SESSION['user']['role_original'] ?? ($_SESSION['user']['role'] ?? ''));
 $role_mode_actual = (int)($_SESSION['user']['role_switch_mode'] ?? (($role_original === 'admin_general') ? 0 : 0));
 $url_switch_role = AppHelpers::url('switch_role.php');
@@ -61,50 +92,147 @@ $role_labels = [
 ?>
 
 <?php
-$ok = isset($_GET['ok']) || isset($_GET['pwd_ok']);
+$ok = isset($_GET['ok']) || isset($_GET['pwd_ok']) || isset($_GET['photo_ok']);
+$photo_ok = isset($_GET['photo_ok']);
 $profile_error = isset($_GET['error']) ? (string) $_GET['error'] : '';
 ?>
 
 <style>
+.profile-card {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+.profile-card .profile-layout {
+  --fvd-profile-cyan: #00CAF9;
+  --profile-photo-size: 168px;
+}
+.profile-card .profile-form-panel {
+  background: var(--fvd-profile-cyan);
+  border-radius: 12px;
+  padding: 1.25rem 1.35rem 1.35rem;
+  color: #053a47;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+.profile-card .profile-form-panel .panel-title {
+  font-size: 0.94rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #000;
+  margin-bottom: 1rem;
+}
+.profile-card .profile-form-panel .form-label {
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #000;
+  margin-bottom: 0.35rem;
+}
+.profile-card .profile-form-panel .form-control,
+.profile-card .profile-form-panel .form-select {
+  font-size: 1.14rem;
+  font-weight: 700;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #000;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.profile-card .profile-form-panel .form-control:disabled {
+  background: rgba(255, 255, 255, 0.72);
+  color: #000;
+  font-weight: 700;
+}
+.profile-card .profile-side-card {
+  font-size: 1.02rem;
+}
+.profile-card .profile-side-card .card-header {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #000;
+}
+.profile-card .profile-side-card .form-label {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #000;
+}
+.profile-card .profile-side-card .form-control {
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: #000;
+}
+.profile-card .profile-side-card .btn,
+.profile-card .profile-side-card a {
+  font-weight: 700;
+}
+.profile-card .profile-form-panel .form-control:focus,
+.profile-card .profile-form-panel .form-select:focus {
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.55);
+}
+.profile-card .profile-form-panel .carnet-fvd-value {
+  font-size: 1.26rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #000;
+}
+.profile-card .profile-photo-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
 .profile-card .profile-photo-container {
   position: relative;
-  width: 140px;
-  height: 140px;
-  margin: 0 auto 1rem;
+  width: var(--profile-photo-size);
+  height: var(--profile-photo-size);
+  margin: 0 auto 0.75rem;
 }
 .profile-card .profile-photo {
-  width: 140px;
-  height: 140px;
+  width: var(--profile-photo-size);
+  height: var(--profile-photo-size);
   object-fit: cover;
   border-radius: 50%;
-  border: 4px solid #e9ecef;
+  border: 4px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 24px rgba(3, 66, 82, 0.18);
 }
 .profile-card .profile-photo-placeholder {
-  width: 140px;
-  height: 140px;
+  width: var(--profile-photo-size);
+  height: var(--profile-photo-size);
   border-radius: 50%;
-  background: #f1f3f5;
+  background: rgba(255, 255, 255, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 48px;
-  color: #9aa0a6;
-  border: 4px solid #e9ecef;
+  font-size: 58px;
+  color: #067d99;
+  border: 4px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 24px rgba(3, 66, 82, 0.12);
 }
 .profile-card .photo-upload-btn {
   position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background: #0d6efd;
-  color: white;
+  bottom: 10px;
+  right: 10px;
+  background: #034252;
+  color: #fff;
   border-radius: 50%;
-  width: 42px;
-  height: 42px;
+  width: 50px;
+  height: 50px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border: 0;
+  border: 2px solid #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.profile-card .photo-upload-btn:hover {
+  background: #022f3a;
+}
+@media (max-width: 991.98px) {
+  .profile-card .profile-photo-col {
+    order: -1;
+    margin-bottom: 1.25rem;
+  }
 }
 </style>
 
@@ -113,13 +241,13 @@ $profile_error = isset($_GET['error']) ? (string) $_GET['error'] : '';
     <div class="col-xl-8 col-lg-9">
       <?php if ($ok): ?>
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-          <i class="fas fa-check-circle me-2"></i><?= isset($_GET['pwd_ok']) ? 'Contraseña actualizada correctamente.' : 'Perfil actualizado correctamente.' ?>
+          <i class="fas fa-check-circle me-2"></i><?= isset($_GET['pwd_ok']) ? 'Contraseña actualizada correctamente.' : ($photo_ok ? 'Foto actualizada correctamente.' : 'Perfil actualizado correctamente.') ?>
           <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
       <?php endif; ?>
       <?php if ($profile_error !== ''): ?>
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
-          <i class="fas fa-exclamation-circle me-2"></i><?= htmlspecialchars(urldecode($profile_error)) ?>
+          <i class="fas fa-exclamation-circle me-2"></i><?= htmlspecialchars($profile_error) ?>
           <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
       <?php endif; ?>
@@ -129,89 +257,54 @@ $profile_error = isset($_GET['error']) ? (string) $_GET['error'] : '';
           <i class="fas fa-user-cog me-2"></i>
           <span>Mi Perfil</span>
         </div>
-        <div class="card-body">
-          <div class="row">
-            <div class="col-md-4 text-center mb-4">
-              <div class="profile-photo-container">
-                <?php if ($photo_url): ?>
-                  <img src="<?= htmlspecialchars($photo_url) ?>" alt="Foto" class="profile-photo">
-                <?php else: ?>
-                  <div class="profile-photo-placeholder">
-                    <i class="fas fa-user"></i>
+        <div class="card-body profile-layout">
+          <div class="row g-4 align-items-start">
+            <div class="col-lg-8">
+              <div class="profile-form-panel mb-3">
+                <div class="panel-title"><i class="fas fa-id-card me-2"></i>Información personal</div>
+                <form method="post" action="<?= htmlspecialchars($form_action) ?>" enctype="multipart/form-data">
+                  <input type="hidden" name="telegram_chat_id" value="<?= htmlspecialchars($telegram_chat_id_actual) ?>">
+                  <div class="row g-3">
+                    <div class="col-6 col-md-3 mb-1">
+                      <label class="form-label">ID Usuario</label>
+                      <input type="text" class="form-control" value="<?= htmlspecialchars((string)($_SESSION['user']['id'] ?? '')) ?>" disabled>
+                    </div>
+                    <div class="col-6 col-md-3 mb-1">
+                      <label class="form-label">Carnet FVD</label>
+                      <input type="text" class="form-control carnet-fvd-value" value="<?= htmlspecialchars($carnet_fvd_label) ?>" disabled>
+                    </div>
+                    <div class="col-12 col-md-6 mb-1">
+                      <label class="form-label">Usuario</label>
+                      <input type="text" class="form-control" value="<?= htmlspecialchars($_SESSION['user']['username'] ?? '') ?>" disabled>
+                    </div>
+                    <div class="col-md-6 mb-1">
+                      <label class="form-label">Email</label>
+                      <input type="email" name="email" class="form-control" required value="<?= htmlspecialchars($email_actual) ?>">
+                    </div>
+                    <div class="col-md-6 mb-1">
+                      <label class="form-label">Entidad (Ubicación)</label>
+                      <select name="entidad" class="form-select" required>
+                        <option value="">-- Seleccione --</option>
+                        <?php if (!empty($entidades)): ?>
+                          <?php foreach ($entidades as $ent): ?>
+                            <option value="<?= htmlspecialchars($ent['codigo']) ?>" <?= ($entidad_actual == $ent['codigo']) ? 'selected' : '' ?>>
+                              <?= htmlspecialchars($ent['nombre'] ?? $ent['codigo']) ?>
+                            </option>
+                          <?php endforeach; ?>
+                        <?php else: ?>
+                          <option value="" disabled>No hay entidades disponibles</option>
+                        <?php endif; ?>
+                      </select>
+                    </div>
                   </div>
-                <?php endif; ?>
-                <label for="photo-input" class="photo-upload-btn" title="Cambiar foto">
-                  <i class="fas fa-camera"></i>
-                </label>
-              </div>
-              <form method="post" action="<?= htmlspecialchars($form_action) ?>" enctype="multipart/form-data" id="photo-form">
-                <input type="hidden" name="email" value="<?= htmlspecialchars($email_actual) ?>">
-                <input type="hidden" name="entidad" value="<?= htmlspecialchars($entidad_actual) ?>">
-                <input type="hidden" name="telegram_chat_id" value="<?= htmlspecialchars($telegram_chat_id_actual) ?>">
-                <input type="file" name="photo" id="photo-input" accept="image/*" style="display:none" data-preview-target="profile-photo-preview">
-                <div id="profile-photo-preview"></div>
-                <div class="mt-2">
-                  <button type="submit" class="btn btn-sm btn-primary">Guardar foto</button>
-                </div>
-              </form>
-              <small class="text-muted">Clic en la cámara para cambiar foto</small>
-            </div>
 
-            <div class="col-md-8">
-              <div class="card mb-3">
-                <div class="card-header bg-light">
-                  <strong><i class="fas fa-id-card me-2"></i>Información personal</strong>
-                </div>
-                <div class="card-body">
-                  <form method="post" action="<?= htmlspecialchars($form_action) ?>" enctype="multipart/form-data">
-                    <input type="hidden" name="telegram_chat_id" value="<?= htmlspecialchars($telegram_chat_id_actual) ?>">
-                    <div class="row">
-                      <div class="col-md-6 mb-3">
-                        <label class="form-label">ID Usuario</label>
-                        <input type="text" class="form-control" value="<?= htmlspecialchars($_SESSION['user']['id'] ?? '') ?>" disabled>
-                      </div>
-                      <div class="col-md-6 mb-3">
-                        <label class="form-label">Usuario</label>
-                        <input type="text" class="form-control" value="<?= htmlspecialchars($_SESSION['user']['username'] ?? '') ?>" disabled>
-                      </div>
-                    </div>
-
-                    <div class="row">
-                      <div class="col-md-6 mb-3">
-                        <label class="form-label">Email</label>
-                        <input type="email" name="email" class="form-control" required value="<?= htmlspecialchars($email_actual) ?>">
-                      </div>
-                      <div class="col-md-6 mb-3">
-                        <label class="form-label">Entidad (Ubicación)</label>
-                        <select name="entidad" class="form-select" required>
-                          <option value="">-- Seleccione --</option>
-                          <?php if (!empty($entidades)): ?>
-                            <?php foreach ($entidades as $ent): ?>
-                              <option value="<?= htmlspecialchars($ent['codigo']) ?>" <?= ($entidad_actual == $ent['codigo']) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($ent['nombre'] ?? $ent['codigo']) ?>
-                              </option>
-                            <?php endforeach; ?>
-                          <?php else: ?>
-                            <option value="" disabled>No hay entidades disponibles</option>
-                          <?php endif; ?>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div class="d-flex justify-content-between">
-                      <a class="btn btn-outline-secondary" href="<?= htmlspecialchars(AppHelpers::url('modules/users/change_password.php')) ?>">Cambiar contraseña</a>
-                      <button type="submit" class="btn btn-primary">Guardar</button>
-                    </div>
-                  </form>
-                </div>
+                  <div class="d-flex justify-content-end mt-3 pt-1">
+                    <button type="submit" class="btn btn-sm btn-dark px-4 fw-bold">Guardar</button>
+                  </div>
+                </form>
               </div>
 
-              <?php
-              $telegram_bot_username = trim((string)($_ENV['TELEGRAM_BOT_USERNAME'] ?? ''));
-              $telegram_bot_link = $telegram_bot_username ? 'https://t.me/' . ltrim($telegram_bot_username, '@') : '';
-              $tiene_telegram = !empty(trim($telegram_chat_id_actual));
-              ?>
-              <div class="card mb-4 border-primary" id="telegram">
+              <div class="card mb-3 border-primary profile-side-card" id="telegram">
                 <div class="card-header text-white" style="background: linear-gradient(135deg, #0088cc 0%, #229ED9 100%);">
                   <strong><i class="fab fa-telegram-plane me-2"></i>Recibe notificaciones por Telegram</strong>
                   <?php if ($tiene_telegram): ?>
@@ -219,30 +312,27 @@ $profile_error = isset($_GET['error']) ? (string) $_GET['error'] : '';
                   <?php endif; ?>
                 </div>
                 <div class="card-body">
-                  <p class="mb-2"><strong>Ventajas:</strong> Recibe al instante avisos de nuevas rondas, torneos y resultados en tu celular.</p>
-                  <p class="mb-2"><strong>Instrucciones (3 pasos):</strong></p>
-                  <ol class="mb-3 small">
+                  <p class="mb-2 fw-bold text-dark">Recibe al instante avisos de nuevas rondas, torneos y resultados en tu celular.</p>
+                  <ol class="mb-3">
                     <li>Abre Telegram. <?php if ($telegram_bot_link): ?>
-                      <a href="<?= htmlspecialchars($telegram_bot_link) ?>" class="btn btn-sm btn-outline-primary ms-1"><i class="fab fa-telegram-plane me-1"></i>Abrir bot</a> y envía <code>/start</code>
+                      <a href="<?= htmlspecialchars($telegram_bot_link) ?>" class="btn btn-sm btn-outline-primary ms-1" target="_blank" rel="noopener"><i class="fab fa-telegram-plane me-1"></i>Abrir bot</a> y envía <code>/start</code>
                     <?php else: ?>
                       Busca el bot del sistema y envía <code>/start</code>
                     <?php endif; ?>
                     </li>
-                    <li>Busca <a href="https://t.me/userinfobot">@userinfobot</a>, inicia conversación y copia el número <strong>Id</strong>.</li>
+                    <li>Busca <a href="https://t.me/userinfobot" target="_blank" rel="noopener">@userinfobot</a>, inicia conversación y copia el número <strong>Id</strong>.</li>
                     <li>Pega el número abajo y Guardar.</li>
                   </ol>
                   <form method="POST" action="<?= htmlspecialchars($form_action) ?>">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
                     <input type="hidden" name="email" value="<?= htmlspecialchars($email_actual) ?>">
-                    <input type="hidden" name="entidad" value="<?= htmlspecialchars($entidad_actual) ?>">
-                    <input type="hidden" name="photo_path" value="<?= htmlspecialchars($photo_actual) ?>">
+                    <input type="hidden" name="entidad" value="<?= htmlspecialchars((string)$entidad_actual) ?>">
                     <div class="row g-2 align-items-end">
-                      <div class="col-md-6">
+                      <div class="col-md-8">
                         <label class="form-label">Telegram Chat ID</label>
                         <input type="text" name="telegram_chat_id" class="form-control" value="<?= htmlspecialchars($telegram_chat_id_actual) ?>" placeholder="Ej: 123456789">
                       </div>
                       <div class="col-md-4">
-                        <button type="submit" class="btn btn-primary w-100">Guardar</button>
+                        <button type="submit" class="btn btn-primary w-100 fw-bold">Guardar</button>
                       </div>
                     </div>
                   </form>
@@ -282,21 +372,42 @@ $profile_error = isset($_GET['error']) ? (string) $_GET['error'] : '';
                 </div>
               </div>
               <?php endif; ?>
+            </div>
 
-              <div class="card">
-                <div class="card-header bg-light">
-                  <strong><i class="fas fa-key me-2"></i>Cambiar contraseña</strong>
+            <div class="col-lg-4 profile-photo-col">
+              <form method="post" action="<?= htmlspecialchars($form_photo_action) ?>" enctype="multipart/form-data" id="photo-form" class="w-100 text-center">
+                <input type="hidden" name="action" value="upload_photo">
+                <div class="profile-photo-container">
+                  <?php if ($photo_url): ?>
+                    <img src="<?= htmlspecialchars($photo_url) ?>" alt="Foto" class="profile-photo" id="profile-photo-img">
+                  <?php else: ?>
+                    <div class="profile-photo-placeholder" id="profile-photo-placeholder">
+                      <i class="fas fa-user"></i>
+                    </div>
+                  <?php endif; ?>
+                  <label for="photo-input" class="photo-upload-btn" title="Cambiar foto">
+                    <i class="fas fa-camera"></i>
+                  </label>
                 </div>
-                <div class="card-body">
-                  <a class="btn btn-sm btn-outline-primary" href="<?= htmlspecialchars(AppHelpers::dashboard('users/change_password')) ?>">
+                <input type="file" name="photo" id="photo-input" accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp" style="display:none" data-preview-mode="inline" data-preview-inline="#profile-photo-img, #profile-photo-placeholder">
+                <div class="mt-2">
+                  <button type="submit" class="btn btn-sm btn-dark px-3 fw-semibold">Guardar foto</button>
+                </div>
+              </form>
+              <small class="text-muted d-block mt-2 fw-bold" style="font-size:0.96rem;color:#000;">JPG, PNG, GIF o WebP · máx. 2 MB</small>
+
+              <div class="card w-100 mt-3 profile-side-card">
+                <div class="card-header bg-light py-2">
+                  <strong><i class="fas fa-key me-1"></i>Cambiar contraseña</strong>
+                </div>
+                <div class="card-body p-3 d-flex flex-column text-center">
+                  <p class="mb-3 fw-bold text-dark">Actualiza tu clave de acceso al sistema.</p>
+                  <a class="btn btn-outline-primary w-100 fw-bold" href="<?= htmlspecialchars(AppHelpers::dashboard('users/change_password')) ?>">
                     <i class="fas fa-key me-1"></i>Ir a cambiar contraseña
                   </a>
-                  <div class="mt-2">
-                    <a href="<?= htmlspecialchars(AppHelpers::url('modules/auth/forgot_password.php')) ?>" class="small">Olvidé mi contraseña</a>
-                  </div>
+                  <a href="<?= htmlspecialchars(AppHelpers::url('modules/auth/forgot_password.php')) ?>" class="small fw-bold text-dark mt-2">Olvidé mi contraseña</a>
                 </div>
               </div>
-
             </div>
           </div>
         </div>
@@ -304,3 +415,11 @@ $profile_error = isset($_GET['error']) ? (string) $_GET['error'] : '';
     </div>
   </div>
 </div>
+<script src="<?= htmlspecialchars(AppHelpers::assetHref('assets/image-preview.js', $profile_asset_base)) ?>" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (window.FvdImagePreview) {
+    window.FvdImagePreview.init();
+  }
+});
+</script>

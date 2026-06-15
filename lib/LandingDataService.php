@@ -71,6 +71,16 @@ class LandingDataService
         }
     }
 
+    /** Subconsulta primera foto y total (solo activas). */
+    private function sqlSubqueryFotos(): string
+    {
+        if (!$this->hasClubPhotos()) {
+            return ', NULL AS primera_foto, 0 AS total_fotos';
+        }
+
+        return ", (SELECT cp.ruta_imagen FROM club_photos cp WHERE cp.torneo_id = t.id AND (cp.activa = 1 OR cp.activa IS NULL) ORDER BY cp.orden ASC, cp.fecha_subida ASC LIMIT 1) AS primera_foto, (SELECT COUNT(*) FROM club_photos cp2 WHERE cp2.torneo_id = t.id AND (cp2.activa = 1 OR cp2.activa IS NULL)) AS total_fotos";
+    }
+
     /**
      * Verifica si existe la columna publicar_landing en tournaments.
      */
@@ -110,6 +120,7 @@ class LandingDataService
                 u.celular as admin_celular,
                 COALESCE(o.entidad, t.entidad, 0) as entidad_torneo,
                 " . $this->sqlSubqueryTotalInscritos() . "
+                " . $this->sqlSubqueryFotos() . "
             FROM tournaments t
             " . $this->orgJoinExpr('t', 'o') . "
             LEFT JOIN usuarios u ON o.admin_user_id = u.id AND u.role = 'admin_club'
@@ -143,9 +154,7 @@ class LandingDataService
         $where_anio = $anio !== null ? ' AND YEAR(t.fechator) = ' . (int)$anio : '';
         $where_tipo = $tipo_evento !== null ? ' AND COALESCE(t.es_evento_masivo, 0) = ' . (int)$tipo_evento : '';
 
-        $subquery_fotos = $this->hasClubPhotos()
-            ? ", (SELECT cp.ruta_imagen FROM club_photos cp WHERE cp.torneo_id = t.id ORDER BY cp.orden ASC, cp.fecha_subida ASC LIMIT 1) as primera_foto, (SELECT COUNT(*) FROM club_photos WHERE torneo_id = t.id) as total_fotos"
-            : ", NULL as primera_foto, 0 as total_fotos";
+        $subquery_fotos = $this->sqlSubqueryFotos();
 
         $sql = "
             SELECT
@@ -616,6 +625,42 @@ class LandingDataService
             return $rows;
         } catch (Exception $e) {
             error_log('LandingDataService getPodioPorTorneo: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Fotos recientes de torneos para la sección galería del landing.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getGaleriaDestacada(int $limit = 12): array
+    {
+        if (!$this->hasClubPhotos()) {
+            return [];
+        }
+        $limit = max(1, min($limit, 48));
+        $sql = "
+            SELECT
+                cp.id,
+                cp.ruta_imagen,
+                cp.titulo,
+                cp.torneo_id,
+                t.nombre AS torneo_nombre,
+                t.fechator,
+                o.nombre AS organizacion_nombre
+            FROM club_photos cp
+            INNER JOIN tournaments t ON t.id = cp.torneo_id AND t.estatus = 1
+            " . $this->orgJoinExpr('t', 'o') . "
+            WHERE (cp.activa = 1 OR cp.activa IS NULL)
+            ORDER BY cp.fecha_subida DESC, cp.id DESC
+            LIMIT {$limit}
+        ";
+        try {
+            return $this->pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Exception $e) {
+            error_log('LandingDataService getGaleriaDestacada: ' . $e->getMessage());
+
             return [];
         }
     }

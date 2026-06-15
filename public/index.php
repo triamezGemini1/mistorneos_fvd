@@ -209,6 +209,17 @@ $page = preg_replace('/[^a-zA-Z0-9_\/\-]/', '', $page);
 require_once APP_ROOT . '/lib/FvdAdminGate.php';
 FvdAdminGate::rejectPageIfDisabled($page);
 
+// Alias legacy: analytics_uso → estadisticas_web (vista Umami unificada)
+if ($page === 'analytics_uso') {
+    require_once APP_ROOT . '/lib/app_helpers.php';
+    $umamiParams = [];
+    if (isset($_GET['period']) && trim((string) $_GET['period']) !== '') {
+        $umamiParams['period'] = trim((string) $_GET['period']);
+    }
+    header('Location: ' . AppHelpers::dashboard('estadisticas_web', $umamiParams), true, 302);
+    exit;
+}
+
 // Admin operativo de asociación: inicio = panel acotado (sin dashboard general)
 if (Auth::isOperativoSoloAsociacion()) {
     require_once __DIR__ . '/../lib/app_helpers.php';

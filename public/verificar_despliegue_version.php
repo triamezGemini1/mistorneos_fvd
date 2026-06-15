@@ -20,6 +20,15 @@ $checks = [
     'modules/finances.php' => ['marker' => 'FINANCES_ACTUALIZAR_DEUDAS_URL', 'label' => 'Finanzas (URL API deudas)'],
     'lib/LandingDataService.php' => ['marker' => 'sqlWhereActivoConAlias', 'label' => 'Landing contador inscritos'],
     'modules/users.php' => ['marker' => 'sqlOrderUsuariosPorRol', 'label' => 'Usuarios orden por rol'],
+    'lib/RankingNumfvdAdminService.php' => ['marker' => 'class RankingNumfvdAdminService', 'label' => 'Ranking NUMFVD (servicio)'],
+    'modules/ranking_numfvd_admin.php' => ['marker' => 'aplicar_posi_rnk', 'label' => 'Ranking NUMFVD admin'],
+    'modules/ranking_numfvd_detalle.php' => ['marker' => 'rnk-stat-pill', 'label' => 'Ranking NUMFVD detalle'],
+    'public/ranking_numfvd_detalle_pdf.php' => ['marker' => 'getBrandLogoDataUri', 'label' => 'PDF detalle ranking'],
+    'lib/app_helpers.php' => ['marker' => 'userPhotoUrl', 'label' => 'Foto perfil (view_image)'],
+    'modules/users/profile.php' => ['marker' => 'Carnet FVD', 'label' => 'Perfil usuario (Carnet FVD + UI)'],
+    'lib/ProfilePhotoService.php' => ['marker' => 'class ProfilePhotoService', 'label' => 'Servicio foto perfil'],
+    'public/profile.php' => ['marker' => 'upload_photo', 'label' => 'Subida foto en profile.php'],
+    'public/assets/image-preview.js' => ['marker' => 'applyInlinePreview', 'label' => 'JS vista previa imágenes'],
 ];
 
 $rows = [];
@@ -106,6 +115,7 @@ $opcache = function_exists('opcache_get_status') ? @opcache_get_status(false) : 
     <ul>
         <li>Reportes de pago (admin): <code>index.php?page=reportes_pago_usuarios&amp;torneo_id=ID_TORNEO</code></li>
         <li>Finanzas: <code>index.php?page=finances&amp;torneo_id=ID_TORNEO</code></li>
+        <li>Mi perfil (foto): <code>profile.php</code></li>
     </ul>
     <p><small>Elimine este archivo cuando termine la verificación.</small></p>
 </body>

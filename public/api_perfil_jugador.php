@@ -1,5 +1,4 @@
-﻿<?php
-declare(strict_types=1);
+<?php
 /**
  * API JSON para la SPA de perfil jugador (móvil, QR + Cédula).
  * Valida cédula solo contra tabla inscritos del torneo actual.

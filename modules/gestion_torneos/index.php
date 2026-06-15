@@ -43,14 +43,6 @@ $panel_sep = $use_standalone_list ? '?' : '&';
                     <a href="index.php?page=estadisticas_torneos" class="btn btn-sm btn-outline-info">
                         <i class="fas fa-chart-line me-1"></i>Estadísticas
                     </a>
-                    <?php if (!empty($is_admin_general)): ?>
-                    <a href="index.php?page=importacion_torneo_externo" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-file-import me-1"></i>Importar torneo
-                    </a>
-                    <a href="index.php?page=notificaciones_masivas" class="btn btn-sm btn-outline-warning">
-                        <i class="fas fa-bell me-1"></i>Notif.
-                    </a>
-                    <?php endif; ?>
                 </div>
             </div>
         </div>

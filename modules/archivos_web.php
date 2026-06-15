@@ -11,8 +11,11 @@ require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/csrf.php';
 require_once __DIR__ . '/../lib/ImageOptimizer.php';
+require_once __DIR__ . '/../lib/InvitacionesFvdWebService.php';
 
 Auth::requireRole(['admin_general']);
+
+$pdo = DB::pdo();
 
 // Umbrales (bytes) para comprimir: por encima de esto se optimiza
 const UMBRAL_COMPRIMIR_IMAGEN = 1024 * 1024;   // 1 MB
@@ -35,7 +38,7 @@ $folders = [
     'invitaciones_fvd' => [
         'path' => 'upload/invitaciones_fvd',
         'titulo' => 'Invitaciones FVD',
-        'desc' => 'Invitaciones y documentos de la FVD. Los visitantes pueden consultarlos y descargarlos desde el portal.',
+        'desc' => 'Invitaciones y documentos de la FVD. Se muestran en el portal hasta la fecha del evento; después quedan inactivas automáticamente.',
         'extensions' => ['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'],
     ],
 ];
@@ -50,6 +53,19 @@ foreach ($folders as $key => $cfg) {
 
 $success_message = $_GET['success'] ?? null;
 $error_message = $_GET['error'] ?? null;
+
+$registrarInvitacionMeta = static function (string $filename, string $seccionPost) use ($pdo): void {
+    if ($seccionPost !== 'invitaciones_fvd') {
+        return;
+    }
+    $titulo = trim((string) ($_POST['nombre_guardar'] ?? ''));
+    InvitacionesFvdWebService::registrar(
+        $pdo,
+        $filename,
+        $titulo !== '' ? $titulo : null,
+        (string) ($_POST['fecha_evento'] ?? '')
+    );
+};
 
 // POST: subida o eliminación
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -83,6 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $real_dir = realpath($dir_full);
         if ($real_full && $real_dir && is_file($real_full) && (strpos($real_full, $real_dir) === 0 || strpos(str_replace('\\', '/', $real_full), str_replace('\\', '/', $real_dir)) === 0)) {
             if (@unlink($real_full)) {
+                if ($seccion === 'invitaciones_fvd') {
+                    InvitacionesFvdWebService::eliminarPorArchivo($pdo, $archivo);
+                }
                 header('Location: index.php?page=archivos_web&success=' . rawurlencode('Archivo eliminado'));
             } else {
                 header('Location: index.php?page=archivos_web&error=' . rawurlencode('No se pudo eliminar el archivo'));
@@ -114,6 +133,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $real_dir = realpath($dir_full);
         if ($real_orig && $real_dir && is_file($real_orig) && (strpos($real_orig, $real_dir) === 0 || strpos(str_replace('\\', '/', $real_orig), str_replace('\\', '/', $real_dir)) === 0)) {
             if (@rename($path_orig, $path_nuevo)) {
+                if ($seccion === 'invitaciones_fvd') {
+                    InvitacionesFvdWebService::renombrarArchivo($pdo, $archivo, $nuevo_nombre);
+                }
                 header('Location: index.php?page=archivos_web&success=' . rawurlencode('Archivo renombrado correctamente'));
             } else {
                 header('Location: index.php?page=archivos_web&error=' . rawurlencode('No se pudo renombrar'));
@@ -124,7 +146,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'update_vigencia' && $seccion === 'invitaciones_fvd') {
+        $archivo = basename(str_replace(['../', '..\\'], '', (string) ($_POST['archivo'] ?? '')));
+        $fecha_evento = (string) ($_POST['fecha_evento'] ?? '');
+        if ($archivo === '') {
+            header('Location: index.php?page=archivos_web&error=' . rawurlencode('Archivo no indicado'));
+            exit;
+        }
+        try {
+            InvitacionesFvdWebService::actualizarFechaLimite($pdo, $archivo, $fecha_evento);
+            header('Location: index.php?page=archivos_web&success=' . rawurlencode('Vigencia actualizada'));
+        } catch (Throwable $e) {
+            header('Location: index.php?page=archivos_web&error=' . rawurlencode($e->getMessage()));
+        }
+        exit;
+    }
+
     if ($action === 'upload' && !empty($_FILES['archivo']['name']) && $_FILES['archivo']['error'] === UPLOAD_ERR_OK) {
+        if ($seccion === 'invitaciones_fvd') {
+            $fecha_evento = trim((string) ($_POST['fecha_evento'] ?? ''));
+            if ($fecha_evento === '') {
+                header('Location: index.php?page=archivos_web&error=' . rawurlencode('Indique la fecha límite del evento para la invitación'));
+                exit;
+            }
+        }
         $original_name = $_FILES['archivo']['name'];
         $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
         if (!in_array($ext, $cfg['extensions'], true)) {
@@ -163,6 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg = $res['success'] && isset($res['savings_percent']) && $res['savings_percent'] > 0
                 ? 'Archivo subido y comprimido correctamente (' . (int)$res['savings_percent'] . '% menos).'
                 : 'Archivo subido correctamente.';
+            $registrarInvitacionMeta($name, $seccion);
             header('Location: index.php?page=archivos_web&success=' . rawurlencode($msg));
             exit;
         }
@@ -194,11 +240,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             $msg = $compressed ? 'Archivo subido y comprimido correctamente.' : 'Archivo subido correctamente (compresión PDF no disponible en este servidor).';
+            $registrarInvitacionMeta($name, $seccion);
             header('Location: index.php?page=archivos_web&success=' . rawurlencode($msg));
             exit;
         }
 
         if (move_uploaded_file($tmp, $dest)) {
+            $registrarInvitacionMeta($name, $seccion);
             header('Location: index.php?page=archivos_web&success=' . rawurlencode('Archivo subido correctamente'));
         } else {
             header('Location: index.php?page=archivos_web&error=' . rawurlencode('Error al guardar el archivo'));
@@ -211,6 +259,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $listados = [];
 foreach ($folders as $key => $cfg) {
     $dir_full = $base_dir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $cfg['path']);
+    if ($key === 'invitaciones_fvd') {
+        $listados[$key] = InvitacionesFvdWebService::listarAdmin($pdo, $dir_full);
+        continue;
+    }
     $listados[$key] = [];
     if (is_dir($dir_full)) {
         foreach (new DirectoryIterator($dir_full) as $f) {
@@ -266,17 +318,24 @@ $current_user = Auth::user();
                 <input type="hidden" name="action" value="upload">
                 <input type="hidden" name="seccion" value="<?= htmlspecialchars($key) ?>">
                 <div class="row g-2 align-items-end">
-                    <div class="col-md-5">
+                    <div class="col-md-<?= $key === 'invitaciones_fvd' ? '4' : '5' ?>">
                         <label class="form-label">Subir archivo</label>
                         <input type="file" name="archivo" class="form-control" accept="<?= htmlspecialchars(implode(',', array_map(fn($e) => '.' . $e, $cfg['extensions']))) ?>" required>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-<?= $key === 'invitaciones_fvd' ? '3' : '4' ?>">
                         <label class="form-label">Nombre al guardar <span class="text-muted fw-normal">(opcional)</span></label>
                         <input type="text" name="nombre_guardar" class="form-control" placeholder="Ej: invitacion_abril_2026 (sin extensión)">
-                        <small class="text-muted">Si se deja vacío se usa el nombre del archivo. Archivos pesados se comprimen automáticamente.</small>
+                        <small class="text-muted">Si se deja vacío se usa el nombre del archivo.<?= $key !== 'invitaciones_fvd' ? ' Archivos pesados se comprimen automáticamente.' : '' ?></small>
                     </div>
+                    <?php if ($key === 'invitaciones_fvd'): ?>
                     <div class="col-md-3">
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-upload me-2"></i>Subir</button>
+                        <label class="form-label">Fecha límite (evento) <span class="text-danger">*</span></label>
+                        <input type="date" name="fecha_evento" class="form-control" required>
+                        <small class="text-muted">Visible en el portal hasta esta fecha (inclusive).</small>
+                    </div>
+                    <?php endif; ?>
+                    <div class="col-md-<?= $key === 'invitaciones_fvd' ? '2' : '3' ?>">
+                        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-upload me-2"></i>Subir</button>
                     </div>
                 </div>
             </form>
@@ -287,32 +346,68 @@ $current_user = Auth::user();
             <?php else: ?>
             <div class="table-responsive">
                 <table class="table table-sm table-hover">
-                    <thead><tr><th>Nombre</th><th class="text-end">Acciones</th></tr></thead>
+                    <thead><tr>
+                        <th>Nombre</th>
+                        <?php if ($key === 'invitaciones_fvd'): ?>
+                        <th>Fecha límite</th>
+                        <th>Estado</th>
+                        <?php endif; ?>
+                        <th class="text-end">Acciones</th>
+                    </tr></thead>
                     <tbody>
-                    <?php foreach ($listados[$key] as $f): ?>
-                    <tr>
+                    <?php foreach ($listados[$key] as $f):
+                        $nombreArchivo = (string) ($f['nombre'] ?? '');
+                        $pathArchivo = (string) ($f['path'] ?? ($cfg['path'] . '/' . $nombreArchivo));
+                    ?>
+                    <tr class="<?= ($key === 'invitaciones_fvd' && !($f['activo'] ?? true)) ? 'table-secondary' : '' ?>">
                         <td>
-                            <?php if (in_array(strtolower(pathinfo($f['nombre'], PATHINFO_EXTENSION)), ['png','jpg','jpeg','gif','webp','svg'], true)): ?>
-                            <img src="<?= htmlspecialchars((function_exists('app_base_url') ? rtrim(app_base_url(), '/') : '') . '/public/view_image.php?path=' . rawurlencode($f['path'])) ?>" alt="" style="max-height:32px;max-width:80px;object-fit:contain" class="me-2">
+                            <?php if (in_array(strtolower(pathinfo($nombreArchivo, PATHINFO_EXTENSION)), ['png','jpg','jpeg','gif','webp','svg'], true)): ?>
+                            <img src="<?= htmlspecialchars((function_exists('app_base_url') ? rtrim(app_base_url(), '/') : '') . '/public/view_image.php?path=' . rawurlencode($pathArchivo)) ?>" alt="" style="max-height:32px;max-width:80px;object-fit:contain" class="me-2">
                             <?php endif; ?>
-                            <span><?= htmlspecialchars($f['nombre']) ?></span>
+                            <span><?= htmlspecialchars($nombreArchivo) ?></span>
+                            <?php if ($key === 'invitaciones_fvd' && !empty($f['sin_vigencia'])): ?>
+                            <span class="badge bg-warning text-dark ms-1">Sin fecha</span>
+                            <?php endif; ?>
                         </td>
+                        <?php if ($key === 'invitaciones_fvd'): ?>
+                        <td>
+                            <form method="post" class="d-flex gap-1 align-items-center flex-wrap">
+                                <?= CSRF::input() ?>
+                                <input type="hidden" name="action" value="update_vigencia">
+                                <input type="hidden" name="seccion" value="invitaciones_fvd">
+                                <input type="hidden" name="archivo" value="<?= htmlspecialchars($nombreArchivo) ?>">
+                                <input type="date" name="fecha_evento" class="form-control form-control-sm" style="max-width:11rem"
+                                       value="<?= !empty($f['fecha_limite']) ? htmlspecialchars(substr((string)$f['fecha_limite'], 0, 10)) : '' ?>" required>
+                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Guardar fecha"><i class="fas fa-save"></i></button>
+                            </form>
+                        </td>
+                        <td>
+                            <?php if ($f['activo'] ?? false): ?>
+                                <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Activo</span>
+                            <?php else: ?>
+                                <span class="badge bg-secondary"><i class="fas fa-ban me-1"></i>Inactivo</span>
+                            <?php endif; ?>
+                            <?php if (!empty($f['fecha_limite'])): ?>
+                            <div class="small text-muted">hasta <?= htmlspecialchars(date('d/m/Y', strtotime((string)$f['fecha_limite']))) ?></div>
+                            <?php endif; ?>
+                        </td>
+                        <?php endif; ?>
                         <td class="text-end">
                             <?php
-                            $url_ver = ($key === 'logos_clientes') ? 'view_image.php?path=' . rawurlencode($f['path']) : 'view_documento.php?path=' . rawurlencode($f['path']);
+                            $url_ver = ($key === 'logos_clientes') ? 'view_image.php?path=' . rawurlencode($pathArchivo) : 'view_documento.php?path=' . rawurlencode($pathArchivo);
                             ?>
                             <a href="<?= htmlspecialchars($url_ver) ?>" target="_blank" class="btn btn-sm btn-outline-primary me-1" title="Ver"><i class="fas fa-external-link-alt"></i></a>
                             <?php if ($key !== 'logos_clientes'): ?>
                             <a href="<?= htmlspecialchars($url_ver . (strpos($url_ver, '?') !== false ? '&' : '?') . 'download=1') ?>" class="btn btn-sm btn-outline-secondary me-1" title="Descargar"><i class="fas fa-download"></i></a>
                             <?php endif; ?>
-                            <button type="button" class="btn btn-sm btn-outline-warning me-1" title="Renombrar" data-bs-toggle="modal" data-bs-target="#modalRename" data-archivo="<?= htmlspecialchars($f['nombre']) ?>" data-seccion="<?= htmlspecialchars($key) ?>">
+                            <button type="button" class="btn btn-sm btn-outline-warning me-1" title="Renombrar" data-bs-toggle="modal" data-bs-target="#modalRename" data-archivo="<?= htmlspecialchars($nombreArchivo) ?>" data-seccion="<?= htmlspecialchars($key) ?>">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <form method="post" class="d-inline" onsubmit="return confirm('¿Eliminar este archivo?');">
                                 <?= CSRF::input() ?>
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="seccion" value="<?= htmlspecialchars($key) ?>">
-                                <input type="hidden" name="archivo" value="<?= htmlspecialchars($f['nombre']) ?>">
+                                <input type="hidden" name="archivo" value="<?= htmlspecialchars($nombreArchivo) ?>">
                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
                             </form>
                         </td>

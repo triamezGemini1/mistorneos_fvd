@@ -1,5 +1,4 @@
-﻿<?php
-declare(strict_types=1);
+<?php
 /**
  * SPA móvil: Perfil jugador por QR + Cédula (solo inscritos).
  * Acceso: perfil_jugador.php?torneo_id=X → ingresa cédula → 4 secciones críticas.

@@ -262,8 +262,10 @@ class NotificationManager {
      * Cuenta notificaciones web pendientes para un usuario (para la campanita).
      */
     public function contarPendientesWeb(int $usuario_id): int {
+        require_once __DIR__ . '/TournamentAppScope.php';
+        $filtro = TournamentAppScope::sqlExcluirNotificacionesFvd('nq');
         $stmt = $this->pdo->prepare(
-            "SELECT COUNT(*) FROM notifications_queue WHERE usuario_id = ? AND canal = 'web' AND estado = 'pendiente'"
+            "SELECT COUNT(*) FROM notifications_queue nq WHERE nq.usuario_id = ? AND nq.canal = 'web' AND nq.estado = 'pendiente'{$filtro}"
         );
         $stmt->execute([$usuario_id]);
         return (int) $stmt->fetchColumn();

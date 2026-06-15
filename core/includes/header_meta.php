@@ -20,7 +20,10 @@ if (!function_exists('core_favicon_path')) {
                 }
             }
         }
-        return '/mistorneos_beta/public/favicon.png';
+        if (class_exists('FvdConfig', false)) {
+            return rtrim(FvdConfig::BASE_PATH, '/') . '/favicon.png';
+        }
+        return '/mistorneos_fvd/public/favicon.png';
     }
 }
 $favicon_href = core_favicon_path();

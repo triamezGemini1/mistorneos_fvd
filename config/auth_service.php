@@ -70,7 +70,10 @@ class AuthService {
      */
     public static function loginUrl(): string {
         if (defined('URL_BASE') && URL_BASE !== '' && URL_BASE !== '/') {
-            return rtrim(URL_BASE, '/') . '/login.php';
+            $base = class_exists('AppHelpers', false)
+                ? AppHelpers::canonicalizeStandalonePublicPath((string) URL_BASE)
+                : rtrim((string) URL_BASE, '/') . '/';
+            return rtrim($base, '/') . '/login.php';
         }
         $base = '';
         if (!empty($_SERVER['SCRIPT_NAME'])) {

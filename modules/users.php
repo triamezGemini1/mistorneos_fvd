@@ -39,6 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         case 'toggle_status':
             handleToggleStatus();
             break;
+        case 'toggle_reportes_personales':
+            handleToggleReportesPersonales();
+            break;
         case 'change_password':
             handleChangePassword();
             break;
@@ -58,6 +61,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             handleChangeRole();
             break;
     }
+}
+
+function usersListReturnUrl(): string {
+    $params = ['page' => 'users', 'action' => 'list'];
+    foreach (['search', 'admin_id', 'club_id'] as $key) {
+        $val = $_POST['return_' . $key] ?? $_GET[$key] ?? null;
+        if ($val !== null && $val !== '') {
+            $params[$key] = $val;
+        }
+    }
+
+    return '?' . http_build_query($params);
 }
 
 function getReturnUrl(): string {
@@ -491,6 +506,10 @@ function handleUpdateUser() {
     $role = $_POST['role'] ?? 'usuario';
     $password = $_POST['password'] ?? '';
     $entidad = isset($_POST['entidad']) ? (int)$_POST['entidad'] : 0;
+    $permite_reportes_personales = 0;
+    if (Auth::isAdminGeneral()) {
+        $permite_reportes_personales = isset($_POST['permite_reportes_personales']) ? 1 : 0;
+    }
     
     // Manejar club_id: NULL para admin_general y usuario, obligatorio para admin_torneo
     $club_id = null;
@@ -545,18 +564,31 @@ function handleUpdateUser() {
             if ($stmt->fetch()) {
                 $errors[] = 'El nombre de usuario ya existe';
             } else {
+                require_once __DIR__ . '/../lib/RankingAtletasPdfAccesoHelper.php';
+                $tieneColReportes = RankingAtletasPdfAccesoHelper::columnaPermiteReportesDisponible($pdo);
+
                 // Actualizar usuario
                 if (!empty($password)) {
                     if (strlen($password) < 6) {
                         $errors[] = 'La contraseña debe tener al menos 6 caracteres';
                     } else {
                         $password_hash = Security::hashPassword($password);
-                        $stmt = $pdo->prepare("UPDATE usuarios SET username = ?, email = ?, role = ?, password_hash = ?, club_id = ?, entidad = ? WHERE id = ?");
-                        $stmt->execute([$username, $email ?: null, $role, $password_hash, $club_id, $entidad, $user_id]);
+                        if ($tieneColReportes && Auth::isAdminGeneral()) {
+                            $stmt = $pdo->prepare("UPDATE usuarios SET username = ?, email = ?, role = ?, password_hash = ?, club_id = ?, entidad = ?, permite_reportes_personales = ? WHERE id = ?");
+                            $stmt->execute([$username, $email ?: null, $role, $password_hash, $club_id, $entidad, $permite_reportes_personales, $user_id]);
+                        } else {
+                            $stmt = $pdo->prepare("UPDATE usuarios SET username = ?, email = ?, role = ?, password_hash = ?, club_id = ?, entidad = ? WHERE id = ?");
+                            $stmt->execute([$username, $email ?: null, $role, $password_hash, $club_id, $entidad, $user_id]);
+                        }
                     }
                 } else {
-                    $stmt = $pdo->prepare("UPDATE usuarios SET username = ?, email = ?, role = ?, club_id = ?, entidad = ? WHERE id = ?");
-                    $stmt->execute([$username, $email ?: null, $role, $club_id, $entidad, $user_id]);
+                    if ($tieneColReportes && Auth::isAdminGeneral()) {
+                        $stmt = $pdo->prepare("UPDATE usuarios SET username = ?, email = ?, role = ?, club_id = ?, entidad = ?, permite_reportes_personales = ? WHERE id = ?");
+                        $stmt->execute([$username, $email ?: null, $role, $club_id, $entidad, $permite_reportes_personales, $user_id]);
+                    } else {
+                        $stmt = $pdo->prepare("UPDATE usuarios SET username = ?, email = ?, role = ?, club_id = ?, entidad = ? WHERE id = ?");
+                        $stmt->execute([$username, $email ?: null, $role, $club_id, $entidad, $user_id]);
+                    }
                 }
                 
                 if (empty($errors)) {
@@ -628,7 +660,48 @@ function handleToggleStatus() {
         $_SESSION['errors'] = ['Error al actualizar el estado del usuario: ' . $e->getMessage()];
     }
     
-    header('Location: ?action=list');
+    header('Location: ' . usersListReturnUrl());
+    exit;
+}
+
+function handleToggleReportesPersonales(): void {
+    if (! Auth::isAdminGeneral()) {
+        $_SESSION['errors'] = ['Solo Admin General puede habilitar reportes personales'];
+        header('Location: ' . usersListReturnUrl());
+        exit;
+    }
+
+    $user_id = (int) ($_POST['user_id'] ?? 0);
+    $enabled = (int) ($_POST['enabled'] ?? 0) === 1 ? 1 : 0;
+
+    if ($user_id <= 0) {
+        $_SESSION['errors'] = ['ID de usuario inválido'];
+        header('Location: ' . usersListReturnUrl());
+        exit;
+    }
+
+    try {
+        require_once __DIR__ . '/../lib/RankingAtletasPdfAccesoHelper.php';
+        $pdo = DB::pdo();
+        if (! RankingAtletasPdfAccesoHelper::columnaPermiteReportesDisponible($pdo)) {
+            $_SESSION['errors'] = [
+                'Falta la columna permite_reportes_personales. Ejecute sql/migrate_usuarios_permite_reportes_personales.sql',
+            ];
+            header('Location: ' . usersListReturnUrl());
+            exit;
+        }
+
+        $stmt = $pdo->prepare('UPDATE usuarios SET permite_reportes_personales = ? WHERE id = ?');
+        $stmt->execute([$enabled, $user_id]);
+
+        $_SESSION['success_message'] = $enabled
+            ? 'Reportes personales en PDF habilitados para el usuario'
+            : 'Reportes personales en PDF deshabilitados para el usuario';
+    } catch (Exception $e) {
+        $_SESSION['errors'] = ['Error al actualizar reportes personales: ' . $e->getMessage()];
+    }
+
+    header('Location: ' . usersListReturnUrl());
     exit;
 }
 
@@ -1010,9 +1083,15 @@ function getUsers($page = 1, $per_page = Pagination::DEFAULT_PER_PAGE, $admin_id
     // Crear objeto de paginación
     $pagination = new Pagination($total_records, $page, $per_page);
     
+    require_once __DIR__ . '/../lib/RankingAtletasPdfAccesoHelper.php';
+    $colReportesSql = RankingAtletasPdfAccesoHelper::columnaPermiteReportesDisponible($pdo)
+        ? 'u.permite_reportes_personales,'
+        : '0 AS permite_reportes_personales,';
+
     // Obtener registros de la página actual
     $sql = "
-        SELECT u.id, u.cedula, u.nombre, u.username, u.email, u.celular, u.role, u.status, u.created_at, u.updated_at, u.club_id, u.entidad, u.sexo,
+        SELECT u.id, u.cedula, u.nombre, u.username, u.email, u.celular, u.role, u.status,
+               {$colReportesSql} u.created_at, u.updated_at, u.club_id, u.entidad, u.sexo,
                c.nombre as club_nombre
         FROM usuarios u 
         LEFT JOIN clubes c ON u.club_id = c.id 

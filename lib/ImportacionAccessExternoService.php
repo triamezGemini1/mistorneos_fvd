@@ -43,6 +43,88 @@ final class ImportacionAccessExternoService
     }
 
     /**
+     * Situación estructurada para UI/API (origen Access, tabla destino, resolución).
+     *
+     * @param array<string, mixed> $campos
+     * @return array<string, mixed>
+     */
+    public static function situacionImportacion(string $codigo, array $campos = []): array
+    {
+        return self::armarSituacion($codigo, $campos);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $lista
+     * @param array<string, mixed> $campos
+     */
+    private static function registrarIncidenciaEjecucion(array &$lista, string $codigo, array $campos, int $max = 200): void
+    {
+        if (count($lista) >= $max) {
+            return;
+        }
+        $lista[] = self::situacionImportacion($codigo, array_merge(['fase' => 'ejecucion'], $campos));
+    }
+
+    /**
+     * @param list<array<string, mixed>> $situaciones
+     * @return array<string, int>
+     */
+    private static function resumirIncidenciasEjecucion(array $situaciones): array
+    {
+        $res = [
+            'total' => count($situaciones),
+            'jugadores_no_importados' => 0,
+            'equipos_no_importados' => 0,
+            'partiresul_omitidos' => 0,
+            'banca' => 0,
+        ];
+        foreach ($situaciones as $s) {
+            $c = (string) ($s['codigo'] ?? $s['tipo'] ?? '');
+            if (in_array($c, ['cedula_sin_usuario', 'sin_numfvd', 'sin_club'], true)) {
+                $res['jugadores_no_importados']++;
+            } elseif (str_starts_with($c, 'ejec_equipo_')) {
+                $res['equipos_no_importados']++;
+            } elseif ($c === 'ejec_partiresul_omitido' || $c === 'numfvd_sin_inscrito') {
+                $res['partiresul_omitidos']++;
+            } elseif (str_starts_with($c, 'banca_')) {
+                $res['banca']++;
+            }
+        }
+
+        return $res;
+    }
+
+    /**
+     * @param array<string, mixed> $res
+     * @param list<list<string>> $parejasRows
+     * @return array<string, mixed>
+     */
+    private static function finalizarResultadoEjecucion(array $res, array $parejasRows): array
+    {
+        $incidencias = $res['incidencias_ejecucion'] ?? [];
+        $bancaSit = $res['reporte_banca']['situaciones_detalle'] ?? [];
+        $res['situaciones_detalle'] = array_merge($incidencias, $bancaSit);
+        $res['incidencias_resumen'] = self::resumirIncidenciasEjecucion($res['situaciones_detalle']);
+        if (count($incidencias) >= 200) {
+            $res['incidencias_truncadas'] = true;
+        }
+
+        $totalInscritos = ($res['inscritos_insertados'] ?? 0) + ($res['inscritos_actualizados'] ?? 0);
+        if ($totalInscritos <= 0 && self::contarFilasParejasValidas($parejasRows) > 0) {
+            self::registrarIncidenciaEjecucion($incidencias, 'cedula_sin_usuario', [
+                'elemento' => '(ningún inscrito procesado)',
+                'explicacion' => 'No se insertó ni actualizó ningún jugador. Revise Paso 0 (atletas), clubes y numfvd en parejas inscritas.',
+            ]);
+            $res['incidencias_ejecucion'] = $incidencias;
+            $res['situaciones_detalle'] = array_merge($incidencias, $bancaSit);
+            $res['incidencias_resumen'] = self::resumirIncidenciasEjecucion($res['situaciones_detalle']);
+            $res['advertencias'] = ['Ningún jugador fue importado. Vea incidencias detalladas abajo.'];
+        }
+
+        return $res;
+    }
+
+    /**
      * @return array{rows: list<list<string>>, error: string|null}
      */
     public static function leerArchivo(string $tmpPath, string $originalName): array
@@ -126,6 +208,7 @@ final class ImportacionAccessExternoService
             'torneo_sin_sexo' => [],
             'divergencias_detalle' => [],
             'resumen_divergencias' => [],
+            'situaciones_detalle' => [],
             'ya_inscritos' => 0,
             'listos' => 0,
             'muestra' => [],
@@ -151,6 +234,12 @@ final class ImportacionAccessExternoService
         }
 
         if ($stats['errores_columnas'] !== []) {
+            $stats['situaciones_detalle'] = self::situacionesDesdeErroresColumnas(
+                'parejas_inscritas',
+                'Parejas inscritas',
+                $stats['errores_columnas']
+            );
+
             return $stats;
         }
 
@@ -184,7 +273,8 @@ final class ImportacionAccessExternoService
             'mapa' => $mapa,
         ];
 
-        foreach ($parsed['data'] as $row) {
+        foreach ($parsed['data'] as $rowIdx => $row) {
+            $filaArchivo = $parsed['header_row'] + 2 + (int) $rowIdx;
             $ced = self::normalizarCedula($iCed >= 0 ? ($row[$iCed] ?? '') : '');
             if ($ced === '') {
                 continue;
@@ -196,12 +286,16 @@ final class ImportacionAccessExternoService
                 $slot = self::slotDesdeFila($row, $iTorneo);
                 if ($slot === 0) {
                     $stats['torneo_archivo_invalido'][] = $ced;
+                    $valTor = $iTorneo >= 0 ? trim((string) ($row[$iTorneo] ?? '')) : '';
                     $stats['divergencias_detalle'][] = self::armarDivergenciaPareja(
                         'torneo_invalido',
                         $ced,
                         null,
                         self::metaArchivoPareja($row, $ctxCols, 0),
-                        'Valor de columna torneo distinto de 1 (hombres) o 2 (mujeres).'
+                        'Valor de columna torneo distinto de 1 (hombres) o 2 (mujeres).',
+                        $filaArchivo,
+                        'torneo=' . $valTor,
+                        'esperado: 1 o 2'
                     );
                     continue;
                 }
@@ -220,6 +314,16 @@ final class ImportacionAccessExternoService
 
             if (isset($cedulasVistas[$ced])) {
                 $stats['cedulas_duplicadas_archivo'][] = $ced;
+                $stats['divergencias_detalle'][] = self::armarDivergenciaPareja(
+                    'cedula_duplicada_archivo',
+                    $ced,
+                    null,
+                    self::metaArchivoPareja($row, $ctxCols, $slot),
+                    'La cédula aparece más de una vez en parejas inscritas (fila ' . $filaArchivo . ').',
+                    $filaArchivo,
+                    'cedula=' . $ced,
+                    'única por archivo'
+                );
             }
             $cedulasVistas[$ced] = true;
 
@@ -232,7 +336,10 @@ final class ImportacionAccessExternoService
                     $ced,
                     null,
                     $meta,
-                    'No hay usuario con esta cédula en la plataforma. Debe afiliar o registrar al atleta antes de importar.'
+                    'No hay usuario con esta cédula en la plataforma. Debe afiliar o registrar al atleta antes de importar.',
+                    $filaArchivo,
+                    'cedula=' . $ced,
+                    '(sin fila en usuarios)'
                 );
                 continue;
             }
@@ -249,7 +356,10 @@ final class ImportacionAccessExternoService
                         $ced,
                         $usuario,
                         $metaArch,
-                        'El usuario no tiene sexo registrado; no puede ubicarse en torneo masculino/femenino.'
+                        'El usuario no tiene sexo registrado; no puede ubicarse en torneo masculino/femenino.',
+                        $filaArchivo,
+                        'sexo=(vacío)',
+                        'M o F requerido'
                     );
                     continue;
                 }
@@ -262,7 +372,10 @@ final class ImportacionAccessExternoService
                         $usuario,
                         $metaArch,
                         'Archivo indica torneo ' . $slot . ' (' . $etiqGen . ') pero el sexo del usuario es '
-                        . ($sexo === 'M' ? 'masculino' : 'femenino') . '.'
+                        . ($sexo === 'M' ? 'masculino' : 'femenino') . '.',
+                        $filaArchivo,
+                        'torneo=' . $slot . ', sexo archivo/usuario=' . $sexo,
+                        'torneo requiere ' . $generoEsperado
                     );
                     continue;
                 }
@@ -281,7 +394,10 @@ final class ImportacionAccessExternoService
                     $ced,
                     $usuario,
                     $metaArch,
-                    'El usuario no tiene numfvd/carnet FVD asignado ni viene en el archivo.'
+                    'El usuario no tiene numfvd/carnet FVD asignado ni viene en el archivo.',
+                    $filaArchivo,
+                    'numfvd=(vacío)',
+                    'usuarios.numfvd o columna pareja/numfvd'
                 );
                 continue;
             }
@@ -292,16 +408,39 @@ final class ImportacionAccessExternoService
                     $ced,
                     $usuario,
                     array_merge($metaArch, ['numfvd_archivo' => $numfvdArch, 'numfvd_usuario' => $nfUsuario]),
-                    'El numfvd del archivo (' . $numfvdArch . ') no coincide con el del usuario (' . $nfUsuario . ').'
+                    'El numfvd del archivo (' . $numfvdArch . ') no coincide con el del usuario (' . $nfUsuario . ').',
+                    $filaArchivo,
+                    'numfvd=' . $numfvdArch,
+                    'usuarios.numfvd=' . $nfUsuario
                 );
             }
             if ($mapa !== null && $slot > 0) {
                 if (isset($numfvdVistosPorSlot[$slot][$numfvd])) {
                     $stats['numfvd_duplicados_resueltos'][] = (string) $numfvd . ' (torneo ' . $slot . ')';
+                    $stats['divergencias_detalle'][] = self::armarDivergenciaPareja(
+                        'numfvd_duplicado_archivo',
+                        $ced,
+                        $usuario,
+                        $metaArch,
+                        'numfvd ' . $numfvd . ' repetido en parejas inscritas (torneo ' . $slot . ', fila ' . $filaArchivo . ').',
+                        $filaArchivo,
+                        'numfvd=' . $numfvd,
+                        'único por sub-torneo'
+                    );
                 }
                 $numfvdVistosPorSlot[$slot][$numfvd] = true;
             } elseif (isset($numfvdVistos[$numfvd])) {
                 $stats['numfvd_duplicados_resueltos'][] = (string) $numfvd;
+                $stats['divergencias_detalle'][] = self::armarDivergenciaPareja(
+                    'numfvd_duplicado_archivo',
+                    $ced,
+                    $usuario,
+                    $metaArch,
+                    'numfvd ' . $numfvd . ' repetido en parejas inscritas (fila ' . $filaArchivo . ').',
+                    $filaArchivo,
+                    'numfvd=' . $numfvd,
+                    'único por torneo'
+                );
             }
             $numfvdVistos[$numfvd] = true;
 
@@ -314,7 +453,10 @@ final class ImportacionAccessExternoService
                     $ced,
                     $usuario,
                     $metaArch,
-                    'La entidad ' . $entidadUsu . ' del usuario no tiene club/asociación resoluble en el sistema.'
+                    'La entidad ' . $entidadUsu . ' del usuario no tiene club/asociación resoluble en el sistema.',
+                    $filaArchivo,
+                    'entidad=' . $entidadUsu,
+                    'clubes.entidad sin registro'
                 );
             }
 
@@ -364,6 +506,7 @@ final class ImportacionAccessExternoService
         $stats['por_asociacion'] = $porAsoc;
         $stats['total_general'] = $stats['filas_leidas'];
         $stats['resumen_divergencias'] = self::resumirDivergenciasParejas($stats);
+        $stats['situaciones_detalle'] = $stats['divergencias_detalle'];
         foreach ([
             'cedulas_sin_usuario',
             'cedulas_duplicadas_archivo',
@@ -420,6 +563,7 @@ final class ImportacionAccessExternoService
                 2 => ['filas' => 0, 'numfvd_unicos' => 0],
             ],
             'errores_columnas' => [],
+            'situaciones_detalle' => [],
         ];
 
         if ($iPareja < 0 || $iPart < 0 || $iMesa < 0 || $iSeq < 0) {
@@ -435,6 +579,11 @@ final class ImportacionAccessExternoService
             if ($iSeq < 0) {
                 $stats['errores_columnas'][] = 'Falta columna Secuencia.';
             }
+            $stats['situaciones_detalle'] = self::situacionesDesdeErroresColumnas(
+                'parti2017',
+                'parti2017 (resultados)',
+                $stats['errores_columnas']
+            );
 
             return $stats;
         }
@@ -455,6 +604,12 @@ final class ImportacionAccessExternoService
             }
             if ($iTorneo < 0 && $mapaNfSlot === []) {
                 $stats['errores_columnas'][] = 'Campeonato por género: columna torneo en parti2017 o archivo parejas de referencia.';
+                $stats['situaciones_detalle'] = self::situacionesDesdeErroresColumnas(
+                    'parti2017',
+                    'parti2017 (resultados)',
+                    $stats['errores_columnas']
+                );
+
                 return $stats;
             }
             $inscritosPorSlot = [];
@@ -474,18 +629,29 @@ final class ImportacionAccessExternoService
 
         $unicos = [];
         $unicosPorSlot = [1 => [], 2 => []];
-        foreach ($parsed['data'] as $row) {
+        $situaciones = [];
+        foreach ($parsed['data'] as $rowIdx => $row) {
+            $filaArchivo = $parsed['header_row'] + 2 + (int) $rowIdx;
             $nf = (int) preg_replace('/\D/', '', (string) ($row[$iPareja] ?? ''));
             if ($nf <= 0) {
                 continue;
             }
             $stats['filas_leidas']++;
             $unicos[$nf] = true;
+            $partida = $iPart >= 0 ? trim((string) ($row[$iPart] ?? '')) : '';
+            $mesa = $iMesa >= 0 ? trim((string) ($row[$iMesa] ?? '')) : '';
 
             if ($mapa !== null) {
                 $slot = $iTorneo >= 0 ? self::slotDesdeFila($row, $iTorneo) : (int) ($mapaNfSlot[$nf] ?? 0);
                 if ($slot !== 1 && $slot !== 2) {
                     $stats['numfvd_sin_inscrito'][] = (string) $nf . ' (torneo no identificado)';
+                    $situaciones[] = self::armarSituacion('numfvd_sin_inscrito', [
+                        'fila_archivo' => $filaArchivo,
+                        'elemento' => 'numfvd=' . $nf,
+                        'valor_archivo' => 'pareja/numfvd=' . $nf . ', partida=' . $partida . ', mesa=' . $mesa,
+                        'valor_sistema' => 'sin sub-torneo (columna torneo inválida)',
+                        'explicacion' => 'numfvd ' . $nf . ' en parti2017 fila ' . $filaArchivo . ': no se identifica torneo 1/2.',
+                    ]);
                     continue;
                 }
                 $stats['por_torneo'][$slot]['filas']++;
@@ -494,9 +660,24 @@ final class ImportacionAccessExternoService
                 $extra = $extraPorSlot[$slot];
                 if (!isset($ins[$nf]) && !isset($extra[$nf])) {
                     $stats['numfvd_sin_inscrito'][] = (string) $nf . ' (torneo ' . $slot . ')';
+                    $situaciones[] = self::armarSituacion('numfvd_sin_inscrito', [
+                        'fila_archivo' => $filaArchivo,
+                        'torneo_slot' => $slot,
+                        'elemento' => 'numfvd=' . $nf,
+                        'valor_archivo' => 'pareja/numfvd=' . $nf . ', partida=' . $partida . ', mesa=' . $mesa,
+                        'valor_sistema' => 'sin fila en inscritos (torneo ' . $slot . ')',
+                        'explicacion' => 'numfvd ' . $nf . ' en parti2017 no está en parejas inscritas ni en inscritos del sub-torneo ' . $slot . '.',
+                    ]);
                 }
             } elseif (!isset($inscritos[$nf]) && !isset($extra[$nf])) {
                 $stats['numfvd_sin_inscrito'][] = (string) $nf;
+                $situaciones[] = self::armarSituacion('numfvd_sin_inscrito', [
+                    'fila_archivo' => $filaArchivo,
+                    'elemento' => 'numfvd=' . $nf,
+                    'valor_archivo' => 'pareja/numfvd=' . $nf . ', partida=' . $partida . ', mesa=' . $mesa,
+                    'valor_sistema' => 'sin fila en inscritos',
+                    'explicacion' => 'numfvd ' . $nf . ' en parti2017 fila ' . $filaArchivo . ' no tiene inscrito en BD ni en parejas pendientes.',
+                ]);
             }
         }
 
@@ -506,6 +687,7 @@ final class ImportacionAccessExternoService
             $stats['por_torneo'][2]['numfvd_unicos'] = count($unicosPorSlot[2]);
         }
         $stats['numfvd_sin_inscrito'] = array_values(array_unique($stats['numfvd_sin_inscrito']));
+        $stats['situaciones_detalle'] = $situaciones;
         $stats['ok'] = $stats['filas_leidas'] > 0 && $stats['numfvd_sin_inscrito'] === [] && $stats['errores_columnas'] === [];
 
         return $stats;
@@ -540,6 +722,12 @@ final class ImportacionAccessExternoService
 
         if ($iClub < 0 || $iNom < 0 || $iEq < 0) {
             $stats['errores_columnas'][] = 'Faltan columnas CLUB, NOMBRE o equipo/codigo_equipo.';
+            $stats['situaciones_detalle'] = self::situacionesDesdeErroresColumnas(
+                'clasiequi',
+                'clasiequi (equipos)',
+                $stats['errores_columnas']
+            );
+
             return $stats;
         }
 
@@ -548,6 +736,12 @@ final class ImportacionAccessExternoService
             $stats['campeonato_genero'] = true;
             if ($iTorneo < 0) {
                 $stats['errores_columnas'][] = 'Campeonato por género: columna torneo obligatoria en clasiequi (1 = hombres, 2 = mujeres).';
+                $stats['situaciones_detalle'] = self::situacionesDesdeErroresColumnas(
+                    'clasiequi',
+                    'clasiequi (equipos)',
+                    $stats['errores_columnas']
+                );
+
                 return $stats;
             }
         }
@@ -556,7 +750,7 @@ final class ImportacionAccessExternoService
 
         foreach ($parsed['data'] as $row) {
             $club = (int) preg_replace('/\D/', '', (string) ($row[$iClub] ?? ''));
-            $codEq = trim((string) ($row[$iEq] ?? ''));
+            $codEq = self::normalizarCodigoEquipo(trim((string) ($row[$iEq] ?? '')));
             $nombre = trim((string) ($row[$iNom] ?? ''));
             if ($club <= 0 && $codEq === '' && $nombre === '') {
                 continue;
@@ -636,6 +830,7 @@ final class ImportacionAccessExternoService
                 'equipos_incompletos' => $incompletos,
                 'equipos_incompletos_detalle' => self::fusionarDetalleEquiposIncompletos($porTorneo),
                 'leyenda_integridad' => self::leyendaIntegridadEquipos($jugadoresReq),
+                'reporte_banca' => self::fusionarReporteBancaPorTorneo($porTorneo),
             ];
         }
 
@@ -666,15 +861,15 @@ final class ImportacionAccessExternoService
     ): array {
         $jugadoresReq = self::jugadoresPorUnidad($modalidad);
 
-        $plantilla = self::mapaPlantillaDesdeParejas($pdo, $parejasRows, $jugadoresReq, $soloSlot);
-        foreach (self::conteoTitularesPorCodigoEquipo($pdo, $torneoId) as $cod => $n) {
-            if (!isset($plantilla[$cod])) {
-                $plantilla[$cod] = ['titulares' => 0, 'total' => 0, 'jugadores' => []];
-            }
-            $plantilla[$cod]['titulares'] = max($plantilla[$cod]['titulares'], $n);
-        }
+        // 1) Parejas inscritas → mapa ordenado por código de equipo (fuente de verdad para plantilla).
+        $codigosClasiequi = self::codigosEquipoDesdeClasiequi($clasiequiRows, $soloSlot);
+        $plantillaResult = self::mapaPlantillaDesdeParejas($pdo, $parejasRows, $jugadoresReq, $soloSlot, $codigosClasiequi);
+        $plantilla = $plantillaResult['plantilla'];
+        $reporteBanca = $plantillaResult['reporte_banca'];
+        $resumenParejas = self::resumenParejasPorEquipo($plantilla, $jugadoresReq, $codigosClasiequi);
 
-        $metaEquipo = self::mapaMetaClasiequi($clasiequiRows, $soloSlot);
+        // 2) clasiequi → verificar que cada equipo declarado tenga la cantidad exacta en parejas.
+        $metaEquipo = self::mapaMetaClasiequi($pdo, $clasiequiRows, $soloSlot);
 
         $parsedC = self::separarCabecera($clasiequiRows, [['equipo', 'codigo_equipo']]);
         $hC = $parsedC['header'];
@@ -688,14 +883,14 @@ final class ImportacionAccessExternoService
                     continue;
                 }
             }
-            $cod = $iEqC >= 0 ? trim((string) ($row[$iEqC] ?? '')) : '';
+            $cod = self::normalizarCodigoEquipo($iEqC >= 0 ? trim((string) ($row[$iEqC] ?? '')) : '');
             if ($cod === '') {
                 continue;
             }
             $info = $plantilla[$cod] ?? ['titulares' => 0, 'total' => 0, 'jugadores' => []];
             $titulares = (int) ($info['titulares'] ?? 0);
             $total = (int) ($info['total'] ?? 0);
-            if ($titulares !== $jugadoresReq) {
+            if ($total < $jugadoresReq || $titulares < $jugadoresReq) {
                 $meta = $metaEquipo[$cod] ?? [];
                 $det = self::armarDetalleEquipoIncompleto(
                     $cod,
@@ -706,8 +901,8 @@ final class ImportacionAccessExternoService
                     $info['jugadores'] ?? [],
                     $soloSlot
                 );
-                $incompletos[] = $cod . ' → titulares ' . $titulares . '/' . $jugadoresReq
-                    . ($total > $titulares ? ' (plantilla ' . $total . ')' : '');
+                $incompletos[] = $cod . ' → parejas ' . $total . '/' . $jugadoresReq
+                    . ' (titulares ' . $titulares . '/' . $jugadoresReq . ')';
                 $incompletosDetalle[] = $det;
             }
         }
@@ -717,8 +912,11 @@ final class ImportacionAccessExternoService
             'torneo_id' => $torneoId,
             'slot' => $soloSlot,
             'jugadores_requeridos' => $jugadoresReq,
+            'resumen_parejas_por_equipo' => $resumenParejas,
             'equipos_incompletos' => $incompletos,
             'equipos_incompletos_detalle' => $incompletosDetalle,
+            'situaciones_detalle' => array_merge($incompletosDetalle, self::situacionesDesdeReporteBanca($reporteBanca)),
+            'reporte_banca' => $reporteBanca,
         ];
     }
 
@@ -736,7 +934,8 @@ final class ImportacionAccessExternoService
         array $partiRows,
         ?array $clasiequiRows,
         int $modalidad,
-        bool $reemplazar
+        bool $reemplazarPartiresul,
+        bool $reemplazarInscripcion = true
     ): array {
         $fechaTorneo = self::fechaTorneo($pdo, $torneoId);
         $mapa = CampeonatoTorneoHelper::mapaImportacionCampeonatoGenero($pdo, $torneoId);
@@ -785,46 +984,131 @@ final class ImportacionAccessExternoService
             'campeonato_genero' => $mapa !== null,
             'sync_atletas' => $syncAtletas,
             'inscritos_insertados' => 0,
+            'inscritos_actualizados' => 0,
             'inscritos_omitidos' => 0,
             'equipos_insertados' => 0,
+            'equipos_actualizados' => 0,
+            'equipos_asegurados_parejas' => 0,
+            'numeros_sincronizados' => 0,
             'partiresul_insertados' => 0,
+            'partiresul_omitidos' => 0,
             'partiresul_reemplazados' => 0,
+            'inscritos_banca' => 0,
+            'equipos_omitidos' => 0,
+            'incidencias_ejecucion' => [],
+            'reporte_banca' => ['total' => 0, 'por_asociacion' => [], 'detalle' => []],
             'por_torneo' => [],
         ];
 
+        $torneoIds = $mapa !== null ? array_map('intval', $mapa['torneo_ids']) : [$torneoId];
+
         $pdo->beginTransaction();
         try {
-            if (self::requiereClasiequi($modalidad) && $clasiequiRows !== null) {
-                if ($mapa !== null) {
-                    foreach ([1, 2] as $slot) {
-                        $tid = CampeonatoTorneoHelper::torneoIdDesdeSlot($mapa['slots'], $slot);
-                        $filas = self::filtrarArchivoPorSlot($clasiequiRows, $slot);
-                        $res['equipos_insertados'] += self::importarClasiequi($pdo, $tid, $filas, $registradoPor);
-                    }
-                } else {
-                    $res['equipos_insertados'] = self::importarClasiequi($pdo, $torneoId, $clasiequiRows, $registradoPor);
-                }
+            if ($reemplazarInscripcion) {
+                self::limpiarInscripcionTorneos($pdo, $torneoIds);
             }
+
+            $procesarTorneo = static function (int $tid, array $filasParejas, ?array $filasClas, ?int $slot) use (
+                $pdo,
+                $modalidad,
+                $registradoPor,
+                &$res
+            ): void {
+                $jugadoresReq = self::jugadoresPorUnidad($modalidad);
+
+                if (self::requiereClasiequi($modalidad) && $filasClas !== null && $filasClas !== []) {
+                    $eq = self::importarClasiequi($pdo, $tid, $filasClas, $registradoPor, $res['incidencias_ejecucion']);
+                    $res['equipos_insertados'] += $eq['insertados'];
+                    $res['equipos_actualizados'] += $eq['actualizados'];
+                    $res['equipos_omitidos'] += $eq['omitidos'];
+                }
+
+                if (self::requiereClasiequi($modalidad) && $filasParejas !== []) {
+                    $codigosClasiequi = ($filasClas !== null && $filasClas !== [])
+                        ? self::codigosEquipoDesdeClasiequi($filasClas, $slot)
+                        : [];
+                    $plantillaResult = self::mapaPlantillaDesdeParejas(
+                        $pdo,
+                        $filasParejas,
+                        $jugadoresReq,
+                        $slot,
+                        $codigosClasiequi
+                    );
+                    $metaEquipo = ($filasClas !== null && $filasClas !== [])
+                        ? self::mapaMetaClasiequi($pdo, $filasClas, $slot)
+                        : [];
+                    $res['equipos_asegurados_parejas'] += self::asegurarEquiposFaltantesPlantilla(
+                        $pdo,
+                        $tid,
+                        $plantillaResult['plantilla'],
+                        $metaEquipo,
+                        $registradoPor
+                    );
+                }
+
+                $ins = self::importarParejasInscritas(
+                    $pdo,
+                    $tid,
+                    $filasParejas,
+                    $modalidad,
+                    $registradoPor,
+                    $filasClas,
+                    $slot,
+                    $res['incidencias_ejecucion']
+                );
+                $res['inscritos_insertados'] += $ins['insertados'];
+                $res['inscritos_actualizados'] += $ins['actualizados'];
+                $res['inscritos_omitidos'] += $ins['omitidos'];
+                $res['inscritos_banca'] += $ins['banca'];
+                $res['numeros_sincronizados'] += self::sincronizarNumerosInscripcionTorneo($pdo, $tid);
+                if ($slot !== null) {
+                    $res['por_torneo'][$slot] = $ins;
+                }
+                foreach ($ins['reporte_banca']['detalle'] ?? [] as $d) {
+                    $res['reporte_banca']['detalle'][] = $d;
+                }
+            };
 
             if ($mapa !== null) {
                 foreach ([1, 2] as $slot) {
                     $tid = CampeonatoTorneoHelper::torneoIdDesdeSlot($mapa['slots'], $slot);
-                    $filas = self::filtrarArchivoPorSlot($parejasRows, $slot);
-                    $ins = self::importarParejasInscritas($pdo, $tid, $filas, $modalidad, $registradoPor);
-                    $res['inscritos_insertados'] += $ins['insertados'];
-                    $res['inscritos_omitidos'] += $ins['omitidos'];
-                    $res['por_torneo'][$slot] = $ins;
+                    $filasP = self::filtrarArchivoPorSlot($parejasRows, $slot);
+                    $filasC = ($clasiequiRows !== null && $clasiequiRows !== [] && self::requiereClasiequi($modalidad))
+                        ? self::filtrarArchivoPorSlot($clasiequiRows, $slot)
+                        : null;
+                    $procesarTorneo($tid, $filasP, $filasC, $slot);
                 }
             } else {
-                $ins = self::importarParejasInscritas($pdo, $torneoId, $parejasRows, $modalidad, $registradoPor);
-                $res['inscritos_insertados'] = $ins['insertados'];
-                $res['inscritos_omitidos'] = $ins['omitidos'];
+                $procesarTorneo(
+                    $torneoId,
+                    $parejasRows,
+                    (self::requiereClasiequi($modalidad) ? $clasiequiRows : null),
+                    null
+                );
             }
 
-            if ($reemplazar) {
-                $torneosBorrar = $mapa !== null ? $mapa['torneo_ids'] : [$torneoId];
+            foreach ($res['reporte_banca']['detalle'] ?? [] as $d) {
+                $key = (string) ((int) ($d['asociacion_codigo'] ?? 0) ?: '_sin_asoc');
+                if (!isset($res['reporte_banca']['por_asociacion'][$key])) {
+                    $res['reporte_banca']['por_asociacion'][$key] = [
+                        'asociacion_codigo' => (int) ($d['asociacion_codigo'] ?? 0),
+                        'asociacion' => (string) ($d['asociacion'] ?? '—'),
+                        'sin_clasiequi' => 0,
+                        'exceso_plantilla' => 0,
+                    ];
+                }
+                if (($d['motivo'] ?? '') === 'sin_clasiequi') {
+                    $res['reporte_banca']['por_asociacion'][$key]['sin_clasiequi']++;
+                } else {
+                    $res['reporte_banca']['por_asociacion'][$key]['exceso_plantilla']++;
+                }
+            }
+            $res['reporte_banca']['total'] = count($res['reporte_banca']['detalle'] ?? []);
+            $res['reporte_banca']['situaciones_detalle'] = self::situacionesDesdeReporteBanca($res['reporte_banca']);
+
+            if ($reemplazarPartiresul) {
                 $stDel = $pdo->prepare('DELETE FROM partiresul WHERE id_torneo = ?');
-                foreach ($torneosBorrar as $tidB) {
+                foreach ($torneoIds as $tidB) {
                     $stDel->execute([(int) $tidB]);
                     $res['partiresul_reemplazados'] += $stDel->rowCount();
                 }
@@ -835,31 +1119,47 @@ final class ImportacionAccessExternoService
                     $tid = CampeonatoTorneoHelper::torneoIdDesdeSlot($mapa['slots'], $slot);
                     $filas = self::filtrarArchivoPorSlot($partiRows, $slot);
                     $fecha = self::fechaTorneo($pdo, $tid) ?: $fechaTorneo;
-                    $res['partiresul_insertados'] += self::importarParti2017(
+                    $partiRes = self::importarParti2017(
                         $pdo,
                         $tid,
                         $filas,
                         $registradoPor,
-                        $fecha
+                        $fecha,
+                        $res['incidencias_ejecucion']
                     );
+                    $res['partiresul_insertados'] += $partiRes['insertados'];
+                    $res['partiresul_omitidos'] += $partiRes['omitidos'];
                 }
             } else {
-                $res['partiresul_insertados'] = self::importarParti2017(
+                $partiRes = self::importarParti2017(
                     $pdo,
                     $torneoId,
                     $partiRows,
                     $registradoPor,
-                    $fechaTorneo
+                    $fechaTorneo,
+                    $res['incidencias_ejecucion']
                 );
+                $res['partiresul_insertados'] = $partiRes['insertados'];
+                $res['partiresul_omitidos'] = $partiRes['omitidos'];
             }
 
             $pdo->commit();
         } catch (Throwable $e) {
             $pdo->rollBack();
-            return ['ok' => false, 'error' => $e->getMessage()];
+
+            return [
+                'ok' => false,
+                'error' => $e->getMessage(),
+                'situaciones_detalle' => [
+                    self::situacionImportacion('ejec_error_sql', [
+                        'elemento' => $e->getMessage(),
+                        'explicacion' => 'La importación se revirtió por error: ' . $e->getMessage(),
+                    ]),
+                ],
+            ];
         }
 
-        return $res;
+        return self::finalizarResultadoEjecucion($res, $parejasRows);
     }
 
     /**
@@ -929,21 +1229,154 @@ final class ImportacionAccessExternoService
      */
     public static function sincronizarAtletasParaImportacion(PDO $pdo, array $cedulas, bool $ejecutar = false): array
     {
-        return AtletasAdminSyncService::prepararUsuariosParaImportacion($pdo, $cedulas, $ejecutar);
+        $reporte = AtletasAdminSyncService::prepararUsuariosParaImportacion($pdo, $cedulas, $ejecutar);
+
+        return self::enriquecerReportePadron($reporte, 'parejas_inscritas');
     }
 
     /** Sincroniza todo el padrón atletas → usuarios (crear faltantes + actualizar existentes). */
     public static function sincronizarPadronCompletoAtletas(PDO $pdo, bool $ejecutar = false): array
     {
-        return AtletasAdminSyncService::sincronizarPadronCompletoAtletasUsuarios($pdo, $ejecutar);
+        $reporte = AtletasAdminSyncService::sincronizarPadronCompletoAtletasUsuarios($pdo, $ejecutar);
+
+        return self::enriquecerReportePadron($reporte, 'padron_atletas');
+    }
+
+    /**
+     * Agrega situaciones_detalle con origen y corrección lógica por incidencia del Paso 0.
+     *
+     * @param array<string, mixed> $reporte
+     * @return array<string, mixed>
+     */
+    private static function enriquecerReportePadron(array $reporte, string $contextoOrigen = 'padron_atletas'): array
+    {
+        $situaciones = $reporte['situaciones_detalle'] ?? [];
+
+        foreach ($reporte['sin_atleta'] ?? [] as $ced) {
+            $situaciones[] = self::situacionImportacion('atleta_sin_registro', [
+                'origen_archivo' => $contextoOrigen === 'parejas_inscritas' ? 'parejas_inscritas' : 'padron_atletas',
+                'origen_tabla_access' => $contextoOrigen === 'parejas_inscritas'
+                    ? 'Parejas inscritas (archivo torneo)'
+                    : 'Parejas inscritas → atletas',
+                'elemento' => 'cedula=' . (string) $ced,
+                'valor_archivo' => (string) $ced,
+                'valor_sistema' => '(no existe en atletas)',
+                'explicacion' => 'Cédula ' . (string) $ced . ' aparece en el torneo pero no está en la tabla atletas.',
+            ]);
+        }
+
+        foreach ($reporte['detalle_pendientes'] ?? [] as $d) {
+            $situaciones = array_merge($situaciones, self::situacionesDesdePendientePadron($d));
+        }
+
+        if (($reporte['sin_cedula_valida'] ?? 0) > 0) {
+            $n = (int) $reporte['sin_cedula_valida'];
+            $situaciones[] = self::situacionImportacion('padron_atleta_sin_cedula', [
+                'elemento' => 'atletas.cedula (' . $n . ' filas)',
+                'explicacion' => $n . ' atleta(s) en el padrón sin cédula válida; no se pueden vincular a usuarios.',
+            ]);
+        }
+
+        if (!$reporte['tabla_atletas']) {
+            $situaciones[] = self::situacionImportacion('atleta_sin_registro', [
+                'elemento' => 'tabla atletas',
+                'explicacion' => 'No existe la tabla atletas en la base de datos.',
+                'como_resolver' => 'Importe o sincronice el padrón FVD (atletas) antes del Paso 0.',
+            ]);
+        }
+
+        foreach ($reporte['errores'] ?? [] as $err) {
+            $situaciones[] = self::situacionImportacion('atleta_sin_registro', [
+                'elemento' => (string) $err,
+                'explicacion' => (string) $err,
+                'como_resolver' => 'Revise el padrón atletas/usuarios y vuelva a verificar.',
+            ]);
+        }
+
+        $reporte['situaciones_detalle'] = $situaciones;
+
+        return $reporte;
+    }
+
+    /**
+     * @param array<string, mixed> $d
+     * @return list<array<string, mixed>>
+     */
+    private static function situacionesDesdePendientePadron(array $d): array
+    {
+        $out = [];
+        $ced = (string) ($d['cedula'] ?? '');
+        $nombre = trim((string) ($d['nombre'] ?? ''));
+        $accion = (string) ($d['accion'] ?? '');
+        $nomTxt = $nombre !== '' ? ' (' . $nombre . ')' : '';
+
+        if ($accion === 'crear') {
+            $nf = (int) ($d['numfvd_atleta'] ?? 0);
+            $out[] = self::situacionImportacion('padron_usuario_faltante', [
+                'cedula' => $ced,
+                'nombre' => $nombre,
+                'elemento' => 'cedula=' . $ced,
+                'valor_archivo' => 'atletas: cédula=' . $ced . ($nf > 0 ? ', numfvd=' . $nf : ''),
+                'valor_sistema' => '(sin fila en usuarios)',
+                'explicacion' => 'Atleta' . $nomTxt . ' cédula ' . $ced . ' está en atletas pero no tiene cuenta en usuarios.',
+            ]);
+
+            return $out;
+        }
+
+        if (isset($d['numfvd']) && is_array($d['numfvd'])) {
+            $antes = (int) ($d['numfvd']['antes'] ?? 0);
+            $despues = (int) ($d['numfvd']['despues'] ?? 0);
+            $out[] = self::situacionImportacion('padron_numfvd_desalineado', [
+                'cedula' => $ced,
+                'nombre' => $nombre,
+                'elemento' => 'cedula=' . $ced . ', numfvd',
+                'valor_sistema' => 'usuarios.numfvd=' . $antes,
+                'valor_archivo' => 'atletas.numfvd=' . $despues,
+                'explicacion' => 'Cédula ' . $ced . $nomTxt . ': carnet en usuarios (' . $antes . ') distinto al padrón atletas (' . $despues . ').',
+            ]);
+        }
+
+        if (isset($d['sexo']) && is_array($d['sexo'])) {
+            $out[] = self::situacionImportacion('padron_sexo_desalineado', [
+                'cedula' => $ced,
+                'nombre' => $nombre,
+                'elemento' => 'cedula=' . $ced . ', sexo',
+                'valor_sistema' => 'usuarios.sexo=' . (string) ($d['sexo']['antes'] ?? ''),
+                'valor_archivo' => 'atletas.sexo=' . (string) ($d['sexo']['despues'] ?? ''),
+                'explicacion' => 'Cédula ' . $ced . $nomTxt . ': sexo en usuarios ≠ sexo en atletas.',
+            ]);
+        }
+
+        if (isset($d['entidad']) && is_array($d['entidad'])) {
+            $out[] = self::situacionImportacion('padron_entidad_desalineada', [
+                'cedula' => $ced,
+                'nombre' => $nombre,
+                'elemento' => 'cedula=' . $ced . ', entidad/asociación',
+                'valor_sistema' => 'usuarios.entidad=' . (string) ($d['entidad']['antes'] ?? ''),
+                'valor_archivo' => 'atletas.asociacion=' . (string) ($d['entidad']['despues'] ?? ''),
+                'explicacion' => 'Cédula ' . $ced . $nomTxt . ': asociación en usuarios ≠ asociación en atletas.',
+            ]);
+        }
+
+        return $out;
     }
 
     /**
      * @param list<list<string>> $rows
-     * @return array{insertados: int, omitidos: int}
+     * @param list<list<string>>|null $clasiequiRows
+     * @return array{insertados: int, actualizados: int, omitidos: int, banca: int, reporte_banca: array<string, mixed>}
      */
-    private static function importarParejasInscritas(PDO $pdo, int $torneoId, array $rows, int $modalidad, int $inscritoPor): array
-    {
+    private static function importarParejasInscritas(
+        PDO $pdo,
+        int $torneoId,
+        array $rows,
+        int $modalidad,
+        int $inscritoPor,
+        ?array $clasiequiRows = null,
+        ?int $soloSlot = null,
+        ?array &$incidenciasEjecucion = null
+    ): array {
         $parsed = self::separarCabecera($rows, [['cedula', 'ced']]);
         $h = $parsed['header'];
         $iCed = self::indiceColumna($h, ['cedula', 'ced', 'documento']);
@@ -954,62 +1387,143 @@ final class ImportacionAccessExternoService
         $iActivo = self::indiceColumnaActivoMesa($h);
         $jugadoresReq = self::jugadoresPorUnidad($modalidad);
         $titularesAuto = [];
+        $codigosClasiequi = ($clasiequiRows !== null && $clasiequiRows !== [])
+            ? self::codigosEquipoDesdeClasiequi($clasiequiRows, $soloSlot)
+            : null;
+        $reporteBanca = ['total' => 0, 'por_asociacion' => [], 'detalle' => []];
 
-        $insertados = 0;
-        $omitidos = 0;
-
-        foreach ($parsed['data'] as $row) {
+        $filasPrep = [];
+        foreach ($parsed['data'] as $rowIdx => $row) {
             $ced = self::normalizarCedula($iCed >= 0 ? ($row[$iCed] ?? '') : '');
             if ($ced === '') {
                 continue;
             }
+            $codEq = '000-000';
+            if ($modalidad !== 1) {
+                $codEq = self::codigoEquipoDesdeFilaPareja($row, $iCod, $iAsoc, $iEqN);
+                if ($codEq === '') {
+                    $codEq = '000-001';
+                }
+            }
+            $filasPrep[] = [
+                'row' => $row,
+                'ced' => $ced,
+                'cod' => $codEq,
+                'fila' => $parsed['header_row'] + 2 + $rowIdx,
+            ];
+        }
+        usort($filasPrep, static function (array $a, array $b): int {
+            $cmp = strcmp($a['cod'], $b['cod']);
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+
+            return strcmp($a['ced'], $b['ced']);
+        });
+
+        $insertados = 0;
+        $actualizados = 0;
+        $omitidos = 0;
+        $banca = 0;
+
+        foreach ($filasPrep as $item) {
+            $row = $item['row'];
+            $ced = $item['ced'];
+            $codEq = $item['cod'];
+            $filaArchivo = (int) ($item['fila'] ?? 0);
 
             $usuario = self::resolverUsuarioPorCedula($pdo, $ced);
             if ($usuario === null) {
-                continue;
-            }
-            $idUsr = (int) $usuario['id'];
-            $stDup = $pdo->prepare('SELECT id FROM inscritos WHERE torneo_id = ? AND id_usuario = ? LIMIT 1');
-            $stDup->execute([$torneoId, $idUsr]);
-            if ($stDup->fetch()) {
+                if ($incidenciasEjecucion !== null) {
+                    self::registrarIncidenciaEjecucion($incidenciasEjecucion, 'cedula_sin_usuario', [
+                        'cedula' => $ced,
+                        'elemento' => $ced,
+                        'fila_archivo' => $filaArchivo,
+                        'codigo_equipo' => $modalidad !== 1 ? $codEq : null,
+                        'torneo_id' => $torneoId,
+                        'explicacion' => 'No hay usuario con esta cédula. El jugador no fue inscrito al ejecutar la importación.',
+                    ]);
+                }
                 $omitidos++;
                 continue;
             }
+            $idUsr = (int) $usuario['id'];
+            $stDup = $pdo->prepare(
+                'SELECT id FROM inscritos WHERE torneo_id = ? AND id_usuario = ? LIMIT 1'
+            );
+            $stDup->execute([$torneoId, $idUsr]);
+            $idInscritoExistente = (int) ($stDup->fetchColumn() ?: 0);
 
             $nfUsuario = self::resolverNumfvdUsuario($pdo, $usuario, $ced);
             $numfvdArch = $iNumfvd >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iNumfvd] ?? '')) : 0;
             $numfvd = $numfvdArch > 0 ? $numfvdArch : $nfUsuario;
             if ($numfvd <= 0) {
+                if ($incidenciasEjecucion !== null) {
+                    self::registrarIncidenciaEjecucion($incidenciasEjecucion, 'sin_numfvd', [
+                        'cedula' => $ced,
+                        'nombre' => trim((string) ($usuario['nombre'] ?? '')),
+                        'elemento' => $ced,
+                        'fila_archivo' => $filaArchivo,
+                        'codigo_equipo' => $modalidad !== 1 ? $codEq : null,
+                        'torneo_id' => $torneoId,
+                        'explicacion' => 'Sin numfvd en archivo ni en usuario. El jugador no fue inscrito.',
+                    ]);
+                }
+                $omitidos++;
                 continue;
             }
 
             $idClub = self::clubDesdeEntidadUsuario($pdo, $usuario);
             $entidadUsu = (int) ($usuario['entidad'] ?? 0);
             if ($idClub === null || $idClub <= 0) {
+                if ($incidenciasEjecucion !== null) {
+                    self::registrarIncidenciaEjecucion($incidenciasEjecucion, 'sin_club', [
+                        'cedula' => $ced,
+                        'nombre' => trim((string) ($usuario['nombre'] ?? '')),
+                        'elemento' => $ced,
+                        'fila_archivo' => $filaArchivo,
+                        'entidad' => $entidadUsu,
+                        'codigo_equipo' => $modalidad !== 1 ? $codEq : null,
+                        'torneo_id' => $torneoId,
+                        'explicacion' => 'Usuario sin club resoluble (entidad ' . ($entidadUsu > 0 ? $entidadUsu : '—') . '). El jugador no fue inscrito.',
+                    ]);
+                }
+                $omitidos++;
                 continue;
-            }
-
-            $codEq = '000-000';
-            if ($modalidad !== 1) {
-                $codEq = $iCod >= 0 ? trim((string) ($row[$iCod] ?? '')) : '';
-                if ($codEq === '' && $iAsoc >= 0 && $iEqN >= 0) {
-                    $asoc = (int) preg_replace('/\D/', '', (string) ($row[$iAsoc] ?? ''));
-                    if ($asoc <= 0 && $entidadUsu > 0) {
-                        $asoc = $entidadUsu;
-                    }
-                    $eq = (int) preg_replace('/\D/', '', (string) ($row[$iEqN] ?? ''));
-                    if ($asoc > 0 && $eq > 0) {
-                        $codEq = sprintf('%03d-%03d', $asoc, $eq);
-                    }
-                }
-                if ($codEq === '') {
-                    $codEq = '000-001';
-                }
             }
 
             $activoMesa = InscritosHelper::ACTIVO_MESA_SI;
             if ($modalidad !== 1 && $codEq !== '000-000') {
-                $activoMesa = self::resolverActivoMesaFilaPareja($row, $iActivo, $codEq, $jugadoresReq, $titularesAuto);
+                $incidencia = null;
+                $asocCod = $iAsoc >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iAsoc] ?? '')) : 0;
+                if ($asocCod <= 0 && preg_match('/^(\d{1,3})-/', $codEq, $mAsoc)) {
+                    $asocCod = (int) $mAsoc[1];
+                }
+                if ($asocCod <= 0) {
+                    $asocCod = $entidadUsu;
+                }
+                $activoMesa = self::resolverActivoMesaFilaPareja(
+                    $row,
+                    $iActivo,
+                    $codEq,
+                    $jugadoresReq,
+                    $titularesAuto,
+                    self::equipoEnClasiequi($codigosClasiequi, $codEq),
+                    $incidencia
+                );
+                if ($incidencia !== null) {
+                    self::acumularReporteBanca(
+                        $reporteBanca,
+                        $incidencia,
+                        $ced,
+                        trim((string) ($usuario['nombre'] ?? '')),
+                        $asocCod,
+                        $soloSlot
+                    );
+                }
+            }
+            if ($activoMesa === InscritosHelper::ACTIVO_MESA_BANCA) {
+                $banca++;
             }
 
             $datosIns = [
@@ -1018,28 +1532,297 @@ final class ImportacionAccessExternoService
                 'id_club' => $idClub,
                 'estatus' => InscritosHelper::ESTATUS_CONFIRMADO_NUM,
                 'inscrito_por' => $inscritoPor,
-                'numero' => 0,
                 'codigo_equipo' => $codEq,
                 'cedula' => preg_replace('/\D/', '', (string) ($usuario['cedula'] ?? $ced)),
                 'nacionalidad' => $usuario['nacionalidad'] ?? 'V',
                 'numfvd' => $numfvd,
+                'numero' => $numfvd > 0 ? $numfvd : 0,
                 'activo_mesa' => $activoMesa,
             ];
             if ($entidadUsu > 0) {
                 $datosIns['entidad_id'] = $entidadUsu;
             }
-            InscritosHelper::insertarInscrito($pdo, $datosIns);
-            $insertados++;
+            if ($idInscritoExistente > 0) {
+                self::actualizarInscritoDesdeImportacion($pdo, $idInscritoExistente, $datosIns);
+                $actualizados++;
+            } else {
+                InscritosHelper::insertarInscrito($pdo, $datosIns);
+                $insertados++;
+            }
         }
 
-        return ['insertados' => $insertados, 'omitidos' => $omitidos];
+        $reporteBanca['situaciones_detalle'] = self::situacionesDesdeReporteBanca($reporteBanca);
+
+        return [
+            'insertados' => $insertados,
+            'actualizados' => $actualizados,
+            'omitidos' => $omitidos,
+            'banca' => $banca,
+            'reporte_banca' => $reporteBanca,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $datosIns
+     */
+    private static function actualizarInscritoDesdeImportacion(PDO $pdo, int $inscritoId, array $datosIns): void
+    {
+        require_once __DIR__ . '/InscritosHelper.php';
+        $cols = $pdo->query('SHOW COLUMNS FROM inscritos')->fetchAll(PDO::FETCH_COLUMN);
+        $have = [];
+        foreach ($cols as $c) {
+            $have[strtolower((string) $c)] = true;
+        }
+        $sets = [];
+        $params = [];
+        $add = static function (string $col, $val) use (&$sets, &$params, $have): void {
+            if (!isset($have[strtolower($col)])) {
+                return;
+            }
+            $sets[] = $col . ' = ?';
+            $params[] = $val;
+        };
+        $add('id_club', (int) ($datosIns['id_club'] ?? 0));
+        $add('codigo_equipo', (string) ($datosIns['codigo_equipo'] ?? ''));
+        $add('estatus', (int) ($datosIns['estatus'] ?? InscritosHelper::ESTATUS_CONFIRMADO_NUM));
+        $numfvd = (int) ($datosIns['numfvd'] ?? 0);
+        $add('numfvd', $numfvd);
+        $add('numero', $numfvd > 0 ? $numfvd : (int) ($datosIns['numero'] ?? 0));
+        $add('cedula', (string) ($datosIns['cedula'] ?? ''));
+        $add('nacionalidad', (string) ($datosIns['nacionalidad'] ?? 'V'));
+        if (array_key_exists('activo_mesa', $datosIns)) {
+            $am = (int) $datosIns['activo_mesa'] === InscritosHelper::ACTIVO_MESA_BANCA ? 0 : 1;
+            $add('activo_mesa', $am);
+        }
+        if (isset($datosIns['entidad_id'])) {
+            $add('entidad_id', (int) $datosIns['entidad_id']);
+        }
+        if ($sets === []) {
+            return;
+        }
+        $params[] = $inscritoId;
+        $pdo->prepare('UPDATE inscritos SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
     }
 
     /**
      * @param list<list<string>> $rows
      */
-    private static function importarClasiequi(PDO $pdo, int $torneoId, array $rows, int $creadoPor): int
+    private static function contarFilasParejasValidas(array $rows): int
     {
+        $parsed = self::separarCabecera($rows, [['cedula', 'ced']]);
+        $iCed = self::indiceColumna($parsed['header'], ['cedula', 'ced', 'documento']);
+        $n = 0;
+        foreach ($parsed['data'] as $row) {
+            if (self::normalizarCedula($iCed >= 0 ? ($row[$iCed] ?? '') : '') !== '') {
+                $n++;
+            }
+        }
+
+        return $n;
+    }
+
+    /** @param list<int> $torneoIds */
+    private static function limpiarInscripcionTorneos(PDO $pdo, array $torneoIds): void
+    {
+        $stI = $pdo->prepare('DELETE FROM inscritos WHERE torneo_id = ?');
+        $stE = $pdo->prepare('DELETE FROM equipos WHERE id_torneo = ?');
+        foreach ($torneoIds as $tid) {
+            $tid = (int) $tid;
+            if ($tid <= 0) {
+                continue;
+            }
+            $stI->execute([$tid]);
+            $stE->execute([$tid]);
+        }
+    }
+
+    private static function resolverIdClubColumnaAccess(PDO $pdo, int $codigoColumna): ?int
+    {
+        if ($codigoColumna <= 0) {
+            return null;
+        }
+        require_once __DIR__ . '/AsociacionAdminHelper.php';
+        $clubId = AsociacionAdminHelper::resolverClubIdDesdeEntidad($pdo, $codigoColumna);
+
+        return $clubId !== null && (int) $clubId > 0 ? (int) $clubId : $codigoColumna;
+    }
+
+    /**
+     * Alinea inscritos.numero con numfvd (enlace con partiresul.pareja), como carga masiva / homologación.
+     */
+    private static function sincronizarNumerosInscripcionTorneo(PDO $pdo, int $torneoId): int
+    {
+        require_once __DIR__ . '/NumfvdHelper.php';
+        if (NumfvdHelper::inscritosTieneColumnaNumfvd($pdo)) {
+            $st = $pdo->prepare(
+                'UPDATE inscritos SET numero = numfvd
+                 WHERE torneo_id = ? AND numfvd > 0 AND CAST(estatus AS CHAR) NOT IN (\'4\',\'retirado\')'
+            );
+        } else {
+            $st = $pdo->prepare(
+                'UPDATE inscritos i
+                 INNER JOIN usuarios u ON u.id = i.id_usuario
+                 SET i.numero = u.numfvd
+                 WHERE i.torneo_id = ? AND u.numfvd > 0 AND CAST(i.estatus AS CHAR) NOT IN (\'4\',\'retirado\')'
+            );
+        }
+        $st->execute([$torneoId]);
+
+        return $st->rowCount();
+    }
+
+    /**
+     * Crea filas en equipos para códigos presentes en parejas pero ausentes en clasiequi.
+     *
+     * @param array<string, array{titulares: int, total: int, jugadores: list<array<string, mixed>>}> $plantilla
+     * @param array<string, array<string, mixed>> $metaEquipo
+     */
+    private static function asegurarEquiposFaltantesPlantilla(
+        PDO $pdo,
+        int $torneoId,
+        array $plantilla,
+        array $metaEquipo,
+        int $creadoPor
+    ): int {
+        $insertados = 0;
+        foreach ($plantilla as $cod => $info) {
+            if ($cod === '' || $cod === '000-000') {
+                continue;
+            }
+            $meta = $metaEquipo[$cod] ?? [];
+            $idClub = (int) ($meta['id_club'] ?? 0);
+            if ($idClub <= 0 && preg_match('/^(\d{1,3})-/', $cod, $m)) {
+                $idClub = (int) (self::resolverIdClubColumnaAccess($pdo, (int) $m[1]) ?? 0);
+            }
+            if ($idClub <= 0) {
+                foreach ($info['jugadores'] ?? [] as $j) {
+                    $asoc = (int) ($j['asociacion_codigo'] ?? 0);
+                    if ($asoc > 0) {
+                        $idClub = (int) (self::resolverIdClubColumnaAccess($pdo, $asoc) ?? 0);
+                        break;
+                    }
+                }
+            }
+            if ($idClub <= 0) {
+                continue;
+            }
+            $nombre = trim((string) ($meta['nombre_equipo'] ?? ''));
+            if ($nombre === '') {
+                $nombre = 'Equipo ' . $cod;
+            }
+            $consec = 1;
+            if (preg_match('/-(\d+)$/', $cod, $mEq)) {
+                $consec = max(1, (int) $mEq[1]);
+            }
+            $g = self::guardarEquipoImportacionAccess(
+                $pdo,
+                $torneoId,
+                $idClub,
+                $nombre,
+                $cod,
+                $consec,
+                0,
+                $creadoPor
+            );
+            if ($g['insertado']) {
+                $insertados++;
+            }
+        }
+
+        return $insertados;
+    }
+
+    /**
+     * Inserta o actualiza equipo respetando uk_equipo_torneo_club y uk_codigo_torneo.
+     *
+     * @return array{insertado: bool, actualizado: bool, id: int}
+     */
+    private static function guardarEquipoImportacionAccess(
+        PDO $pdo,
+        int $torneoId,
+        int $idClub,
+        string $nombreEquipo,
+        string $codigoEquipo,
+        int $consecutivo,
+        int $estatus,
+        int $creadoPor
+    ): array {
+        $nombreEquipo = trim($nombreEquipo);
+        $codigoEquipo = self::normalizarCodigoEquipo(trim($codigoEquipo));
+        $vacío = ['insertado' => false, 'actualizado' => false, 'id' => 0];
+        if ($torneoId <= 0 || $idClub <= 0 || $codigoEquipo === '') {
+            return $vacío;
+        }
+        if ($nombreEquipo === '') {
+            $nombreEquipo = 'Equipo ' . $codigoEquipo;
+        }
+        $consec = max(1, $consecutivo);
+
+        $stCod = $pdo->prepare(
+            'SELECT id, id_club, nombre_equipo FROM equipos WHERE id_torneo = ? AND codigo_equipo = ? LIMIT 1'
+        );
+        $stCod->execute([$torneoId, $codigoEquipo]);
+        $porCodigo = $stCod->fetch(PDO::FETCH_ASSOC) ?: null;
+
+        $stNom = $pdo->prepare(
+            'SELECT id, codigo_equipo FROM equipos WHERE id_torneo = ? AND id_club = ? AND nombre_equipo = ? LIMIT 1'
+        );
+        $stNom->execute([$torneoId, $idClub, $nombreEquipo]);
+        $porNombre = $stNom->fetch(PDO::FETCH_ASSOC) ?: null;
+
+        $idObjetivo = 0;
+        if ($porCodigo !== null) {
+            $idObjetivo = (int) $porCodigo['id'];
+        } elseif ($porNombre !== null) {
+            $idObjetivo = (int) $porNombre['id'];
+        }
+
+        if ($idObjetivo > 0) {
+            $codigoFinal = $codigoEquipo;
+            $stOtro = $pdo->prepare(
+                'SELECT id FROM equipos WHERE id_torneo = ? AND codigo_equipo = ? AND id <> ? LIMIT 1'
+            );
+            $stOtro->execute([$torneoId, $codigoEquipo, $idObjetivo]);
+            if ($stOtro->fetch()) {
+                $stActual = $pdo->prepare('SELECT codigo_equipo FROM equipos WHERE id = ? LIMIT 1');
+                $stActual->execute([$idObjetivo]);
+                $codigoFinal = trim((string) ($stActual->fetchColumn() ?: $codigoEquipo));
+            }
+            $pdo->prepare(
+                'UPDATE equipos SET id_club = ?, nombre_equipo = ?, codigo_equipo = ?, consecutivo_club = ?, estatus = ? WHERE id = ?'
+            )->execute([$idClub, $nombreEquipo, $codigoFinal, $consec, $estatus, $idObjetivo]);
+
+            return ['insertado' => false, 'actualizado' => true, 'id' => $idObjetivo];
+        }
+
+        $stI = $pdo->prepare(
+            'INSERT INTO equipos (id_torneo, id_club, nombre_equipo, codigo_equipo, consecutivo_club, estatus, creado_por)
+             VALUES (?, ?, ?, ?, ?, ?, ?)'
+        );
+        $stI->execute([
+            $torneoId,
+            $idClub,
+            $nombreEquipo,
+            $codigoEquipo,
+            $consec,
+            $estatus,
+            $creadoPor > 0 ? $creadoPor : null,
+        ]);
+
+        return ['insertado' => true, 'actualizado' => false, 'id' => (int) $pdo->lastInsertId()];
+    }
+
+    /**
+     * @param list<list<string>> $rows
+     * @return array{insertados: int, actualizados: int, omitidos: int}
+     */
+    private static function importarClasiequi(
+        PDO $pdo,
+        int $torneoId,
+        array $rows,
+        int $creadoPor,
+        ?array &$incidenciasEjecucion = null
+    ): array {
         $parsed = self::separarCabecera($rows, [['club'], ['nombre'], ['equipo']]);
         $h = $parsed['header'];
         $iClub = self::indiceColumna($h, ['club', 'id_club']);
@@ -1049,36 +1832,90 @@ final class ImportacionAccessExternoService
         $iEst = self::indiceColumna($h, ['estatus', 'status']);
 
         $insertados = 0;
-        foreach ($parsed['data'] as $row) {
-            $idClub = (int) preg_replace('/\D/', '', (string) ($row[$iClub] ?? ''));
+        $actualizados = 0;
+        $omitidos = 0;
+        foreach ($parsed['data'] as $rowIdx => $row) {
+            $filaArchivo = $parsed['header_row'] + 2 + $rowIdx;
+            $codEntidad = (int) preg_replace('/\D/', '', (string) ($row[$iClub] ?? ''));
+            $idClub = (int) (self::resolverIdClubColumnaAccess($pdo, $codEntidad) ?? 0);
             $nombre = trim((string) ($row[$iNom] ?? ''));
-            $codEq = trim((string) ($row[$iEq] ?? ''));
-            if ($idClub <= 0 || $nombre === '' || $codEq === '') {
+            $codEqRaw = trim((string) ($row[$iEq] ?? ''));
+            $codEq = self::normalizarCodigoEquipo($codEqRaw);
+            if ($idClub <= 0) {
+                if ($incidenciasEjecucion !== null) {
+                    self::registrarIncidenciaEjecucion($incidenciasEjecucion, 'ejec_equipo_sin_club', [
+                        'fila_archivo' => $filaArchivo,
+                        'elemento' => $nombre !== '' ? $nombre : ($codEqRaw !== '' ? $codEqRaw : '(fila ' . $filaArchivo . ')'),
+                        'codigo_equipo' => $codEqRaw,
+                        'club_access' => $codEntidad,
+                        'torneo_id' => $torneoId,
+                        'explicacion' => 'Asociación/club ' . ($codEntidad > 0 ? $codEntidad : '—') . ' no resuelve a club en plataforma. Equipo no importado.',
+                    ]);
+                }
+                $omitidos++;
                 continue;
             }
-            $st = $pdo->prepare('SELECT id FROM equipos WHERE id_torneo = ? AND codigo_equipo = ? LIMIT 1');
-            $st->execute([$torneoId, $codEq]);
-            if ($st->fetch()) {
+            if ($nombre === '') {
+                if ($incidenciasEjecucion !== null) {
+                    self::registrarIncidenciaEjecucion($incidenciasEjecucion, 'ejec_equipo_sin_nombre', [
+                        'fila_archivo' => $filaArchivo,
+                        'elemento' => $codEqRaw !== '' ? $codEqRaw : '(fila ' . $filaArchivo . ')',
+                        'codigo_equipo' => $codEqRaw,
+                        'torneo_id' => $torneoId,
+                        'explicacion' => 'Fila clasiequi sin nombre de equipo. Equipo no importado.',
+                    ]);
+                }
+                $omitidos++;
+                continue;
+            }
+            if ($codEq === '') {
+                if ($incidenciasEjecucion !== null) {
+                    self::registrarIncidenciaEjecucion($incidenciasEjecucion, 'ejec_equipo_sin_codigo', [
+                        'fila_archivo' => $filaArchivo,
+                        'elemento' => $nombre,
+                        'nombre' => $nombre,
+                        'torneo_id' => $torneoId,
+                        'explicacion' => 'Equipo «' . $nombre . '» sin código (columna equipo). Equipo no importado.',
+                    ]);
+                }
+                $omitidos++;
                 continue;
             }
             $consec = $iClave >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iClave] ?? '')) : 1;
             $est = $iEst >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iEst] ?? '0')) : 0;
-            $stI = $pdo->prepare(
-                'INSERT INTO equipos (id_torneo, id_club, nombre_equipo, codigo_equipo, consecutivo_club, estatus, creado_por)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)'
+
+            $g = self::guardarEquipoImportacionAccess(
+                $pdo,
+                $torneoId,
+                $idClub,
+                $nombre,
+                $codEq,
+                $consec,
+                $est,
+                $creadoPor
             );
-            $stI->execute([$torneoId, $idClub, $nombre, $codEq, max(1, $consec), $est, $creadoPor > 0 ? $creadoPor : null]);
-            $insertados++;
+            if ($g['insertado']) {
+                $insertados++;
+            } elseif ($g['actualizado']) {
+                $actualizados++;
+            }
         }
 
-        return $insertados;
+        return ['insertados' => $insertados, 'actualizados' => $actualizados, 'omitidos' => $omitidos];
     }
 
     /**
      * @param list<list<string>> $rows
+     * @return array{insertados: int, omitidos: int}
      */
-    private static function importarParti2017(PDO $pdo, int $torneoId, array $rows, int $registradoPor, string $fechaTorneo): int
-    {
+    private static function importarParti2017(
+        PDO $pdo,
+        int $torneoId,
+        array $rows,
+        int $registradoPor,
+        string $fechaTorneo,
+        ?array &$incidenciasEjecucion = null
+    ): array {
         PartiresulJugadorHelper::refrescarEsquemaPartiresul($pdo);
         $parsed = self::separarCabecera($rows, [['partida'], ['mesa'], ['secuencia'], ['pareja']]);
         $h = $parsed['header'];
@@ -1104,12 +1941,31 @@ final class ImportacionAccessExternoService
         $stmt = $pdo->prepare($sql);
 
         $n = 0;
+        $omitidos = 0;
         /** @var array<string, array{partida: int, mesa: int, jugadores: list<array<string, mixed>>, obs: string}> $mesasPorClave */
         $mesasPorClave = [];
 
-        foreach ($parsed['data'] as $row) {
+        foreach ($parsed['data'] as $rowIdx => $row) {
             $nf = (int) preg_replace('/\D/', '', (string) ($row[$iPareja] ?? ''));
-            if ($nf <= 0 || !isset($mapInsc[$nf])) {
+            if ($nf <= 0) {
+                continue;
+            }
+            if (!isset($mapInsc[$nf])) {
+                $partida = (int) ($row[$iPart] ?? 0);
+                $mesa = (int) ($row[$iMesa] ?? 0);
+                if ($incidenciasEjecucion !== null) {
+                    self::registrarIncidenciaEjecucion($incidenciasEjecucion, 'ejec_partiresul_omitido', [
+                        'elemento' => 'numfvd ' . $nf,
+                        'numfvd' => $nf,
+                        'fila_archivo' => $parsed['header_row'] + 2 + $rowIdx,
+                        'partida' => $partida,
+                        'mesa' => $mesa,
+                        'torneo_id' => $torneoId,
+                        'explicacion' => 'Ronda ' . $partida . ', mesa ' . $mesa . ': numfvd ' . $nf
+                            . ' no está inscrito en el torneo. Fila de partiresul omitida.',
+                    ]);
+                }
+                $omitidos++;
                 continue;
             }
             $idUsr = (int) $mapInsc[$nf]['id_usuario'];
@@ -1178,7 +2034,7 @@ final class ImportacionAccessExternoService
             self::simularIngresoResultadosParti2017($pdo, $torneoId, $mesasPorClave, $registradoPor);
         }
 
-        return $n;
+        return ['insertados' => $n, 'omitidos' => $omitidos];
     }
 
     /**
@@ -1715,6 +2571,266 @@ final class ImportacionAccessExternoService
         return 'Torneo ' . $slot;
     }
 
+    /**
+     * Metadatos de origen/destino para cada código de situación en importación Access.
+     *
+     * @return array{
+     *   origen_archivo: string,
+     *   origen_tabla_access: string,
+     *   tabla_destino: string,
+     *   campo_destino: string,
+     *   como_resolver: string
+     * }
+     */
+    private static function metaSituacion(string $codigo): array
+    {
+        static $cat = [
+            'cedula_sin_usuario' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas',
+                'tabla_destino' => 'usuarios',
+                'campo_destino' => 'cedula',
+                'como_resolver' => 'Registre el atleta (Afiliación) o ejecute Paso 0: sincronizar atletas → usuarios antes de importar.',
+            ],
+            'cedula_duplicada_archivo' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas',
+                'tabla_destino' => '(archivo — duplicado)',
+                'campo_destino' => 'cedula',
+                'como_resolver' => 'Deje una sola fila por cédula en el export de parejas inscritas.',
+            ],
+            'torneo_invalido' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas',
+                'tabla_destino' => 'tournaments',
+                'campo_destino' => 'torneo (columna archivo)',
+                'como_resolver' => 'Use 1 = hombres y 2 = mujeres en la columna torneo (campeonato por género).',
+            ],
+            'sexo_no_coincide' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas',
+                'tabla_destino' => 'usuarios',
+                'campo_destino' => 'sexo',
+                'como_resolver' => 'Corrija la columna torneo del archivo o actualice el sexo del usuario en la plataforma.',
+            ],
+            'sin_sexo' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas',
+                'tabla_destino' => 'usuarios',
+                'campo_destino' => 'sexo',
+                'como_resolver' => 'Complete el sexo del usuario (M/F) en usuarios/atletas antes de importar torneo por género.',
+            ],
+            'sin_numfvd' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas',
+                'tabla_destino' => 'usuarios',
+                'campo_destino' => 'numfvd',
+                'como_resolver' => 'Asigne numfvd/carnet FVD al usuario o incluya la columna numfvd/pareja en el archivo.',
+            ],
+            'numfvd_discrepancia' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas',
+                'tabla_destino' => 'usuarios',
+                'campo_destino' => 'numfvd',
+                'como_resolver' => 'Unifique numfvd: corrija el archivo Access o actualice usuarios.numfvd (Paso 0 sync).',
+            ],
+            'numfvd_duplicado_archivo' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas',
+                'tabla_destino' => 'inscritos',
+                'campo_destino' => 'numfvd',
+                'como_resolver' => 'Cada numfvd debe aparecer una sola vez por sub-torneo en parejas inscritas.',
+            ],
+            'sin_club' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas',
+                'tabla_destino' => 'clubes',
+                'campo_destino' => 'entidad / id_club',
+                'como_resolver' => 'Cree o vincule un club para la entidad del usuario (clubes.entidad = usuarios.entidad).',
+            ],
+            'columna_faltante' => [
+                'origen_archivo' => 'archivo_importacion',
+                'origen_tabla_access' => '(encabezado del archivo)',
+                'tabla_destino' => '—',
+                'campo_destino' => 'columna requerida',
+                'como_resolver' => 'Agregue la columna indicada al export de Access con el nombre esperado.',
+            ],
+            'numfvd_sin_inscrito' => [
+                'origen_archivo' => 'parti2017',
+                'origen_tabla_access' => 'parti2017 (resultados)',
+                'tabla_destino' => 'inscritos',
+                'campo_destino' => 'numfvd / id_usuario',
+                'como_resolver' => 'Importe primero parejas inscritas (inscritos) o corrija el numfvd en parti2017.',
+            ],
+            'equipo_sin_jugadores_parejas' => [
+                'origen_archivo' => 'clasiequi',
+                'origen_tabla_access' => 'clasiequi (declara equipo) vs Parejas inscritas',
+                'tabla_destino' => 'inscritos',
+                'campo_destino' => 'codigo_equipo',
+                'como_resolver' => 'Agregue en parejas inscritas las filas con el mismo codigo_equipo que en clasiequi.',
+            ],
+            'equipo_exceso_jugadores' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas (vs clasiequi)',
+                'tabla_destino' => 'inscritos',
+                'campo_destino' => 'codigo_equipo',
+                'como_resolver' => 'Reduzca a la cantidad requerida por modalidad o marque suplentes como banca (activo=0).',
+            ],
+            'equipo_faltan_jugadores' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas (vs clasiequi)',
+                'tabla_destino' => 'inscritos',
+                'campo_destino' => 'codigo_equipo',
+                'como_resolver' => 'Agregue las filas faltantes en parejas inscritas con el mismo codigo_equipo.',
+            ],
+            'equipo_titulares_incompletos' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas (columna activo/titular)',
+                'tabla_destino' => 'inscritos',
+                'campo_destino' => 'activo_mesa',
+                'como_resolver' => 'Marque exactamente N titulares (activo=1) por equipo; el resto en banca (activo=0).',
+            ],
+            'parejas_ref_faltante' => [
+                'origen_archivo' => 'clasiequi',
+                'origen_tabla_access' => 'clasiequi',
+                'tabla_destino' => 'parejas_inscritas (archivo)',
+                'campo_destino' => '—',
+                'como_resolver' => 'Suba el archivo parejas inscritas al analizar clasiequi para comparar equipos.',
+            ],
+            'atleta_sin_registro' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas → atletas',
+                'tabla_destino' => 'atletas',
+                'campo_destino' => 'cedula',
+                'como_resolver' => 'Registre la cédula en el padrón atletas antes del Paso 0.',
+            ],
+            'padron_numfvd_desalineado' => [
+                'origen_archivo' => 'padron_atletas',
+                'origen_tabla_access' => 'Comparación atletas (padrón FVD) vs usuarios (plataforma)',
+                'tabla_destino' => 'usuarios',
+                'campo_destino' => 'numfvd',
+                'como_resolver' => 'Fuente de verdad: atletas. Si atletas.numfvd es correcto → «Sincronizar todo el padrón». Si usuarios.numfvd es correcto → corrija atletas.numfvd en el padrón y vuelva a verificar.',
+            ],
+            'padron_sexo_desalineado' => [
+                'origen_archivo' => 'padron_atletas',
+                'origen_tabla_access' => 'Comparación atletas vs usuarios',
+                'tabla_destino' => 'usuarios',
+                'campo_destino' => 'sexo',
+                'como_resolver' => 'Confirme el sexo correcto (M/F). Si atletas es correcto → sincronice. Si usuarios es correcto → corrija atletas.sexo.',
+            ],
+            'padron_entidad_desalineada' => [
+                'origen_archivo' => 'padron_atletas',
+                'origen_tabla_access' => 'Comparación atletas vs usuarios',
+                'tabla_destino' => 'usuarios',
+                'campo_destino' => 'entidad / club_id',
+                'como_resolver' => 'Confirme la asociación correcta. Si atletas.asociacion es correcta → sincronice. Si no → corrija el padrón atletas.',
+            ],
+            'padron_usuario_faltante' => [
+                'origen_archivo' => 'padron_atletas',
+                'origen_tabla_access' => 'Tabla atletas (padrón FVD)',
+                'tabla_destino' => 'usuarios',
+                'campo_destino' => 'cedula',
+                'como_resolver' => 'Pulse «Sincronizar todo el padrón» para crear el usuario desde atletas (numfvd, sexo, entidad).',
+            ],
+            'padron_atleta_sin_cedula' => [
+                'origen_archivo' => 'padron_atletas',
+                'origen_tabla_access' => 'Tabla atletas',
+                'tabla_destino' => 'atletas',
+                'campo_destino' => 'cedula',
+                'como_resolver' => 'Complete o corrija la cédula en el padrón de atletas; sin cédula válida no se puede vincular a usuarios.',
+            ],
+            'banca_exceso_equipo' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas (plantilla > requeridos)',
+                'tabla_destino' => 'inscritos',
+                'campo_destino' => 'activo_mesa',
+                'como_resolver' => 'Al importar, los jugadores que excedan los titulares requeridos se inscriben con activo_mesa=0 (banca).',
+            ],
+            'banca_sin_clasiequi' => [
+                'origen_archivo' => 'parejas_inscritas',
+                'origen_tabla_access' => 'Parejas inscritas (equipo no declarado en clasiequi)',
+                'tabla_destino' => 'inscritos',
+                'campo_destino' => 'activo_mesa / codigo_equipo',
+                'como_resolver' => 'Al importar se inscriben en banca. Agregue el equipo en clasiequi o corrija codigo_equipo en parejas inscritas.',
+            ],
+            'ejec_equipo_sin_club' => [
+                'origen_archivo' => 'clasiequi',
+                'origen_tabla_access' => 'clasiequi (equipos)',
+                'tabla_destino' => 'equipos',
+                'campo_destino' => 'id_club / club',
+                'como_resolver' => 'Corrija la columna club/asociación en clasiequi (debe resolver a un club en la plataforma).',
+            ],
+            'ejec_equipo_sin_nombre' => [
+                'origen_archivo' => 'clasiequi',
+                'origen_tabla_access' => 'clasiequi (equipos)',
+                'tabla_destino' => 'equipos',
+                'campo_destino' => 'nombre_equipo',
+                'como_resolver' => 'Complete el nombre del equipo en clasiequi.',
+            ],
+            'ejec_equipo_sin_codigo' => [
+                'origen_archivo' => 'clasiequi',
+                'origen_tabla_access' => 'clasiequi (equipos)',
+                'tabla_destino' => 'equipos',
+                'campo_destino' => 'codigo_equipo',
+                'como_resolver' => 'Indique código de equipo (columna equipo) en clasiequi, formato NN-NNN.',
+            ],
+            'ejec_partiresul_omitido' => [
+                'origen_archivo' => 'parti2017',
+                'origen_tabla_access' => 'parti2017 (resultados)',
+                'tabla_destino' => 'partiresul',
+                'campo_destino' => 'pareja / numfvd',
+                'como_resolver' => 'El numfvd debe existir en inscritos (importe parejas primero o corrija el carnet en parti2017).',
+            ],
+            'ejec_error_sql' => [
+                'origen_archivo' => 'ejecucion_importacion',
+                'origen_tabla_access' => 'Proceso de copia al torneo',
+                'tabla_destino' => '—',
+                'campo_destino' => '—',
+                'como_resolver' => 'Revise el detalle del error, corrija datos en Access y vuelva a ejecutar.',
+            ],
+        ];
+
+        return $cat[$codigo] ?? [
+            'origen_archivo' => 'desconocido',
+            'origen_tabla_access' => '—',
+            'tabla_destino' => '—',
+            'campo_destino' => '—',
+            'como_resolver' => 'Revise el detalle de la situación.',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $campos
+     * @return array<string, mixed>
+     */
+    private static function armarSituacion(string $codigo, array $campos = []): array
+    {
+        return array_merge(
+            ['codigo' => $codigo, 'tipo' => $codigo],
+            self::metaSituacion($codigo),
+            $campos
+        );
+    }
+
+    /**
+     * @param list<string> $mensajes
+     * @return list<array<string, mixed>>
+     */
+    private static function situacionesDesdeErroresColumnas(string $origenArchivo, string $tablaAccess, array $mensajes): array
+    {
+        $out = [];
+        foreach ($mensajes as $msg) {
+            $out[] = self::armarSituacion('columna_faltante', [
+                'origen_archivo' => $origenArchivo,
+                'origen_tabla_access' => $tablaAccess,
+                'elemento' => (string) $msg,
+                'explicacion' => (string) $msg,
+            ]);
+        }
+
+        return $out;
+    }
+
     /** @param array<string, mixed> $usuario */
     private static function etiquetaEstatusUsuario(array $usuario): string
     {
@@ -1743,9 +2859,134 @@ final class ImportacionAccessExternoService
 
     private static function leyendaIntegridadEquipos(int $jugadoresReq): string
     {
-        return 'Formato titulares/' . $jugadoresReq . ': titulares = jugadores activos para mesas (activo_mesa=1); '
-            . 'puede haber suplentes en banca (activo_mesa=0) con el mismo código de equipo. '
-            . 'Se requieren exactamente ' . $jugadoresReq . ' titulares por equipo.';
+        return 'Se lee parejas inscritas ordenado por equipo. Cada equipo en clasiequi debe tener al menos '
+            . $jugadoresReq . ' jugadores y ' . $jugadoresReq . ' titulares. Si hay más jugadores de los requeridos, '
+            . 'el excedente se importa en banca (activo_mesa=0). Jugadores de equipos no declarados en clasiequi '
+            . 'también van a banca y se reportan por asociación.';
+    }
+
+    /**
+     * @param list<list<string>> $clasiequiRows
+     * @return array<string, true>
+     */
+    private static function codigosEquipoDesdeClasiequi(array $clasiequiRows, ?int $soloSlot): array
+    {
+        $parsed = self::separarCabecera($clasiequiRows, [['equipo', 'codigo_equipo']]);
+        $h = $parsed['header'];
+        $iEq = self::indiceColumna($h, ['equipo', 'codigo_equipo', 'codequipo']);
+        $iTorneo = self::indiceColumnaTorneo($h);
+        $out = [];
+        foreach ($parsed['data'] as $row) {
+            if ($soloSlot !== null && ($iTorneo < 0 || self::slotDesdeFila($row, $iTorneo) !== $soloSlot)) {
+                continue;
+            }
+            $cod = self::normalizarCodigoEquipo($iEq >= 0 ? trim((string) ($row[$iEq] ?? '')) : '');
+            if ($cod !== '') {
+                $out[$cod] = true;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<string, mixed> $reporte
+     * @param array<string, mixed> $incidencia
+     */
+    private static function acumularReporteBanca(
+        array &$reporte,
+        array $incidencia,
+        string $cedula,
+        string $nombre,
+        int $asocCod,
+        ?int $slot
+    ): void {
+        $asocEtiqueta = $asocCod > 0 ? EntidadFvdCatalogo::etiqueta($asocCod) : '—';
+        $key = $asocCod > 0 ? (string) $asocCod : '_sin_asoc';
+        if (!isset($reporte['por_asociacion'][$key])) {
+            $reporte['por_asociacion'][$key] = [
+                'asociacion_codigo' => $asocCod,
+                'asociacion' => $asocEtiqueta,
+                'sin_clasiequi' => 0,
+                'exceso_plantilla' => 0,
+            ];
+        }
+        $motivo = (string) ($incidencia['motivo'] ?? '');
+        if ($motivo === 'sin_clasiequi') {
+            $reporte['por_asociacion'][$key]['sin_clasiequi']++;
+        } else {
+            $reporte['por_asociacion'][$key]['exceso_plantilla']++;
+        }
+        $reporte['total'] = (int) ($reporte['total'] ?? 0) + 1;
+        $reporte['detalle'][] = array_merge($incidencia, [
+            'cedula' => $cedula,
+            'nombre' => $nombre,
+            'asociacion_codigo' => $asocCod,
+            'asociacion' => $asocEtiqueta,
+            'slot' => $slot,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $reporte
+     * @return list<array<string, mixed>>
+     */
+    private static function situacionesDesdeReporteBanca(array $reporte): array
+    {
+        $out = [];
+        foreach ($reporte['detalle'] ?? [] as $d) {
+            $codSit = ($d['motivo'] ?? '') === 'sin_clasiequi' ? 'banca_sin_clasiequi' : 'banca_exceso_equipo';
+            $out[] = self::armarSituacion($codSit, [
+                'cedula' => (string) ($d['cedula'] ?? ''),
+                'nombre' => (string) ($d['nombre'] ?? ''),
+                'codigo_equipo' => (string) ($d['codigo_equipo'] ?? ''),
+                'elemento' => 'cedula=' . (string) ($d['cedula'] ?? '') . ', codigo_equipo=' . (string) ($d['codigo_equipo'] ?? ''),
+                'valor_archivo' => 'parejas inscritas',
+                'valor_sistema' => 'activo_mesa=0 (banca)',
+                'explicacion' => (string) ($d['explicacion'] ?? ''),
+                'asociacion' => (string) ($d['asociacion'] ?? '—'),
+                'slot' => $d['slot'] ?? null,
+            ]);
+        }
+
+        return $out;
+    }
+
+    /** @param array<int, array<string, mixed>> $porTorneo */
+    private static function fusionarReporteBancaPorTorneo(array $porTorneo): array
+    {
+        $fusion = ['total' => 0, 'por_asociacion' => [], 'detalle' => []];
+        foreach ($porTorneo as $slot => $r) {
+            $rb = $r['reporte_banca'] ?? [];
+            if ($rb === []) {
+                continue;
+            }
+            $fusion['total'] += (int) ($rb['total'] ?? 0);
+            foreach ($rb['detalle'] ?? [] as $d) {
+                $d['slot'] = $d['slot'] ?? $slot;
+                $fusion['detalle'][] = $d;
+            }
+            foreach ($rb['por_asociacion'] ?? [] as $key => $bloque) {
+                if (!isset($fusion['por_asociacion'][$key])) {
+                    $fusion['por_asociacion'][$key] = $bloque;
+                    continue;
+                }
+                $fusion['por_asociacion'][$key]['sin_clasiequi'] += (int) ($bloque['sin_clasiequi'] ?? 0);
+                $fusion['por_asociacion'][$key]['exceso_plantilla'] += (int) ($bloque['exceso_plantilla'] ?? 0);
+            }
+        }
+        $fusion['situaciones_detalle'] = self::situacionesDesdeReporteBanca($fusion);
+
+        return $fusion;
+    }
+
+    private static function equipoEnClasiequi(?array $codigosClasiequi, string $cod): bool
+    {
+        if ($codigosClasiequi === null) {
+            return true;
+        }
+
+        return isset($codigosClasiequi[$cod]);
     }
 
     /** @param list<string> $hNorm */
@@ -1757,7 +2998,6 @@ final class ImportacionAccessExternoService
             'titular',
             'inactivo_mesa',
             'banca',
-            'mesa',
             'estatus_mesa',
         ]);
     }
@@ -1785,21 +3025,60 @@ final class ImportacionAccessExternoService
 
     /**
      * @param array<string, int> $titularesAsignadosPorCod
+     * @param-out array<string, mixed>|null $incidenciaBanca
      */
     private static function resolverActivoMesaFilaPareja(
         array $row,
         int $iActivo,
         string $cod,
         int $jugadoresReq,
-        array &$titularesAsignadosPorCod
+        array &$titularesAsignadosPorCod,
+        bool $codEnClasiequi = true,
+        ?array &$incidenciaBanca = null
     ): int {
-        if ($iActivo >= 0) {
-            return self::parseActivoMesaCelda((string) ($row[$iActivo] ?? '1'));
+        $incidenciaBanca = null;
+
+        if (!$codEnClasiequi) {
+            $incidenciaBanca = [
+                'motivo' => 'sin_clasiequi',
+                'codigo_equipo' => $cod,
+                'explicacion' => 'Equipo ' . $cod . ' no está declarado en clasiequi; el jugador se importará en banca.',
+            ];
+
+            return InscritosHelper::ACTIVO_MESA_BANCA;
         }
+
         $n = (int) ($titularesAsignadosPorCod[$cod] ?? 0);
+
+        if ($iActivo >= 0) {
+            $desea = self::parseActivoMesaCelda((string) ($row[$iActivo] ?? '1'));
+            if ($desea === InscritosHelper::ACTIVO_MESA_SI) {
+                if ($n >= $jugadoresReq) {
+                    $incidenciaBanca = [
+                        'motivo' => 'exceso_plantilla',
+                        'codigo_equipo' => $cod,
+                        'explicacion' => 'Equipo ' . $cod . ' ya tiene ' . $jugadoresReq . ' titulares; este jugador irá a banca.',
+                    ];
+
+                    return InscritosHelper::ACTIVO_MESA_BANCA;
+                }
+                $titularesAsignadosPorCod[$cod] = $n + 1;
+
+                return InscritosHelper::ACTIVO_MESA_SI;
+            }
+
+            return InscritosHelper::ACTIVO_MESA_BANCA;
+        }
+
         $activo = $n < $jugadoresReq ? InscritosHelper::ACTIVO_MESA_SI : InscritosHelper::ACTIVO_MESA_BANCA;
         if ($activo === InscritosHelper::ACTIVO_MESA_SI) {
             $titularesAsignadosPorCod[$cod] = $n + 1;
+        } else {
+            $incidenciaBanca = [
+                'motivo' => 'exceso_plantilla',
+                'codigo_equipo' => $cod,
+                'explicacion' => 'Equipo ' . $cod . ' supera ' . $jugadoresReq . ' titulares; este jugador irá a banca.',
+            ];
         }
 
         return $activo;
@@ -1807,13 +3086,15 @@ final class ImportacionAccessExternoService
 
     /**
      * @param list<list<string>> $parejasRows
-     * @return array<string, array{titulares: int, total: int, jugadores: list<array<string, mixed>>}>
+     * @param array<string, true>|null $codigosClasiequi null = no validar clasiequi
+     * @return array{plantilla: array<string, array{titulares: int, total: int, jugadores: list<array<string, mixed>>}>, reporte_banca: array<string, mixed>}
      */
     private static function mapaPlantillaDesdeParejas(
         PDO $pdo,
         array $parejasRows,
         int $jugadoresReq,
-        ?int $soloSlot
+        ?int $soloSlot,
+        ?array $codigosClasiequi = null
     ): array {
         $parsedP = self::separarCabecera($parejasRows, [['cedula', 'ced']]);
         $hP = $parsedP['header'];
@@ -1826,9 +3107,7 @@ final class ImportacionAccessExternoService
         $iTorneoP = self::indiceColumnaTorneo($hP);
         $iActivo = self::indiceColumnaActivoMesa($hP);
 
-        $map = [];
-        $titularesAuto = [];
-
+        $filasOrdenadas = [];
         foreach ($parsedP['data'] as $row) {
             if ($soloSlot !== null && ($iTorneoP < 0 || self::slotDesdeFila($row, $iTorneoP) !== $soloSlot)) {
                 continue;
@@ -1837,10 +3116,38 @@ final class ImportacionAccessExternoService
             if ($cod === '') {
                 continue;
             }
+            $filasOrdenadas[] = ['cod' => $cod, 'row' => $row];
+        }
+        usort($filasOrdenadas, static function (array $a, array $b): int {
+            $cmp = strcmp($a['cod'], $b['cod']);
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+
+            return 0;
+        });
+
+        $map = [];
+        $titularesAuto = [];
+        $reporteBanca = ['total' => 0, 'por_asociacion' => [], 'detalle' => []];
+
+        foreach ($filasOrdenadas as $item) {
+            $cod = $item['cod'];
+            $row = $item['row'];
             if (!isset($map[$cod])) {
                 $map[$cod] = ['titulares' => 0, 'total' => 0, 'jugadores' => []];
             }
-            $activo = self::resolverActivoMesaFilaPareja($row, $iActivo, $cod, $jugadoresReq, $titularesAuto);
+            $incidencia = null;
+            $enClasiequi = self::equipoEnClasiequi($codigosClasiequi, $cod);
+            $activo = self::resolverActivoMesaFilaPareja(
+                $row,
+                $iActivo,
+                $cod,
+                $jugadoresReq,
+                $titularesAuto,
+                $enClasiequi,
+                $incidencia
+            );
             $map[$cod]['total']++;
             if ($activo === InscritosHelper::ACTIVO_MESA_SI) {
                 $map[$cod]['titulares']++;
@@ -1848,6 +3155,9 @@ final class ImportacionAccessExternoService
 
             $ced = $iCedP >= 0 ? self::normalizarCedula((string) ($row[$iCedP] ?? '')) : '';
             $asocCod = $iAsoc >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iAsoc] ?? '')) : 0;
+            if ($asocCod <= 0 && preg_match('/^(\d{1,3})-/', $cod, $mAsoc)) {
+                $asocCod = (int) $mAsoc[1];
+            }
             $nf = $iNumP >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iNumP] ?? '')) : 0;
             $nombre = $iNomP >= 0 ? trim((string) ($row[$iNomP] ?? '')) : '';
             if ($ced !== '' && $nombre === '') {
@@ -1859,6 +3169,9 @@ final class ImportacionAccessExternoService
                     }
                 }
             }
+            if ($incidencia !== null) {
+                self::acumularReporteBanca($reporteBanca, $incidencia, $ced, $nombre, $asocCod, $soloSlot);
+            }
             $map[$cod]['jugadores'][] = [
                 'cedula' => $ced,
                 'nombre' => $nombre,
@@ -1867,10 +3180,55 @@ final class ImportacionAccessExternoService
                 'asociacion' => $asocCod > 0 ? EntidadFvdCatalogo::etiqueta($asocCod) : '—',
                 'activo_mesa' => $activo,
                 'rol' => $activo === InscritosHelper::ACTIVO_MESA_SI ? 'Titular' : 'Banca',
+                'motivo_banca' => $incidencia['motivo'] ?? null,
             ];
         }
 
-        return $map;
+        foreach ($map as &$entry) {
+            usort($entry['jugadores'], static function (array $a, array $b): int {
+                $na = (int) ($a['numfvd'] ?? 0);
+                $nb = (int) ($b['numfvd'] ?? 0);
+                if ($na !== $nb) {
+                    return $na <=> $nb;
+                }
+
+                return strcmp((string) ($a['cedula'] ?? ''), (string) ($b['cedula'] ?? ''));
+            });
+        }
+        unset($entry);
+        ksort($map);
+
+        return ['plantilla' => $map, 'reporte_banca' => $reporteBanca];
+    }
+
+    /**
+     * Resumen parejas inscritas agrupado por código de equipo (ordenado).
+     *
+     * @param array<string, array{titulares: int, total: int, jugadores: list<array<string, mixed>>}> $plantilla
+     * @return list<array<string, mixed>>
+     */
+    private static function resumenParejasPorEquipo(array $plantilla, int $jugadoresReq, ?array $codigosClasiequi = null): array
+    {
+        $out = [];
+        foreach ($plantilla as $cod => $info) {
+            $total = (int) ($info['total'] ?? 0);
+            $titulares = (int) ($info['titulares'] ?? 0);
+            $banca = max(0, $total - $titulares);
+            $enClasiequi = self::equipoEnClasiequi($codigosClasiequi, $cod);
+            $out[] = [
+                'codigo_equipo' => $cod,
+                'total' => $total,
+                'titulares' => $titulares,
+                'banca' => $banca,
+                'requeridos' => $jugadoresReq,
+                'en_clasiequi' => $enClasiequi,
+                'ok' => $enClasiequi && $total >= $jugadoresReq && $titulares >= $jugadoresReq,
+                'aviso_banca' => $banca > 0 || !$enClasiequi,
+                'jugadores' => $info['jugadores'] ?? [],
+            ];
+        }
+
+        return $out;
     }
 
     /** @return array<string, int> */
@@ -1942,23 +3300,35 @@ final class ImportacionAccessExternoService
         string $cedula,
         ?array $usuario,
         array $meta,
-        string $explicacion
+        string $explicacion,
+        ?int $filaArchivo = null,
+        ?string $valorArchivo = null,
+        ?string $valorSistema = null
     ): array {
-        return [
-            'tipo' => $tipo,
-            'cedula' => $cedula,
-            'nombre' => (string) ($meta['nombre'] ?? ''),
-            'asociacion_codigo' => (int) ($meta['asociacion_codigo'] ?? 0),
-            'asociacion' => (string) ($meta['asociacion'] ?? '—'),
-            'torneo_slot' => $meta['torneo_slot'] ?? null,
-            'torneo_etiqueta' => (string) ($meta['torneo_etiqueta'] ?? ''),
-            'numfvd_archivo' => (int) ($meta['numfvd_archivo'] ?? 0),
-            'numfvd_usuario' => $usuario !== null ? (int) ($usuario['numfvd'] ?? 0) : null,
-            'sexo' => $meta['sexo'] ?? null,
-            'codigo_equipo' => (string) ($meta['codigo_equipo'] ?? ''),
-            'estatus' => $usuario !== null ? self::etiquetaEstatusUsuario($usuario) : 'Sin cuenta en plataforma',
-            'explicacion' => $explicacion,
-        ];
+        $elemento = $cedula !== ''
+            ? 'cedula=' . $cedula
+            : ((string) ($meta['codigo_equipo'] ?? '') !== '' ? 'codigo_equipo=' . $meta['codigo_equipo'] : '—');
+
+        return array_merge(
+            self::armarSituacion($tipo, [
+                'cedula' => $cedula,
+                'nombre' => (string) ($meta['nombre'] ?? ''),
+                'asociacion_codigo' => (int) ($meta['asociacion_codigo'] ?? 0),
+                'asociacion' => (string) ($meta['asociacion'] ?? '—'),
+                'torneo_slot' => $meta['torneo_slot'] ?? null,
+                'torneo_etiqueta' => (string) ($meta['torneo_etiqueta'] ?? ''),
+                'numfvd_archivo' => (int) ($meta['numfvd_archivo'] ?? 0),
+                'numfvd_usuario' => $usuario !== null ? (int) ($usuario['numfvd'] ?? 0) : null,
+                'sexo' => $meta['sexo'] ?? null,
+                'codigo_equipo' => (string) ($meta['codigo_equipo'] ?? ''),
+                'estatus' => $usuario !== null ? self::etiquetaEstatusUsuario($usuario) : 'Sin cuenta en plataforma',
+                'fila_archivo' => $filaArchivo,
+                'elemento' => $elemento,
+                'valor_archivo' => $valorArchivo,
+                'valor_sistema' => $valorSistema,
+                'explicacion' => $explicacion,
+            ])
+        );
     }
 
     /** @param array<string, mixed> $stats */
@@ -1966,10 +3336,12 @@ final class ImportacionAccessExternoService
     {
         $tipos = [
             'cedula_sin_usuario' => ['label' => 'Cédula sin usuario', 'items' => []],
+            'cedula_duplicada_archivo' => ['label' => 'Cédula duplicada en archivo', 'items' => []],
             'sexo_no_coincide' => ['label' => 'Sexo ≠ torneo del archivo', 'items' => []],
             'sin_sexo' => ['label' => 'Usuario sin sexo', 'items' => []],
             'sin_numfvd' => ['label' => 'Sin numfvd FVD', 'items' => []],
             'numfvd_discrepancia' => ['label' => 'numfvd archivo ≠ usuario', 'items' => []],
+            'numfvd_duplicado_archivo' => ['label' => 'numfvd duplicado en archivo', 'items' => []],
             'sin_club' => ['label' => 'Sin club para entidad', 'items' => []],
             'torneo_invalido' => ['label' => 'Torneo inválido en archivo', 'items' => []],
         ];
@@ -1998,7 +3370,7 @@ final class ImportacionAccessExternoService
             'bloqueados' => $bloqueados,
             'filas_leidas' => (int) ($stats['filas_leidas'] ?? 0),
             'tipos' => $out,
-            'nota' => 'Listos para cargar = filas válidas que aún no están inscritas. Las divergencias impiden importar hasta corregirlas.',
+            'nota' => 'Listos para cargar = filas válidas que aún no están inscritas. Cada divergencia indica origen (archivo Access), tabla destino MySQL, elemento y cómo resolver.',
         ];
     }
 
@@ -2006,12 +3378,35 @@ final class ImportacionAccessExternoService
     private static function codigoEquipoDesdeFilaPareja(array $row, int $iCod, int $iAsoc, int $iEqN): string
     {
         $cod = $iCod >= 0 ? trim((string) ($row[$iCod] ?? '')) : '';
-        if ($cod === '' && $iAsoc >= 0 && $iEqN >= 0) {
-            $asoc = (int) preg_replace('/\D/', '', (string) ($row[$iAsoc] ?? ''));
-            $eq = (int) preg_replace('/\D/', '', (string) ($row[$iEqN] ?? ''));
-            if ($asoc > 0 && $eq > 0) {
-                $cod = sprintf('%03d-%03d', $asoc, $eq);
+        if ($cod !== '') {
+            return self::normalizarCodigoEquipo($cod);
+        }
+        if ($iEqN >= 0) {
+            $rawEq = trim((string) ($row[$iEqN] ?? ''));
+            if ($rawEq !== '' && preg_match('/^\d{1,3}-\d{1,3}$/', $rawEq)) {
+                return self::normalizarCodigoEquipo($rawEq);
             }
+        }
+        if ($iAsoc >= 0 && $iEqN >= 0) {
+            $asoc = (int) preg_replace('/\D/', '', (string) ($row[$iAsoc] ?? ''));
+            $eqRaw = trim((string) ($row[$iEqN] ?? ''));
+            $eq = (int) preg_replace('/\D/', '', $eqRaw);
+            if ($asoc > 0 && $eq > 0 && !preg_match('/^\d{1,3}-\d{1,3}$/', $eqRaw)) {
+                return self::normalizarCodigoEquipo(sprintf('%d-%d', $asoc, $eq));
+            }
+        }
+
+        return '';
+    }
+
+    private static function normalizarCodigoEquipo(string $cod): string
+    {
+        $cod = trim($cod);
+        if ($cod === '') {
+            return '';
+        }
+        if (preg_match('/^(\d{1,3})-(\d{1,3})$/', $cod, $m)) {
+            return sprintf('%02d-%03d', (int) $m[1], (int) $m[2]);
         }
 
         return $cod;
@@ -2021,7 +3416,7 @@ final class ImportacionAccessExternoService
      * @param list<list<string>> $clasiequiRows
      * @return array<string, array{nombre_equipo: string, id_club: int, estatus: ?int}>
      */
-    private static function mapaMetaClasiequi(array $clasiequiRows, ?int $soloSlot): array
+    private static function mapaMetaClasiequi(PDO $pdo, array $clasiequiRows, ?int $soloSlot): array
     {
         $parsed = self::separarCabecera($clasiequiRows, [['equipo', 'codigo_equipo']]);
         $h = $parsed['header'];
@@ -2035,14 +3430,15 @@ final class ImportacionAccessExternoService
             if ($soloSlot !== null && ($iTorneo < 0 || self::slotDesdeFila($row, $iTorneo) !== $soloSlot)) {
                 continue;
             }
-            $cod = $iEq >= 0 ? trim((string) ($row[$iEq] ?? '')) : '';
+            $cod = self::normalizarCodigoEquipo($iEq >= 0 ? trim((string) ($row[$iEq] ?? '')) : '');
             if ($cod === '') {
                 continue;
             }
             $club = $iClub >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iClub] ?? '')) : 0;
+            $idClubResuelto = $club > 0 ? (int) (self::resolverIdClubColumnaAccess($pdo, $club) ?? 0) : 0;
             $map[$cod] = [
                 'nombre_equipo' => $iNom >= 0 ? trim((string) ($row[$iNom] ?? '')) : '',
-                'id_club' => $club,
+                'id_club' => $idClubResuelto > 0 ? $idClubResuelto : $club,
                 'asociacion' => $club > 0 ? EntidadFvdCatalogo::etiqueta($club) : '—',
                 'estatus' => $iEst >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iEst] ?? '')) : null,
             ];
@@ -2069,18 +3465,32 @@ final class ImportacionAccessExternoService
         if ($asocCod <= 0 && preg_match('/^(\d{1,3})-(\d+)/', $cod, $m)) {
             $asocCod = (int) $m[1];
         }
-        $diff = $titulares - $jugadoresReq;
-        if ($titulares > $jugadoresReq) {
-            $explicacion = 'Hay ' . $titulares . ' titulares (activos para mesas); deben ser exactamente '
-                . $jugadoresReq . '. Plantilla total: ' . $totalPlantilla . ' jugadores.';
-        } elseif ($titulares < $jugadoresReq) {
-            $explicacion = 'Hay ' . $titulares . ' titulares; faltan ' . abs($diff)
-                . ' para completar el equipo. Plantilla total: ' . $totalPlantilla . '.';
+        $diffTotal = $totalPlantilla - $jugadoresReq;
+        $diffTit = $titulares - $jugadoresReq;
+        if ($totalPlantilla === 0) {
+            $codSit = 'equipo_sin_jugadores_parejas';
+            $explicacion = 'clasiequi declara equipo ' . $cod . ' pero parejas inscritas no tiene filas con ese codigo_equipo.';
+        } elseif ($totalPlantilla > $jugadoresReq && $titulares >= $jugadoresReq) {
+            $codSit = '';
+            $explicacion = '';
+        } elseif ($totalPlantilla > $jugadoresReq) {
+            $codSit = 'equipo_titulares_incompletos';
+            $explicacion = 'Hay ' . $totalPlantilla . ' jugadores en parejas pero solo ' . $titulares
+                . ' titulares (requeridos ' . $jugadoresReq . '). El excedente irá a banca al importar.';
+        } elseif ($totalPlantilla < $jugadoresReq) {
+            $codSit = 'equipo_faltan_jugadores';
+            $explicacion = 'Hay ' . $totalPlantilla . ' jugador(es) en parejas; faltan '
+                . abs($diffTotal) . ' para completar el equipo declarado en clasiequi.';
+        } elseif ($titulares !== $jugadoresReq) {
+            $codSit = 'equipo_titulares_incompletos';
+            $explicacion = 'Cantidad en parejas OK (' . $totalPlantilla . '), pero titulares '
+                . $titulares . '/' . $jugadoresReq . ' (revise columna activo/titular/banca).';
         } else {
+            $codSit = '';
             $explicacion = '';
         }
 
-        return [
+        $base = [
             'codigo_equipo' => $cod,
             'nombre_equipo' => (string) ($meta['nombre_equipo'] ?? ''),
             'asociacion_codigo' => $asocCod,
@@ -2094,13 +3504,24 @@ final class ImportacionAccessExternoService
             'jugadores_asignados' => $titulares,
             'jugadores_plantilla' => $totalPlantilla,
             'jugadores_requeridos' => $jugadoresReq,
-            'formato' => $titulares . '/' . $jugadoresReq,
-            'formato_plantilla' => $totalPlantilla . ' en plantilla',
-            'diferencia' => $diff,
+            'formato' => $totalPlantilla . '/' . $jugadoresReq,
+            'formato_titulares' => $titulares . '/' . $jugadoresReq,
+            'formato_plantilla' => $totalPlantilla . ' en parejas',
+            'diferencia' => $diffTotal,
+            'diferencia_titulares' => $diffTit,
             'explicacion' => $explicacion,
             'jugadores' => $jugadores,
             'slot' => $slot,
+            'elemento' => 'codigo_equipo=' . $cod,
+            'valor_archivo' => 'clasiequi: equipo=' . $cod . ', nombre=' . (string) ($meta['nombre_equipo'] ?? ''),
+            'valor_sistema' => 'parejas: ' . $totalPlantilla . ' filas, ' . $titulares . ' titulares',
         ];
+
+        if ($codSit !== '') {
+            return array_merge($base, self::armarSituacion($codSit, []));
+        }
+
+        return $base;
     }
 
     /** @param array<string, mixed> $det */
@@ -2114,7 +3535,8 @@ final class ImportacionAccessExternoService
         $nomPart = $nom !== '' ? ' «' . $nom . '»' : '';
 
         return $pref . (string) ($det['codigo_equipo'] ?? '') . $nomPart
-            . ' → ' . (string) ($det['formato'] ?? '') . ' jugadores';
+            . ' → parejas ' . (string) ($det['formato'] ?? '')
+            . ' (tit. ' . (string) ($det['formato_titulares'] ?? '') . ')';
     }
 
     /** @param array<int, array<string, mixed>> $porTorneo */

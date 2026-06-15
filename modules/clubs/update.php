@@ -44,7 +44,7 @@ try {
     
     // Manejar upload de nuevo logo
     if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
-        $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         $extension = strtolower(pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION));
         
         if (!in_array($extension, $allowed)) {

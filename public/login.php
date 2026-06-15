@@ -33,7 +33,7 @@ if (isset($_SESSION['user'])) {
     $entry_base = AppHelpers::getRequestEntryUrl();
     if ($return_url && (strpos($return_url, '?') !== false || strpos($return_url, '.php') !== false)) {
         $target = (strpos($return_url, 'http') === 0 || strpos($return_url, '/') === 0)
-            ? $return_url
+            ? AppHelpers::canonicalizeStandaloneUrl($return_url)
             : $entry_base . '/' . ltrim($return_url, '/');
         header("Location: " . $target, true, 302);
     } else {
@@ -50,7 +50,9 @@ if ($from_invitation_flow) {
     require_once __DIR__ . '/../lib/app_helpers.php';
     $entry_base = AppHelpers::getRequestEntryUrl();
     if ($return_url !== '') {
-        $_SESSION['url_retorno'] = (strpos($return_url, 'http') === 0 || strpos($return_url, '/') === 0) ? $return_url : rtrim($entry_base, '/') . '/' . ltrim($return_url, '/');
+        $_SESSION['url_retorno'] = (strpos($return_url, 'http') === 0 || strpos($return_url, '/') === 0)
+            ? AppHelpers::canonicalizeStandaloneUrl($return_url)
+            : rtrim($entry_base, '/') . '/' . ltrim($return_url, '/');
     }
     if (empty($_SESSION['invitation_token']) && !empty($_COOKIE['invitation_token']) && strlen(trim($_COOKIE['invitation_token'])) >= 32) {
         $_SESSION['invitation_token'] = trim($_COOKIE['invitation_token']);

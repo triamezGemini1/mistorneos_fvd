@@ -24,7 +24,9 @@ $kpi_torneos_activos = (int)($stats['torneos_activos'] ?? 0);
 
 $kpi_proximos = (int)($stats['torneos_por_realizar'] ?? 0);
 
-$fvd_show_atletas_cintillo = true;
+$fvd_show_atletas_cintillo = empty($torneos_solo ?? false);
+
+$dashboard_subtitle = null;
 
 $fvd_torneos_dias_ventana = 15;
 
@@ -101,4 +103,3 @@ $fvd_torneos_tabla = DashboardData::filtrarTorneosHomeDashboard(
     <?php include $views_dashboard . '/_fvd_torneos_home_section.php'; ?>
 
 </div>
-

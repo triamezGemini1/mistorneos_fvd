@@ -3,12 +3,35 @@
  * Mejora UX con navegación fluida, transiciones y carga dinámica
  */
 
-const { createApp, ref, computed, onMounted } = Vue;
+const { createApp, ref, computed, onMounted, nextTick } = Vue;
+
+/** Scroll a ancla de landing tras montar Vue (p. ej. retorno desde asociacion_detalle.php). */
+function scrollToLandingHash(retry = 0) {
+    const params = new URLSearchParams(window.location.search);
+    const id = (window.location.hash || '').replace(/^#/, '').trim()
+        || (params.get('section') || '').trim();
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (el) {
+        requestAnimationFrame(() => {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        return;
+    }
+    if (retry < 24) {
+        setTimeout(() => scrollToLandingHash(retry + 1), 120);
+    }
+}
 
 const MODALIDADES = { 1: 'Individual', 2: 'Parejas', 3: 'Equipos' };
 const CLASES = { 1: 'Torneo', 2: 'Campeonato' };
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS_SEMANA = ['Do','Lu','Ma','Mi','Ju','Vi','Sa'];
+const RANKING_SUBS = [
+    { slug: 'sub12', titulo: 'Sub 12' },
+    { slug: 'sub15', titulo: 'Sub 15' },
+    { slug: 'sub18', titulo: 'Sub 18' },
+];
 
 function escapeHtml(s) {
     if (!s) return '';
@@ -65,6 +88,42 @@ const LandingContent = {
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
 
+        const urlRankingOficial = (slug, genero) => {
+            const params = new URLSearchParams({ genero: genero === 'F' ? 'F' : 'M' });
+            if (slug && slug !== 'absoluto') params.set('categoria', slug);
+            return props.baseUrl + 'ranking_atletas.php?' + params.toString();
+        };
+
+        const podiosAsociaciones = computed(() => props.data?.podios_asociaciones || { criterio: '', resumen: [], detalle: [] });
+        const podiosResumen = computed(() => podiosAsociaciones.value.resumen || []);
+        const asociacionesActivas = computed(() => props.data?.asociaciones_activas || []);
+        const asocLogosFailed = ref(new Set());
+        const urlAsociacionLogo = (asoc) => {
+            if (!asoc || asocLogosFailed.value.has(asoc.id)) return '';
+            if (asoc.logo_url) return asoc.logo_url;
+            if (asoc.logo_path && props.baseUrl) {
+                return props.baseUrl + 'view_image.php?path=' + encodeURIComponent(asoc.logo_path);
+            }
+            return '';
+        };
+        const onAsocLogoError = (id) => {
+            const next = new Set(asocLogosFailed.value);
+            next.add(id);
+            asocLogosFailed.value = next;
+        };
+        const ASOC_BADGE_TONES = ['fvd-asoc-badge--blue', 'fvd-asoc-badge--amber', 'fvd-asoc-badge--indigo', 'fvd-asoc-badge--sky'];
+        const badgeToneClass = (idx) => ASOC_BADGE_TONES[idx % ASOC_BADGE_TONES.length];
+        const urlAsociacionDetalle = (id) => props.baseUrl + 'asociacion_detalle.php?id=' + encodeURIComponent(id);
+        const podioAsociacionSeleccionada = ref(null);
+        const seleccionarPodioAsociacion = (row) => {
+            if (!row) return;
+            if (podioAsociacionSeleccionada.value && podioAsociacionSeleccionada.value.entidad_id === row.entidad_id) {
+                podioAsociacionSeleccionada.value = null;
+                return;
+            }
+            podioAsociacionSeleccionada.value = row;
+        };
+
         const renderTarjetaEvento = (ev, variant = 'purple') => {
             const esPasado = new Date(ev.fechator) < new Date();
             const permiteOnline = parseInt(ev.permite_inscripcion_linea || 1) === 1;
@@ -81,9 +140,13 @@ const LandingContent = {
             const btnColor = variant === 'purple' ? 'from-yellow-400 to-orange-500 text-purple-900' : variant === 'blue' ? 'from-yellow-400 to-orange-500 text-blue-900' : 'from-yellow-400 text-gray-900';
 
             let html = `<div class="bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 overflow-hidden border-2 border-white/20 hover:border-yellow-400 transform hover:-translate-y-2 text-center">`;
-            html += `<div class="w-full h-48 bg-white/20 flex flex-col items-center justify-center p-4">`;
-            if (ev.logo_url) html += `<img src="${escapeHtml(ev.logo_url)}" alt="" class="landing-logo-org object-contain mb-2" loading="lazy">`;
-            html += `<span class="text-white text-xl font-bold">${escapeHtml(ev.organizacion_nombre || 'Organizador')}</span></div>`;
+            if (ev.portada_url) {
+                html += `<div class="w-full h-48 bg-cover bg-center" style="background-image:url('${escapeHtml(ev.portada_url)}')"></div>`;
+            } else {
+                html += `<div class="w-full h-48 bg-white/20 flex flex-col items-center justify-center p-4">`;
+                if (ev.logo_url) html += `<img src="${escapeHtml(ev.logo_url)}" alt="" class="landing-logo-org object-contain mb-2" loading="lazy">`;
+                html += `<span class="text-white text-xl font-bold">${escapeHtml(ev.organizacion_nombre || 'Organizador')}</span></div>`;
+            }
             html += `<div class="p-6 text-center">`;
             html += `<div class="inline-flex items-center px-3 py-1 bg-yellow-400 ${variant === 'purple' ? 'text-purple-900' : variant === 'blue' ? 'text-blue-900' : 'text-gray-900'} rounded-full text-sm font-bold mb-4"><i class="fas fa-calendar mr-2"></i>${fechaDmY}</div>`;
             html += `<h5 class="text-xl font-bold text-white mb-2">${nombreTorneo}</h5>`;
@@ -94,6 +157,9 @@ const LandingContent = {
             if (ev.costo > 0) html += `<span class="px-3 py-1 bg-green-500/80 text-white rounded-full text-xs font-semibold">$${parseFloat(ev.costo).toFixed(2)}</span>`;
             html += `<span class="px-3 py-1 bg-yellow-400 ${variant === 'purple' ? 'text-purple-900' : 'text-gray-900'} rounded-full text-xs font-bold"><i class="fas fa-users mr-1"></i>${ev.total_inscritos||0} inscritos</span>`;
             html += `</div>`;
+
+            const detalleUrl = ev.detalle_url || `${base}torneo_detalle.php?torneo_id=${ev.id}`;
+            html += `<a href="${detalleUrl}" class="block w-full px-4 py-2 mb-2 bg-white/15 text-white font-semibold rounded-lg hover:bg-white/25 transition-all text-center border border-white/30"><i class="fas fa-info-circle mr-2"></i>Ver ficha del torneo</a>`;
 
             if (esPasado) {
                 html += `<a href="${base}evento_resultados.php?torneo_id=${ev.id}" class="block w-full px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-all text-center shadow-lg"><i class="fas fa-trophy mr-2"></i>Ver Resultados</a>`;
@@ -211,6 +277,17 @@ const LandingContent = {
             commentErrors,
             inscripcionLineaPublica: computed(() => props.inscripcionLineaPublica !== false),
             scrollToSection,
+            urlRankingOficial,
+            rankingSubs: RANKING_SUBS,
+            podiosAsociaciones,
+            podiosResumen,
+            podioAsociacionSeleccionada,
+            seleccionarPodioAsociacion,
+            asociacionesActivas,
+            urlAsociacionLogo,
+            onAsocLogoError,
+            badgeToneClass,
+            urlAsociacionDetalle,
             renderTarjetaEvento,
             viewEventPhotos,
             enviarComentario,
@@ -249,6 +326,8 @@ createApp({
                 error.value = 'No se pudo conectar a la API. ' + (err.message || 'Verifica tu conexión.');
             } finally {
                 loading.value = false;
+                await nextTick();
+                scrollToLandingHash();
             }
         };
 
@@ -264,6 +343,7 @@ createApp({
         onMounted(() => {
             if (window.APP_CONFIG?.logoUrl) logoUrl.value = window.APP_CONFIG.logoUrl;
             cargarDatos();
+            window.addEventListener('hashchange', () => scrollToLandingHash());
         });
 
         return { loading, error, data, baseUrl, logoUrl: effectiveLogoUrl, inscripcionLineaPublica, cargarDatos };

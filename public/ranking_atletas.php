@@ -8,42 +8,43 @@ require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../lib/app_helpers.php';
 require_once __DIR__ . '/../lib/RankingAtletasPublicoService.php';
+require_once __DIR__ . '/../lib/RankingCategoriaFvdHelper.php';
 
 $pdo = DB::pdo();
 $base_public = rtrim(class_exists('AppHelpers') ? AppHelpers::getPublicUrl() : (rtrim(app_base_url(), '/') . '/public'), '/') . '/';
 
 require_once __DIR__ . '/includes/ranking_atletas_context.php';
 
-$ranking_atletas_qs = static function (array $overrides = []) use ($genero, $organizacion_id, $vista): string {
+$ranking_atletas_qs = static function (array $overrides = []) use ($genero, $vista, $categoria): string {
     $p = ['genero' => $genero];
-    if ($organizacion_id > 0) {
-        $p['organizacion_id'] = $organizacion_id;
+    if ($categoria !== RankingCategoriaFvdHelper::ABSOLUTO) {
+        $p['categoria'] = $categoria;
     }
     if ($vista !== 'resumen') {
         $p['vista'] = $vista;
     }
     $p = array_merge($p, $overrides);
-    if ((int) ($p['organizacion_id'] ?? 0) <= 0) {
-        unset($p['organizacion_id']);
-    }
     if (($p['vista'] ?? 'resumen') === 'resumen') {
         unset($p['vista']);
     }
-
-    return http_build_query($p);
-};
-
-$ranking_pdf_qs = static function () use ($genero, $organizacion_id): string {
-    $p = ['genero' => $genero];
-    if ($organizacion_id > 0) {
-        $p['organizacion_id'] = $organizacion_id;
+    if (($p['categoria'] ?? RankingCategoriaFvdHelper::ABSOLUTO) === RankingCategoriaFvdHelper::ABSOLUTO) {
+        unset($p['categoria']);
     }
 
     return http_build_query($p);
 };
 
-$titulo_genero = $genero === 'F' ? 'Femenino' : 'Masculino';
-$page_title = 'Ranking de atletas — ' . $titulo_genero . ' — La Estación del Dominó';
+$ranking_pdf_qs = static function () use ($genero, $categoria): string {
+    $p = ['genero' => $genero];
+    if ($categoria !== RankingCategoriaFvdHelper::ABSOLUTO) {
+        $p['categoria'] = $categoria;
+    }
+
+    return http_build_query($p);
+};
+
+$titulo_categoria = RankingCategoriaFvdHelper::etiqueta($categoria, $genero);
+$page_title = RankingCategoriaFvdHelper::tituloRanking($categoria, $genero) . ' — La Estación del Dominó';
 
 $modalidades = [1 => 'Individual', 2 => 'Parejas', 3 => 'Equipos', 4 => 'Parejas fijas'];
 
@@ -64,7 +65,7 @@ function fmtfecha(?string $f): string
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0f172a">
     <title><?= htmlspecialchars($page_title) ?></title>
-    <meta name="description" content="Ranking de atletas <?= htmlspecialchars($titulo_genero) ?>: torneos con ranking activado y rendimiento acumulado (puntos de ranking, efectividad, partidas ganadas).">
+    <meta name="description" content="Ranking oficial FVD <?= htmlspecialchars($titulo_categoria) ?>: atletas afiliados (con entidad) en torneos con ranking activado.">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="<?= htmlspecialchars($base_public . 'ranking_atletas.php?' . $ranking_atletas_qs()) ?>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -248,14 +249,10 @@ function fmtfecha(?string $f): string
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
                 <div>
                     <?= AppHelpers::appLogo('mb-2', 'La Estación del Dominó', 40) ?>
-                    <h1 class="h3 mb-1"><i class="fas fa-medal text-warning me-2"></i>Ranking de atletas</h1>
-                    <p class="mb-0 opacity-90 small"><?= htmlspecialchars($titulo_genero) ?> · Solo torneos con ranking activado</p>
-                    <?php if ($organizacion_id > 0): ?>
-                        <?php if ($org_nombre_encabezado !== ''): ?>
-                            <p class="mb-0 mt-2 fw-semibold fs-5 text-white"><i class="fas fa-building me-2 opacity-75"></i><?= htmlspecialchars($org_nombre_encabezado) ?></p>
-                        <?php else: ?>
-                            <p class="mb-0 mt-2 small opacity-75">Organización #<?= (int) $organizacion_id ?></p>
-                        <?php endif; ?>
+                    <h1 class="h3 mb-1"><i class="fas fa-medal text-warning me-2"></i>Ranking oficial</h1>
+                    <p class="mb-0 opacity-90 small"><?= htmlspecialchars($titulo_categoria) ?> · Solo torneos con ranking activado</p>
+                    <?php if ($org_nombre_encabezado !== ''): ?>
+                        <p class="mb-0 mt-2 fw-semibold fs-5 text-white"><i class="fas fa-building me-2 opacity-75"></i><?= htmlspecialchars($org_nombre_encabezado) ?></p>
                     <?php endif; ?>
                 </div>
                 <div class="no-print">
@@ -263,7 +260,7 @@ function fmtfecha(?string $f): string
                     <a href="resultados.php" class="btn btn-sm btn-volver"><i class="fas fa-trophy me-1"></i>Resultados por evento</a>
                 </div>
             </div>
-            <ul class="nav nav-pills nav-genero gap-2 mt-3 no-print">
+            <ul class="nav nav-pills nav-genero gap-2 mt-3 no-print flex-wrap">
                 <li class="nav-item">
                     <a class="nav-link py-2 px-3 <?= $genero === 'F' ? 'active' : '' ?>" href="ranking_atletas.php?<?= htmlspecialchars($ranking_atletas_qs(['genero' => 'F'])) ?>"><i class="fas fa-venus me-1"></i>Femenino</a>
                 </li>
@@ -271,74 +268,24 @@ function fmtfecha(?string $f): string
                     <a class="nav-link py-2 px-3 <?= $genero === 'M' ? 'active' : '' ?>" href="ranking_atletas.php?<?= htmlspecialchars($ranking_atletas_qs(['genero' => 'M'])) ?>"><i class="fas fa-mars me-1"></i>Masculino</a>
                 </li>
             </ul>
+            <ul class="nav nav-pills gap-2 mt-2 no-print flex-wrap">
+                <?php
+                $catsNav = [
+                    RankingCategoriaFvdHelper::ABSOLUTO => 'Categoría libre',
+                    RankingCategoriaFvdHelper::SUB => 'Sub',
+                    RankingCategoriaFvdHelper::SUB12 => 'Sub 12',
+                    RankingCategoriaFvdHelper::SUB15 => 'Sub 15',
+                    RankingCategoriaFvdHelper::SUB18 => 'Sub 18',
+                ];
+                foreach ($catsNav as $slug => $label):
+                ?>
+                <li class="nav-item">
+                    <a class="nav-link py-1 px-3 small <?= $categoria === $slug ? 'active' : '' ?>" href="ranking_atletas.php?<?= htmlspecialchars($ranking_atletas_qs(['categoria' => $slug])) ?>"><?= htmlspecialchars($label) ?></a>
+                </li>
+                <?php endforeach; ?>
+            </ul>
         </div>
         <div class="p-3 p-md-4">
-            <?php if ($role === 'admin_club'): ?>
-                <div class="alert alert-secondary border mb-3 py-2 px-3">
-                    <i class="fas fa-building me-2"></i>
-                    <strong>Organización:</strong>
-                    <?= $organizacion_id > 0 ? htmlspecialchars($org_nombre_encabezado !== '' ? $org_nombre_encabezado : ('ID ' . $organizacion_id)) : '—' ?>
-                    <span class="text-muted small ms-1">(solo el ranking de su organización)</span>
-                </div>
-            <?php elseif ($role === 'admin_general'): ?>
-            <form method="get" class="row g-2 align-items-end mb-3">
-                <input type="hidden" name="genero" value="<?= htmlspecialchars($genero) ?>">
-                <input type="hidden" name="vista" value="<?= htmlspecialchars($vista) ?>">
-                <div class="col-12 col-md-7">
-                    <label class="form-label small text-muted mb-1">Organización <span class="text-danger">*</span></label>
-                    <select name="organizacion_id" class="form-select form-select-sm">
-                        <option value="0" <?= $organizacion_id === 0 ? 'selected' : '' ?>>— Seleccione organización —</option>
-                        <?php foreach ($organizaciones as $org): ?>
-                            <option value="<?= (int)($org['id'] ?? 0) ?>" <?= ((int)($org['id'] ?? 0) === $organizacion_id) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars((string)($org['nombre'] ?? '')) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-12 col-md-5 d-grid d-md-flex gap-2">
-                    <button type="submit" class="btn btn-sm btn-primary">
-                        <i class="fas fa-filter me-1"></i>Ver ranking
-                    </button>
-                    <?php if ($organizacion_id > 0): ?>
-                        <a href="ranking_atletas.php?genero=<?= htmlspecialchars($genero) ?>" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-eraser me-1"></i>Cambiar organización
-                        </a>
-                    <?php endif; ?>
-                </div>
-            </form>
-            <?php else: ?>
-            <form method="get" class="row g-2 align-items-end mb-3">
-                <input type="hidden" name="genero" value="<?= htmlspecialchars($genero) ?>">
-                <input type="hidden" name="vista" value="<?= htmlspecialchars($vista) ?>">
-                <div class="col-12 col-md-7">
-                    <label class="form-label small text-muted mb-1">Organización</label>
-                    <select name="organizacion_id" class="form-select form-select-sm">
-                        <option value="0">Todas las organizaciones</option>
-                        <?php foreach ($organizaciones as $org): ?>
-                            <option value="<?= (int)($org['id'] ?? 0) ?>" <?= ((int)($org['id'] ?? 0) === $organizacion_id) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars((string)($org['nombre'] ?? '')) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-12 col-md-5 d-grid d-md-flex gap-2">
-                    <button type="submit" class="btn btn-sm btn-primary">
-                        <i class="fas fa-filter me-1"></i>Filtrar ranking
-                    </button>
-                    <?php if ($organizacion_id > 0): ?>
-                        <a href="ranking_atletas.php?genero=<?= htmlspecialchars($genero) ?>" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-eraser me-1"></i>Quitar filtro
-                        </a>
-                    <?php endif; ?>
-                </div>
-            </form>
-            <?php endif; ?>
-            <?php if ($role === 'admin_general' && $ranking_sin_org_admin_general): ?>
-                <div class="alert alert-warning mb-3 py-2">
-                    <i class="fas fa-hand-pointer me-2"></i>Como administrador general, elija una organización arriba y pulse <strong>Ver ranking</strong> para cargar los datos.
-                </div>
-            <?php endif; ?>
-            <p class="text-muted small mb-2"><i class="fas fa-info-circle me-1"></i><?= htmlspecialchars($criterio) ?></p>
             <?php if ($atletas !== []): ?>
             <div class="d-flex flex-wrap align-items-center gap-2 mb-3 no-print">
                 <span class="small text-muted me-1">Vista del reporte:</span>
@@ -364,15 +311,15 @@ function fmtfecha(?string $f): string
                             <div>
                                 <span class="badge bg-dark me-2">#<?= $rk ?></span>
                                 <strong class="fs-6"><?= htmlspecialchars($a['nombre']) ?></strong>
-                                <?php if (! empty($a['cedula'])): ?>
-                                    <span class="text-muted small ms-1">CI <?= htmlspecialchars((string) $a['cedula']) ?></span>
+                                <?php if (! empty($a['asociacion'])): ?>
+                                    <span class="text-muted small d-block"><?= htmlspecialchars((string) $a['asociacion']) ?></span>
                                 <?php endif; ?>
                             </div>
                             <div class="small text-end">
                                 <span class="text-muted">Torneos:</span> <?= (int) $a['torneos_count'] ?>
-                                · <span class="text-muted">Pts ranking Σ:</span> <strong><?= (int) $a['total_ptosrnk'] ?></strong>
-                                · <span class="text-muted">Efect. Σ:</span> <?= (int) $a['total_efectividad'] ?>
-                                · <span class="text-muted">Ganados Σ:</span> <?= (int) $a['total_ganados'] ?>
+                                · <span class="text-muted">Efect. Σ:</span> <strong><?= (int) $a['total_efectividad'] ?></strong>
+                                · <span class="text-muted">Pts Σ:</span> <strong><?= (int) $a['total_puntos'] ?></strong>
+                                · <span class="text-muted">Ptos. Rnk:</span> <strong><?= (int) $a['total_ptosrnk'] ?></strong>
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -436,9 +383,9 @@ function fmtfecha(?string $f): string
                                         <?= htmlspecialchars($nomCorto) ?>
                                     </th>
                                 <?php endforeach; ?>
-                                <th class="text-end sticky-top bg-light col-stat-total" rowspan="2">Pts Σ</th>
                                 <th class="text-end sticky-top bg-light col-stat-total" rowspan="2">Efect. Σ</th>
-                                <th class="text-end sticky-top bg-light col-stat-total" rowspan="2">G Σ</th>
+                                <th class="text-end sticky-top bg-light col-stat-total" rowspan="2">Pts Σ</th>
+                                <th class="text-end sticky-top bg-light col-stat-total" rowspan="2">Ptos. Rnk</th>
                             </tr>
                             <tr>
                                 <?php foreach ($torneos_matriz as $_col): ?>
@@ -460,7 +407,12 @@ function fmtfecha(?string $f): string
                                 ?>
                                 <tr class="<?= $trClass ?>">
                                     <td class="col-rank-num"><strong><?= $rk ?></strong></td>
-                                    <td class="col-atleta" title="<?= htmlspecialchars($a['nombre']) ?>"><strong><?= htmlspecialchars($a['nombre']) ?></strong></td>
+                                    <td class="col-atleta" title="<?= htmlspecialchars($a['nombre']) ?>">
+                                        <strong><?= htmlspecialchars($a['nombre']) ?></strong>
+                                        <?php if (! empty($a['asociacion'])): ?>
+                                            <span class="text-muted small d-block"><?= htmlspecialchars((string) $a['asociacion']) ?></span>
+                                        <?php endif; ?>
+                                    </td>
                                     <?php foreach ($torneos_matriz as $col): ?>
                                         <?php
                                         $tid = (int) $col['torneo_id'];
@@ -477,9 +429,9 @@ function fmtfecha(?string $f): string
                                             <td class="text-center col-torneo-sub"><?= (int) ($celda['ptosrnk'] ?? 0) ?></td>
                                         <?php endif; ?>
                                     <?php endforeach; ?>
-                                    <td class="text-end fw-semibold col-stat-total"><?= (int) $a['total_ptosrnk'] ?></td>
                                     <td class="text-end col-stat-total"><?= (int) $a['total_efectividad'] ?></td>
-                                    <td class="text-end col-stat-total"><?= (int) $a['total_ganados'] ?></td>
+                                    <td class="text-end col-stat-total"><?= (int) $a['total_puntos'] ?></td>
+                                    <td class="text-end fw-semibold col-stat-total"><?= (int) $a['total_ptosrnk'] ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -495,9 +447,9 @@ function fmtfecha(?string $f): string
                                 <th>#</th>
                                 <th>Atleta</th>
                                 <th class="text-center">Torneos</th>
-                                <th class="text-end">Pts ranking Σ</th>
-                                <th class="text-end">Efectividad Σ</th>
-                                <th class="text-end">Ganados Σ</th>
+                                <th class="text-end">Efect. Σ</th>
+                                <th class="text-end">Pts Σ</th>
+                                <th class="text-end">Ptos. Rnk</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -511,52 +463,25 @@ function fmtfecha(?string $f): string
                                     <td><strong><?= $rk ?></strong></td>
                                     <td>
                                         <strong><?= htmlspecialchars($a['nombre']) ?></strong>
-                                        <?php if (! empty($a['cedula'])): ?>
-                                            <span class="text-muted small d-block">CI <?= htmlspecialchars((string) $a['cedula']) ?></span>
+                                        <?php if (! empty($a['asociacion'])): ?>
+                                            <span class="text-muted small d-block"><?= htmlspecialchars((string) $a['asociacion']) ?></span>
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center"><?= (int) $a['torneos_count'] ?></td>
-                                    <td class="text-end"><?= (int) $a['total_ptosrnk'] ?></td>
                                     <td class="text-end"><?= (int) $a['total_efectividad'] ?></td>
-                                    <td class="text-end"><?= (int) $a['total_ganados'] ?></td>
-                                    <td>
-                                        <details class="small">
-                                            <summary class="text-primary" style="cursor:pointer;">Ver torneos</summary>
-                                            <div class="detalle-torneos mt-2 p-2 border rounded">
-                                                <div class="table-responsive">
-                                                    <table class="table table-sm table-bordered mb-0 bg-white">
-                                                        <thead class="table-light">
-                                                            <tr>
-                                                                <th>Torneo</th>
-                                                                <th>Fecha</th>
-                                                                <th>Modalidad</th>
-                                                                <th class="text-center">Pos.</th>
-                                                                <th class="text-end">G/P</th>
-                                                                <th class="text-end">Efect.</th>
-                                                                <th class="text-end">Pts rnk</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            <?php foreach ($a['detalle_torneos'] as $t): ?>
-                                                                <tr>
-                                                                    <td>
-                                                                        <a href="evento_resultados.php?torneo_id=<?= (int) $t['torneo_id'] ?>">
-                                                                            <?= htmlspecialchars($t['nombre']) ?>
-                                                                        </a>
-                                                                    </td>
-                                                                    <td><?= fmtfecha($t['fechator'] ?? '') ?></td>
-                                                                    <td><?= htmlspecialchars($modalidades[(int) ($t['modalidad'] ?? 0)] ?? '—') ?></td>
-                                                                    <td class="text-center"><?= (int) ($t['posicion'] ?? 0) ?: '—' ?></td>
-                                                                    <td class="text-end"><?= (int) ($t['ganados'] ?? 0) ?> / <?= (int) ($t['perdidos'] ?? 0) ?></td>
-                                                                    <td class="text-end"><?= (int) ($t['efectividad'] ?? 0) ?></td>
-                                                                    <td class="text-end"><?= (int) ($t['ptosrnk'] ?? 0) ?></td>
-                                                                </tr>
-                                                            <?php endforeach; ?>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        </details>
+                                    <td class="text-end"><?= (int) $a['total_puntos'] ?></td>
+                                    <td class="text-end fw-semibold"><?= (int) $a['total_ptosrnk'] ?></td>
+                                    <td class="text-end">
+                                        <?php
+                                        $detQs = ['genero' => $genero, 'id_usuario' => (int) $a['id_usuario']];
+                                        if ($categoria !== RankingCategoriaFvdHelper::ABSOLUTO) {
+                                            $detQs['categoria'] = $categoria;
+                                        }
+                                        $detalleUrl = $base_public . 'ranking_atletas_detalle.php?' . http_build_query($detQs);
+                                        ?>
+                                        <a href="<?= htmlspecialchars($detalleUrl) ?>" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-list-ul me-1"></i>Ver detalle
+                                        </a>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

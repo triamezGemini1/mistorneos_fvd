@@ -9,6 +9,7 @@ require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../config/auth_service.php';
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../lib/TournamentAppScope.php';
 AuthService::requireAuth();
 
 function notif_wants_json() {
@@ -31,8 +32,9 @@ if ($uid <= 0) {
 }
 
 $pdo = DB::pdo();
+$sqlFiltro = TournamentAppScope::sqlExcluirNotificacionesFvd('nq');
 $stmt = $pdo->prepare(
-    "SELECT COUNT(*) FROM notifications_queue WHERE usuario_id = ? AND canal = 'web' AND estado = 'pendiente'"
+    "SELECT COUNT(*) FROM notifications_queue nq WHERE nq.usuario_id = ? AND nq.canal = 'web' AND nq.estado = 'pendiente'{$sqlFiltro}"
 );
 $stmt->execute([$uid]);
 $count = (int) $stmt->fetchColumn();
@@ -44,13 +46,12 @@ if (notif_wants_json()) {
     }
     $latest = null;
     if ($count > 0) {
-        // Columna datos_json ya existe en el schema, evitamos SHOW COLUMNS cada vez
         $hasDatosJson = true;
         $stmtLatest = $pdo->prepare("
             SELECT id, mensaje, url_destino, datos_json
-            FROM notifications_queue
-            WHERE usuario_id = ? AND canal = 'web' AND estado = 'pendiente'
-            ORDER BY fecha_creacion DESC
+            FROM notifications_queue nq
+            WHERE nq.usuario_id = ? AND nq.canal = 'web' AND nq.estado = 'pendiente'{$sqlFiltro}
+            ORDER BY nq.fecha_creacion DESC
             LIMIT 1
         ");
         $stmtLatest->execute([$uid]);

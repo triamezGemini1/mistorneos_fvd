@@ -1,24 +1,12 @@
 <?php
 /**
  * Punto de entrada raíz.
- * Redirige a public/index.php (app principal).
- * Ej.: http://localhost/mistorneos_fvd/ → .../mistorneos_fvd/public/index.php
+ * Redirige al portal público (landing SPA) bajo mistorneos_fvd.
+ * Ej.: http://localhost/mistorneos_fvd/ → /mistorneos_fvd/public/landing-spa.php
  */
-$reqUri = rtrim($_SERVER['REQUEST_URI'] ?? '/', '/');
-if ($reqUri === '') {
-    $reqUri = '/';
-}
-if (preg_match('#^/(mistorneos_fvd|pruebas|mistorneos_beta|public)(/|$)#', $reqUri, $m)) {
-    $base = '/' . $m[1];
-} elseif (!empty($_SERVER['SCRIPT_NAME'])) {
-    $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
-    if ($base === '.' || $base === '') {
-        $base = '';
-    }
-} else {
-    $base = '';
-}
-$target = ($base !== '' ? $base . '/' : '') . 'public/index.php';
+require_once __DIR__ . '/lib/FvdConfig.php';
+
+$target = rtrim(FvdConfig::BASE_PATH, '/') . '/landing-spa.php';
 if (!headers_sent()) {
     header('Location: ' . $target, true, 302);
 }

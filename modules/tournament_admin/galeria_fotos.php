@@ -6,8 +6,9 @@
 
 require_once __DIR__ . '/../../config/bootstrap.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../lib/app_helpers.php';
 require_once __DIR__ . '/../../config/auth.php';
-require_once __DIR__ . '/../../lib/file_upload.php';
+require_once __DIR__ . '/../../lib/TournamentPhotoService.php';
 
 // Verificar permisos
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
@@ -15,9 +16,9 @@ Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 $pdo = DB::pdo();
 $user = Auth::user();
 
-// Configuración
-$maxFotos = 20; // Límite máximo de fotos por torneo
-$maxFileSize = 10 * 1024 * 1024; // 10MB
+$maxFotos = TournamentPhotoService::MAX_PHOTOS_PER_TORNEO;
+$maxFileSize = TournamentPhotoService::MAX_UPLOAD_BYTES;
+$publicBase = rtrim(AppHelpers::getPublicUrl(), '/') . '/';
 
 // Obtener fotos del torneo
 $fotos = [];
@@ -30,7 +31,7 @@ try {
                 u.nombre as subido_por_nombre
             FROM club_photos tp
             LEFT JOIN usuarios u ON tp.subido_por = u.id
-            WHERE tp.torneo_id = ?
+            WHERE tp.torneo_id = ? AND (tp.activa = 1 OR tp.activa IS NULL)
             ORDER BY tp.orden ASC, tp.fecha_subida DESC
         ");
     $stmt->execute([$torneo_id]);
@@ -96,7 +97,7 @@ $siguienteOrden = $totalFotos + 1;
                         <label for="input-foto" class="cursor-pointer position-relative" style="z-index: 1;">
                             <i class="fas fa-cloud-upload-alt fa-4x text-primary mb-3 d-block"></i>
                             <p class="text-dark fw-bold mb-2 fs-5">Haz clic para seleccionar fotos</p>
-                            <p class="text-muted mb-1">Máximo 10MB por foto</p>
+                            <p class="text-muted mb-1">Máximo 10MB por foto (se optimiza al subir)</p>
                             <p class="text-muted small mb-0">Formatos: JPG, PNG, GIF, WEBP</p>
                             <div class="mt-3">
                                 <span class="badge bg-primary fs-6 px-3 py-2">
@@ -163,16 +164,10 @@ $siguienteOrden = $totalFotos + 1;
                                         <label class="form-check-label" for="foto_<?= $foto['id'] ?>" style="display: none;"></label>
                                     </div>
                                     <div class="ratio ratio-1x1 rounded-3 overflow-hidden shadow-lg hover:shadow-xl transition-all foto-imagen" style="transition: all 0.3s;">
-                                        <?php 
-                                        // Construir URL de la imagen usando app_base_url
-                                        $ruta_imagen = $foto['ruta_imagen'];
-                                        if (strpos($ruta_imagen, 'upload/') === 0) {
-                                            $imagenUrl = app_base_url() . '/' . $ruta_imagen;
-                                        } else {
-                                            $imagenUrl = app_base_url() . '/upload/tournaments/photos/' . basename($ruta_imagen);
-                                        }
+                                        <?php
+                                        $imagenUrl = TournamentPhotoService::publicUrl((string) ($foto['ruta_imagen'] ?? ''), $publicBase);
                                         ?>
-                                        <img src="<?= htmlspecialchars($imagenUrl) ?>" 
+                                        <img src="<?= htmlspecialchars($imagenUrl) ?>"
                                              alt="Foto del torneo"
                                              class="w-100 h-100 object-fit-cover"
                                              style="transition: transform 0.3s;"

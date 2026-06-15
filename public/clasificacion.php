@@ -24,6 +24,7 @@ if ($torneo_id <= 0) {
 $pdo = DB::pdo();
 $torneo = null;
 $clasificacion = [];
+$genero_ranking = ResultadosReporteData::GENERO_TODOS;
 
 try {
     $stmt = $pdo->prepare('SELECT * FROM tournaments WHERE id = ? AND estatus = 1');
@@ -63,7 +64,6 @@ try {
 } catch (Throwable $e) {
     error_log('clasificacion.php: ' . $e->getMessage());
 }
-$genero_ranking = $genero_ranking ?? 'M';
 
 $base_public = rtrim(AppHelpers::getPublicUrl(), '/');
 $url_retorno = $base_public . '/perfil_jugador.php?torneo_id=' . $torneo_id;
@@ -145,8 +145,9 @@ $torneo_nombre = $torneo['nombre'] ?? 'Torneo';
         <h1><i class="fas fa-trophy" style="color: #38bdf8;"></i> Clasificación</h1>
         <p class="sub"><?= htmlspecialchars($torneo_nombre) ?></p>
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-            <a href="clasificacion.php?torneo_id=<?= (int) $torneo_id ?>&amp;genero=M" style="padding:8px 14px;border-radius:10px;text-decoration:none;font-size:0.9rem;<?= $genero_ranking === 'M' ? 'background:#2563eb;color:#fff;' : 'background:#1e293b;color:#94a3b8;border:1px solid rgba(255,255,255,0.12);' ?>">Masculino</a>
-            <a href="clasificacion.php?torneo_id=<?= (int) $torneo_id ?>&amp;genero=F" style="padding:8px 14px;border-radius:10px;text-decoration:none;font-size:0.9rem;<?= $genero_ranking === 'F' ? 'background:#2563eb;color:#fff;' : 'background:#1e293b;color:#94a3b8;border:1px solid rgba(255,255,255,0.12);' ?>">Femenino</a>
+            <a href="clasificacion.php?torneo_id=<?= (int) $torneo_id ?><?= $highlight_user > 0 ? '&amp;highlight_user=' . (int) $highlight_user : '' ?>" style="padding:8px 14px;border-radius:10px;text-decoration:none;font-size:0.9rem;<?= ResultadosReporteData::esFiltroGeneroTodos($genero_ranking) ? 'background:#2563eb;color:#fff;' : 'background:#1e293b;color:#94a3b8;border:1px solid rgba(255,255,255,0.12);' ?>">General</a>
+            <a href="clasificacion.php?torneo_id=<?= (int) $torneo_id ?>&amp;genero=M<?= $highlight_user > 0 ? '&amp;highlight_user=' . (int) $highlight_user : '' ?>" style="padding:8px 14px;border-radius:10px;text-decoration:none;font-size:0.9rem;<?= $genero_ranking === 'M' ? 'background:#2563eb;color:#fff;' : 'background:#1e293b;color:#94a3b8;border:1px solid rgba(255,255,255,0.12);' ?>">Masculino</a>
+            <a href="clasificacion.php?torneo_id=<?= (int) $torneo_id ?>&amp;genero=F<?= $highlight_user > 0 ? '&amp;highlight_user=' . (int) $highlight_user : '' ?>" style="padding:8px 14px;border-radius:10px;text-decoration:none;font-size:0.9rem;<?= $genero_ranking === 'F' ? 'background:#2563eb;color:#fff;' : 'background:#1e293b;color:#94a3b8;border:1px solid rgba(255,255,255,0.12);' ?>">Femenino</a>
         </div>
 
         <div class="table-wrap">
@@ -166,16 +167,16 @@ $torneo_nombre = $torneo['nombre'] ?? 'Torneo';
                     </thead>
                     <tbody>
                         <?php
-                        $pos = 0;
                         foreach ($clasificacion as $row):
-                            $pos++;
-                            $posClass = $pos <= 3 ? 'pos-' . $pos : '';
+                            $posDb = (int) ($row['posicion'] ?? 0);
+                            $posDisplay = $posDb > 0 ? $posDb : '—';
+                            $posClass = is_int($posDisplay) && $posDisplay <= 3 ? 'pos-' . $posDisplay : '';
                             $uidRow = (int)($row['id_usuario'] ?? 0);
                             $hi = ($highlight_user > 0 && $uidRow === $highlight_user);
                         ?>
                         <tr<?= $hi ? ' class="row-highlight" id="jugador-highlight"' : '' ?>>
-                            <td class="pos <?= $posClass ?>"><?= $pos ?></td>
-                            <td class="nombre"><a href="resumen_jugador.php?torneo_id=<?= (int)$torneo_id ?>&id_usuario=<?= (int)($row['id_usuario'] ?? 0) ?>" class="nombre-link" title="<?= htmlspecialchars($row['nombre_jugador'] ?? '') ?>"><?= htmlspecialchars($row['nombre_jugador'] ?? '—') ?></a></td>
+                            <td class="pos <?= $posClass ?>"><?= htmlspecialchars((string) $posDisplay) ?></td>
+                            <td class="nombre"><?= htmlspecialchars($row['nombre_jugador'] ?? '—') ?></td>
                             <td class="num"><?= (int)($row['ganados'] ?? 0) ?></td>
                             <td class="num"><?= (int)($row['perdidos'] ?? 0) ?></td>
                             <td class="num"><?= (int)($row['efectividad'] ?? 0) ?></td>

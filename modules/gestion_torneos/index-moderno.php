@@ -53,14 +53,6 @@ $is_admin_general = $is_admin_general ?? false;
         <a href="index.php?page=estadisticas_torneos" class="btn btn-sm btn-outline-info shadow-sm">
             <i class="fas fa-chart-line me-1"></i>Estadísticas
         </a>
-        <?php if ($is_admin_general): ?>
-        <a href="index.php?page=importacion_torneo_externo" class="btn btn-sm btn-outline-secondary shadow-sm">
-            <i class="fas fa-file-import me-1"></i>Importar torneo
-        </a>
-        <a href="index.php?page=notificaciones_masivas" class="btn btn-sm btn-outline-warning shadow-sm">
-            <i class="fas fa-bell me-1"></i>Notif.
-        </a>
-        <?php endif; ?>
     </div>
 </div>
 

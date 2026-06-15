@@ -17,6 +17,7 @@ return [
     'APP_ENV' => 'production',
     'APP_DEBUG' => false,
     'APP_URL' => 'https://laestaciondeldominohoy.com/mistorneos_fvd',
+    'BASE_PATH' => '/mistorneos_fvd/public/',
     
     // ============================================
     // BASE DE DATOS PRINCIPAL - MISTORNEOS
@@ -64,6 +65,14 @@ return [
     // ============================================
     'LOG_LEVEL' => 'error',
     'LOG_PATH' => 'logs/app.log',
+
+    // ============================================
+    // ANALÍTICA WEB — UMAMI CLOUD
+    // ============================================
+    'UMAMI_API_KEY' => '',
+    'UMAMI_SHARE_URL' => '',
+    'UMAMI_SCRIPT_URL' => 'https://cloud.umami.is/script.js',
+    'UMAMI_WEBSITE_ID' => '1e64a2c9-7c79-49f0-b6a2-6d8c761893d3',
 ];
 
 

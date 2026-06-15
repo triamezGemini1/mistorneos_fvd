@@ -88,6 +88,11 @@ $modulosExtendidos = class_exists('FvdConfig', false) && FvdConfig::adminModuleE
                     <span>Solicitudes portal</span>
                     <?= $b((int) $pb['comentarios_pendientes']) ?>
                 </a>
+                <a href="<?= $u('estadisticas_web') ?>" class="<?= $linkDestacado ?>">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Estadísticas web (Umami)</span>
+                    <i class="fas fa-chevron-right ms-auto small text-muted"></i>
+                </a>
             </div>
         </div>
         <?php endif; ?>
@@ -104,6 +109,10 @@ $modulosExtendidos = class_exists('FvdConfig', false) && FvdConfig::adminModuleE
                 <a href="<?= $u('auditoria') ?>" class="<?= $link ?>">
                     <i class="fas fa-chart-bar"></i>
                     <span>Informes y auditoría</span>
+                </a>
+                <a href="<?= $u('estadisticas_web') ?>" class="<?= $link ?>">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Estadísticas web (Umami)</span>
                 </a>
                 <a href="<?= $u('control_admin') ?>" class="<?= $link ?>">
                     <i class="fas fa-tachometer-alt"></i>
@@ -134,6 +143,14 @@ $modulosExtendidos = class_exists('FvdConfig', false) && FvdConfig::adminModuleE
                 <a href="<?= $u('importacion_torneo_externo') ?>" class="<?= $link ?>">
                     <i class="fas fa-file-import"></i>
                     <span>Importación externa</span>
+                </a>
+                <a href="<?= $u('ranking_numfvd_admin') ?>" class="<?= $link ?>">
+                    <i class="fas fa-medal"></i>
+                    <span>Ranking NUMFVD</span>
+                </a>
+                <a href="<?= $u('reportes_pago_donacion') ?>" class="<?= $link ?>">
+                    <i class="fas fa-hand-holding-heart"></i>
+                    <span>Donaciones / activar PDF</span>
                 </a>
             </div>
         </div>

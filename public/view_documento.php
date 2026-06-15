@@ -40,6 +40,22 @@ if (!$allowed || $path === '') {
     exit;
 }
 
+if (strpos($path, 'upload/invitaciones_fvd/') === 0) {
+    require_once __DIR__ . '/../config/db_config.php';
+    require_once __DIR__ . '/../lib/InvitacionesFvdWebService.php';
+    try {
+        $pdoDoc = DB::pdo();
+        if (!InvitacionesFvdWebService::puedeServirPublico($pdoDoc, $path)) {
+            http_response_code(410);
+            header('Content-Type: text/plain; charset=UTF-8');
+            echo 'Esta invitación ya no está disponible (vigencia vencida)';
+            exit;
+        }
+    } catch (Throwable $e) {
+        error_log('view_documento invitaciones: ' . $e->getMessage());
+    }
+}
+
 // Raíz del proyecto: directorio padre de public/ (este script está en public/)
 $base_dir = dirname(__DIR__);
 $real_base = realpath($base_dir);

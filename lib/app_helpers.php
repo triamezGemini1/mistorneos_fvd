@@ -40,6 +40,90 @@ class AppHelpers {
     }
 
     /**
+     * En instalación standalone FVD, reemplaza rutas legacy (pruebas, mistorneos_beta, monorepo)
+     * por /mistorneos_fvd/public/.
+     */
+    public static function canonicalizeStandalonePublicPath(string $path): string
+    {
+        if (self::integralUrlLoaded()) {
+            return self::normalizePublicWebPath($path);
+        }
+
+        $pathNorm = self::normalizePublicWebPath($path);
+        $folder = self::getProjectFolder();
+        if (preg_match('#/' . preg_quote($folder, '#') . '/public/#', $pathNorm)) {
+            return $pathNorm;
+        }
+
+        $canonical = class_exists('FvdConfig', false)
+            ? self::normalizePublicWebPath(FvdConfig::BASE_PATH)
+            : '/mistorneos_fvd/public/';
+
+        $legacyPrefixes = [
+            '/pruebas/public/',
+            '/mistorneos_beta/public/',
+            '/mistorneos_fvd1/mistorneos_fvd/public/',
+            '/mistorneos_fvd1/public/',
+        ];
+        foreach ($legacyPrefixes as $legacy) {
+            if (str_starts_with($pathNorm, $legacy)) {
+                $suffix = substr($pathNorm, strlen(rtrim($legacy, '/')));
+                $suffix = ltrim(str_replace('\\', '/', $suffix), '/');
+                $result = rtrim($canonical, '/') . ($suffix !== '' ? '/' . $suffix : '/');
+                error_log('[URL] Ruta legacy canonizada: ' . $pathNorm . ' → ' . $result);
+                return $result;
+            }
+        }
+
+        return $pathNorm;
+    }
+
+    /**
+     * Canoniza la parte path de una URL absoluta standalone (scheme + host + path).
+     */
+    public static function canonicalizeStandaloneUrl(string $url): string
+    {
+        if (self::integralUrlLoaded() || $url === '') {
+            return $url;
+        }
+
+        if (!preg_match('#^https?://#i', $url)) {
+            if (isset($url[0]) && $url[0] === '/') {
+                if (preg_match('#^(.+?/public)(/.*)?$#', $url, $m)) {
+                    $prefix = self::canonicalizeStandalonePublicPath($m[1] . '/');
+                    return rtrim($prefix, '/') . ($m[2] ?? '');
+                }
+                return self::canonicalizeStandalonePublicPath($url);
+            }
+            return $url;
+        }
+
+        $parts = parse_url($url);
+        if ($parts === false || empty($parts['path'])) {
+            return $url;
+        }
+
+        $path = $parts['path'];
+        if (preg_match('#^(.+?/public)(/.*)?$#', $path, $m)) {
+            $path = rtrim(self::canonicalizeStandalonePublicPath($m[1] . '/'), '/') . ($m[2] ?? '');
+        } else {
+            $path = self::canonicalizeStandalonePublicPath($path);
+        }
+        $newPath = $path;
+        if ($newPath === $parts['path']) {
+            return $url;
+        }
+
+        $scheme = $parts['scheme'] ?? 'https';
+        $host = $parts['host'] ?? ($_SERVER['HTTP_HOST'] ?? 'localhost');
+        $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+        $query = isset($parts['query']) ? '?' . $parts['query'] : '';
+        $fragment = isset($parts['fragment']) ? '#' . $parts['fragment'] : '';
+
+        return $scheme . '://' . $host . $port . rtrim($newPath, '/') . $query . $fragment;
+    }
+
+    /**
      * Resuelve URL_BASE: si BASE_PATH en .env no coincide con SCRIPT_NAME, gana la detección real.
      * Evita enlaces a /mistorneos_fvd1/… cuando la app está en /mistorneos_fvd/public/.
      */
@@ -64,19 +148,19 @@ class AppHelpers {
             if ($detected !== '' && $detected !== '/') {
                 $detNorm = self::normalizePublicWebPath($detected);
                 if (rtrim($envPath, '/') !== rtrim($detNorm, '/')) {
-                    error_log('[URL_BASE] BASE_PATH .env (' . rtrim($envPath, '/') . ') difiere de SCRIPT (' . rtrim($detNorm, '/') . '); se usa SCRIPT.');
-                    return $detNorm;
+                    error_log('[URL_BASE] BASE_PATH .env (' . rtrim($envPath, '/') . ') difiere de SCRIPT (' . rtrim($detNorm, '/') . '); se usa canonización FVD.');
                 }
             }
 
-            return $envPath;
+            return self::canonicalizeStandalonePublicPath($envPath);
         }
 
         if ($detected !== '' && $detected !== '/') {
-            return self::normalizePublicWebPath($detected);
+            return self::canonicalizeStandalonePublicPath($detected);
         }
 
-        return class_exists('FvdConfig', false) ? FvdConfig::BASE_PATH : '/mistorneos_fvd/public/';
+        $fallback = class_exists('FvdConfig', false) ? FvdConfig::BASE_PATH : '/mistorneos_fvd/public/';
+        return self::canonicalizeStandalonePublicPath($fallback);
     }
 
     /**
@@ -166,7 +250,7 @@ class AppHelpers {
             $fromConfig = $GLOBALS['APP_CONFIG']['app']['base_url'] ?? null;
 
             if (!empty($fromEnv)) {
-                self::$base_url = rtrim($fromEnv, '/');
+                self::$base_url = rtrim(self::canonicalizeStandaloneUrl($fromEnv), '/');
             } elseif (!empty($fromConfig) && $fromConfig !== '/') {
                 $cfg = $fromConfig;
                 if (!preg_match('#^https?://#', $cfg)) {
@@ -249,7 +333,8 @@ class AppHelpers {
             if ($dir !== '.' && $dir !== '' && $dir !== '/') {
                 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
                 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                return rtrim($scheme . '://' . $host . str_replace('\\', '/', $dir), '/');
+                $url = rtrim($scheme . '://' . $host . str_replace('\\', '/', $dir), '/');
+                return rtrim(self::canonicalizeStandaloneUrl($url), '/');
             }
         }
         return rtrim(self::getPublicUrl(), '/');
@@ -535,7 +620,8 @@ class AppHelpers {
             return rtrim($web, '/') . '/';
         }
 
-        return class_exists('FvdConfig', false) ? FvdConfig::BASE_PATH : '/mistorneos_fvd/public/';
+        $fallback = class_exists('FvdConfig', false) ? FvdConfig::BASE_PATH : '/mistorneos_fvd/public/';
+        return self::canonicalizeStandalonePublicPath($fallback);
     }
 
     /** URL absoluta a un asset en public/ */
@@ -760,6 +846,35 @@ class AppHelpers {
     }
 
     /**
+     * Logo institucional embebido (data URI) para PDF y documentos sin acceso HTTP.
+     */
+    public static function getBrandLogoDataUri(): ?string
+    {
+        $candidates = [
+            'public/assets/vendor/img/logofvd.png',
+            'public/assets/img/logo-fvd.png',
+            'public/assets/logo.png',
+            'lib/Assets/mislogos/logo4.png',
+        ];
+        $root = dirname(__DIR__);
+        foreach ($candidates as $rel) {
+            if (! self::projectFileExists($rel)) {
+                continue;
+            }
+            $full = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $rel);
+            $data = @file_get_contents($full);
+            if ($data === false || $data === '') {
+                continue;
+            }
+            $mime = preg_match('/\.jpe?g$/i', $rel) ? 'image/jpeg' : 'image/png';
+
+            return 'data:' . $mime . ';base64,' . base64_encode($data);
+        }
+
+        return null;
+    }
+
+    /**
      * URL del logo institucional FVD (assets estáticos; no depende de la BD).
      */
     public static function getBrandLogoUrl(bool $versioned = false): string
@@ -902,19 +1017,100 @@ class AppHelpers {
     }
 
     /**
+     * Normaliza ruta relativa de almacenamiento (upload/, lib/Assets/, etc.).
+     */
+    public static function normalizeStoragePath(?string $path): string
+    {
+        if ($path === null || $path === '') {
+            return '';
+        }
+        $path = str_replace('\\', '/', trim($path));
+        $path = ltrim($path, '/');
+        if (strpos($path, 'public/') === 0) {
+            $path = substr($path, 7);
+        }
+
+        return $path;
+    }
+
+    /**
+     * Comprueba si existe un archivo bajo la raíz del proyecto (APP_ROOT).
+     */
+    public static function storageFileExists(?string $path): bool
+    {
+        $path = self::normalizeStoragePath($path);
+        if ($path === '') {
+            return false;
+        }
+        $root = defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__);
+        $full = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);
+
+        return is_file($full);
+    }
+
+    /**
+     * Resuelve photo_path de usuario (legacy: solo nombre de archivo) a ruta de almacenamiento existente.
+     */
+    public static function resolveUserPhotoStoragePath(?string $photoPath): string
+    {
+        $photoPath = self::normalizeStoragePath($photoPath);
+        if ($photoPath === '') {
+            return '';
+        }
+        if (self::storageFileExists($photoPath)) {
+            return $photoPath;
+        }
+        if (!str_contains($photoPath, '/')) {
+            foreach (['upload/' . $photoPath, 'uploads/photos/' . $photoPath] as $candidate) {
+                if (self::storageFileExists($candidate)) {
+                    return $candidate;
+                }
+            }
+        }
+
+        return $photoPath;
+    }
+
+    /**
+     * URL pública de la foto de perfil de un usuario (vía view_image.php).
+     */
+    public static function userPhotoUrl(?string $photoPath): string
+    {
+        return self::imageUrl(self::resolveUserPhotoStoragePath($photoPath));
+    }
+
+    /**
      * URL absoluta para cualquier imagen (logos, fotos, etc.) en todas las pantallas.
      * Usa view_image.php; la URL es absoluta para que funcione con cualquier subpath (/pruebas/public/, /mistorneos_beta/public/, etc.).
      * @param string|null $path Ruta relativa al proyecto, ej: upload/logos/logo_1.jpg o lib/Assets/mislogos/logo4.png
      * @return string URL completa para src="..." o string vacío si no hay path
      */
     public static function imageUrl(?string $path): string {
+        return self::publicImageUrl($path, null);
+    }
+
+    /**
+     * URL pública de imagen vía view_image.php. Si $publicBaseUrl termina en /public/, se usa tal cual.
+     * Solo devuelve URL si el archivo existe en disco (evita enlaces rotos en landing).
+     *
+     * @param string|null $publicBaseUrl Base absoluta de public/ (ej. https://dominio/mistorneos_fvd/public/)
+     */
+    public static function publicImageUrl(?string $path, ?string $publicBaseUrl = null): string
+    {
         if ($path === null || $path === '') {
             return '';
         }
         if (strpos($path, 'http') === 0) {
             return $path;
         }
-        $path = ltrim($path, '/\\');
+        $path = self::normalizeStoragePath($path);
+        if ($path === '' || !self::storageFileExists($path)) {
+            return '';
+        }
+        if ($publicBaseUrl !== null && $publicBaseUrl !== '') {
+            return rtrim($publicBaseUrl, '/') . '/view_image.php?path=' . rawurlencode($path);
+        }
+
         return rtrim(self::getPublicUrl(), '/') . '/view_image.php?path=' . rawurlencode($path);
     }
 }

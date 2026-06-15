@@ -78,6 +78,17 @@
       const chevron = linkElement && linkElement.querySelector ? linkElement.querySelector('.submenu-icon') : null;
       if (submenu) {
         const isOpen = submenu.classList.contains('show');
+        document.querySelectorAll('#fvd-top-nav .collapse-submenu.show').forEach(function (openMenu) {
+          if (openMenu !== submenu) {
+            openMenu.classList.remove('show');
+            var parentLink = openMenu.parentElement && openMenu.parentElement.querySelector('.nav-link');
+            var parentChevron = parentLink && parentLink.querySelector('.submenu-icon');
+            if (parentChevron) {
+              parentChevron.classList.remove('fa-chevron-up');
+              parentChevron.classList.add('fa-chevron-down');
+            }
+          }
+        });
         submenu.classList.toggle('show', !isOpen);
         if (chevron) {
           chevron.classList.toggle('fa-chevron-up', !isOpen);
@@ -85,6 +96,20 @@
         }
       }
     };
+
+    document.addEventListener('click', function (e) {
+      var topNav = document.getElementById('fvd-top-nav');
+      if (!topNav || topNav.contains(e.target)) return;
+      topNav.querySelectorAll('.collapse-submenu.show').forEach(function (openMenu) {
+        openMenu.classList.remove('show');
+        var parentLink = openMenu.parentElement && openMenu.parentElement.querySelector('.nav-link');
+        var parentChevron = parentLink && parentLink.querySelector('.submenu-icon');
+        if (parentChevron) {
+          parentChevron.classList.remove('fa-chevron-up');
+          parentChevron.classList.add('fa-chevron-down');
+        }
+      });
+    });
 
     // Búsqueda global: public/assets/app-search.js (AppSearch.wireDashboardSearch)
 

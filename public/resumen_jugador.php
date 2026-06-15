@@ -1,309 +1,239 @@
 ﻿<?php
 /**
- * Resumen individual del jugador (público).
- * Muestra toda la trayectoria de partidas con toda la información una por una.
+ * Resumen público del jugador en un torneo (solo estadísticas generales).
+ * No muestra trayectoria partida a partida (reservada al panel admin).
  * Acceso: resumen_jugador.php?torneo_id=X&id_usuario=Y
  */
-declare(strict_types=1);
 
-// Evitar caché en dispositivos para que siempre se vea la versión actual
-header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-header('Pragma: no-cache');
+header('Cache-Control: public, max-age=60, stale-while-revalidate=120');
 
 require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../lib/app_helpers.php';
-require_once __DIR__ . '/../lib/InscritosPartiresulHelper.php';
+require_once __DIR__ . '/../lib/InscritosHelper.php';
+require_once __DIR__ . '/../lib/TournamentScopeHelper.php';
+require_once __DIR__ . '/../lib/InscritosReporteStatsHelper.php';
 
-$torneo_id = isset($_GET['torneo_id']) ? (int)$_GET['torneo_id'] : 0;
-$id_usuario = isset($_GET['id_usuario']) ? (int)$_GET['id_usuario'] : 0;
+$torneo_id = isset($_GET['torneo_id']) ? (int) $_GET['torneo_id'] : 0;
+$id_usuario = isset($_GET['id_usuario']) ? (int) $_GET['id_usuario'] : 0;
+
+$publicBase = rtrim(AppHelpers::getPublicUrl(), '/');
 
 if ($torneo_id <= 0 || $id_usuario <= 0) {
-    $base = rtrim(AppHelpers::getPublicUrl(), '/');
-    header('Location: ' . $base . '/landing-spa.php');
+    header('Location: ' . $publicBase . '/landing-spa.php');
     exit;
 }
 
 $pdo = DB::pdo();
 $torneo = null;
 $inscrito = null;
-$resumen = [];
-$partidas = [];
+$error = null;
 
 try {
-    $stmt = $pdo->prepare("SELECT id, nombre, fechator FROM tournaments WHERE id = ? AND estatus = 1");
+    $stmt = $pdo->prepare('SELECT * FROM tournaments WHERE id = ? LIMIT 1');
     $stmt->execute([$torneo_id]);
     $torneo = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$torneo) {
-        header('Location: ' . rtrim(AppHelpers::getPublicUrl(), '/') . '/landing-spa.php');
+
+    if (!$torneo || !TournamentScopeHelper::canAccessResultsPublicly($torneo)) {
+        header('Location: ' . $publicBase . '/resultados.php');
         exit;
     }
 
+    $whereActivo = InscritosHelper::sqlWhereNoRetiradoConAlias('i');
+    $colsGff = InscritosReporteStatsHelper::expresionesSelectClasificacion('i');
+
     $stmt = $pdo->prepare("
-        SELECT i.*, COALESCE(u.nombre, u.username) AS nombre_completo, u.cedula, c.nombre AS club_nombre
+        SELECT i.*, COALESCE(u.nombre, u.username) AS nombre_completo, u.cedula, u.sexo,
+               c.nombre AS club_nombre,
+               {$colsGff['ganadas_por_forfait']}
         FROM inscritos i
         LEFT JOIN usuarios u ON i.id_usuario = u.id
         LEFT JOIN clubes c ON i.id_club = c.id
-        WHERE i.torneo_id = ? AND i.id_usuario = ?
-        AND (i.estatus IN (1, 2, '1', '2', 'confirmado', 'solvente'))
+        WHERE i.torneo_id = ? AND i.id_usuario = ? AND {$whereActivo}
         LIMIT 1
     ");
     $stmt->execute([$torneo_id, $id_usuario]);
     $inscrito = $stmt->fetch(PDO::FETCH_ASSOC);
+
     if (!$inscrito) {
-        header('Location: ' . rtrim(AppHelpers::getPublicUrl(), '/') . '/clasificacion.php?torneo_id=' . $torneo_id);
+        header('Location: ' . $publicBase . '/evento_resultados.php?torneo_id=' . $torneo_id);
         exit;
-    }
-
-    $resumen = InscritosPartiresulHelper::obtenerEstadisticas($id_usuario, $torneo_id);
-    $resumen['nombre'] = $inscrito['nombre_completo'] ?? '';
-    $resumen['cedula'] = $inscrito['cedula'] ?? '';
-    $resumen['club'] = $inscrito['club_nombre'] ?? '—';
-    $resumen['puntos'] = (int)($inscrito['puntos'] ?? 0);
-    $resumen['efectividad'] = (int)($inscrito['efectividad'] ?? 0);
-    $resumen['ptosrnk'] = (int)($inscrito['ptosrnk'] ?? 0);
-
-    $stmt = $pdo->prepare("
-        SELECT partida, mesa, secuencia, resultado1, resultado2, efectividad, ff, tarjeta, sancion, chancleta, zapato, observaciones, registrado
-        FROM partiresul
-        WHERE id_torneo = ? AND id_usuario = ?
-        ORDER BY partida ASC, CAST(mesa AS UNSIGNED) ASC
-    ");
-    $stmt->execute([$torneo_id, $id_usuario]);
-    $partidas_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $partidas = [];
-    foreach ($partidas_raw as $p) {
-        $mesa = (int)$p['mesa'];
-        $sec = (int)($p['secuencia'] ?? 0);
-        $r1 = (int)($p['resultado1'] ?? 0);
-        $r2 = (int)($p['resultado2'] ?? 0);
-        $compañero = '';
-        $contrario1 = '';
-        $contrario2 = '';
-        $ganada = 0;
-        if ($mesa > 0) {
-            $stmt_mesa = $pdo->prepare("
-                SELECT pr.id_usuario, pr.secuencia, COALESCE(u.nombre, u.username) as nombre
-                FROM partiresul pr
-                INNER JOIN usuarios u ON u.id = pr.id_usuario
-                WHERE pr.id_torneo = ? AND pr.partida = ? AND pr.mesa = ?
-                ORDER BY pr.secuencia ASC
-            ");
-            $stmt_mesa->execute([$torneo_id, $p['partida'], $p['mesa']]);
-            $en_mesa = $stmt_mesa->fetchAll(PDO::FETCH_ASSOC);
-            $mi_equipo = in_array($sec, [1, 2]) ? [1, 2] : [3, 4];
-            foreach ($en_mesa as $row) {
-                $s = (int)$row['secuencia'];
-                if ((int)$row['id_usuario'] !== (int)$id_usuario) {
-                    if (in_array($s, $mi_equipo)) {
-                        $compañero = $row['nombre'] ?? '—';
-                    } else {
-                        if ($contrario1 === '') $contrario1 = $row['nombre'] ?? '—';
-                        else $contrario2 = $row['nombre'] ?? '—';
-                    }
-                }
-            }
-            $ganada = (in_array($sec, [1, 2]) && $r1 > $r2) || (in_array($sec, [3, 4]) && $r2 > $r1) ? 1 : 0;
-        }
-        $p['compañero'] = $compañero ?: '—';
-        $p['contrario1'] = $contrario1 ?: '—';
-        $p['contrario2'] = $contrario2 ?: '—';
-        $p['ganada'] = $ganada;
-        $partidas[] = $p;
     }
 } catch (Throwable $e) {
     error_log('resumen_jugador.php: ' . $e->getMessage());
+    $error = 'No se pudo cargar el resumen del jugador.';
 }
 
-$base_public = rtrim(AppHelpers::getPublicUrl(), '/');
-$url_retorno = $base_public . '/clasificacion.php?torneo_id=' . $torneo_id;
-$logo_url = AppHelpers::getAppLogo();
+$url_retorno = $publicBase . '/evento_resultados.php?torneo_id=' . $torneo_id;
 $torneo_nombre = $torneo['nombre'] ?? 'Torneo';
-$nombre_jugador = $resumen['nombre'] ?? $inscrito['nombre_completo'] ?? '—';
-$posicion = (int)($inscrito['posicion'] ?? 0) ?: (int)($resumen['ptosrnk'] ?? 0);
-$sum_resultado1 = $sum_resultado2 = $sum_efectividad = 0;
-foreach ($partidas as $p) {
-    $sum_resultado1 += (int)($p['resultado1'] ?? 0);
-    $sum_resultado2 += (int)($p['resultado2'] ?? 0);
-    $sum_efectividad += (int)($p['efectividad'] ?? 0);
-}
+$nombre_jugador = $inscrito['nombre_completo'] ?? '—';
+$posicion = (int) ($inscrito['posicion'] ?? 0);
+$ganados = (int) ($inscrito['ganados'] ?? 0);
+$perdidos = (int) ($inscrito['perdidos'] ?? 0);
+$efectividad = (int) ($inscrito['efectividad'] ?? 0);
+$puntos = (int) ($inscrito['puntos'] ?? 0);
+$ptosrnk = (int) ($inscrito['ptosrnk'] ?? 0);
+$gff = (int) ($inscrito['ganadas_por_forfait'] ?? $inscrito['gff'] ?? 0);
+$club = $inscrito['club_nombre'] ?? '—';
+$fecha_torneo = !empty($torneo['fechator']) ? date('d/m/Y', strtotime((string) $torneo['fechator'])) : '';
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0f172a">
     <title>Resumen — <?= htmlspecialchars($nombre_jugador) ?> · <?= htmlspecialchars($torneo_nombre) ?></title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="<?= htmlspecialchars(AppHelpers::publicAssetUrl('vendor/bootstrap/css/bootstrap.min.css')) ?>" rel="stylesheet">
+    <link href="<?= htmlspecialchars(AppHelpers::publicAssetUrl('vendor/fontawesome/css/all.min.css')) ?>" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; }
         body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f172a;
-            color: #f1f5f9;
-            font-size: 15px;
-            padding: 12px;
-            padding-bottom: 2rem;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+            color: #f8fafc;
         }
-        .wrap { max-width: 480px; margin: 0 auto; }
-        .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+        .card-resumen {
+            background: rgba(255, 255, 255, 0.98);
+            color: #1e293b;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            max-width: 720px;
+            margin: 0 auto;
         }
-        .header img { height: 36px; width: auto; }
-        .btn-retorno {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 10px 14px;
-            background: #1e293b;
-            color: #f1f5f9;
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 12px;
-            text-decoration: none;
-            font-size: 0.95rem;
+        .header-evento {
+            background: linear-gradient(135deg, #0f172a 0%, #1e40af 100%);
+            color: #fff;
+            padding: 1.5rem 1.75rem;
+            text-align: center;
         }
-        .btn-retorno:hover { background: #334155; color: #38bdf8; }
-        h1 { font-size: 1.1rem; margin: 0 0 4px 0; color: #94a3b8; font-weight: 600; }
-        .sub { font-size: 0.85rem; color: #64748b; margin-bottom: 16px; }
-        .card {
-            background: #1e293b;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 14px;
-            border: 1px solid rgba(255,255,255,0.06);
+        .header-evento h4, .header-evento h5 { margin: 0; }
+        .header-evento .sub { opacity: 0.9; font-size: 0.95rem; margin-top: 0.35rem; }
+        .btn-volver {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }
-        .card h2 { font-size: 0.95rem; color: #94a3b8; margin: 0 0 12px 0; font-weight: 600; }
-        .info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
-        .info-row:last-child { border-bottom: 0; }
-        .info-label { color: #94a3b8; }
-        .info-value { font-weight: 500; }
+        .btn-volver:hover { background: rgba(255, 255, 255, 0.25); color: #fff; }
         .stats-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 12px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+        @media (min-width: 576px) {
+            .stats-grid { grid-template-columns: repeat(3, 1fr); }
         }
         .stat-box {
             text-align: center;
-            padding: 14px 10px;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.05);
+            padding: 1rem 0.75rem;
+            border-radius: 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
         }
-        .stat-box .num { font-size: 1.4rem; font-weight: 700; display: block; }
-        .stat-box .lbl { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
-        .stat-box.primary .num { color: #38bdf8; }
-        .stat-box.success .num { color: #4ade80; }
-        .stat-box.danger .num { color: #f87171; }
-        .stat-box.warning .num { color: #fbbf24; }
-        .page-title { text-align: center; font-size: 1.25rem; font-weight: 700; margin: 0 0 16px 0; color: #f1f5f9; }
-        .stats-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.06); border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); }
-        .stats-row .stat-item { display: flex; align-items: baseline; gap: 6px; }
-        .stats-row .stat-item .label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
-        .stats-row .stat-item .value { font-size: 1rem; font-weight: 700; color: #f1f5f9; }
-        .stats-row.stats-row-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .stats-row.stats-row-2 .stat-item { flex-direction: column; align-items: center; gap: 2px; padding: 8px; background: rgba(0,0,0,0.15); border-radius: 8px; }
-        .stats-row.stats-row-2 .stat-item .value { font-size: 1.1rem; }
-        @media (min-width: 360px) { .stats-row.stats-row-2 { grid-template-columns: repeat(3, 1fr); } }
-        @media (min-width: 480px) { .stats-row.stats-row-2 { grid-template-columns: repeat(5, 1fr); } }
-        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -12px 12px; padding: 0 12px; }
-        table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 0.8rem; }
-        th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
-        th { color: #94a3b8; font-weight: 600; font-size: 0.75rem; white-space: nowrap; }
-        td { color: #f1f5f9; }
-        td.num, th.num { text-align: center; }
-        .tfoot-row { background: rgba(34, 197, 94, 0.2); font-weight: 700; }
-        .tfoot-row td { padding: 10px 6px; color: #f1f5f9; }
-        .empty { text-align: center; padding: 2rem; color: #64748b; }
-        .nombre-cell { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        @media (min-width: 481px) {
-            body { padding: 20px; }
-            .wrap { box-shadow: 0 0 0 1px rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; background: #0f172a; }
+        .stat-box .num {
+            display: block;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+        .stat-box .lbl {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-top: 0.25rem;
+        }
+        .info-list .row-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.65rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .info-list .row-line:last-child { border-bottom: 0; }
+        .aviso-publico {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
         }
     </style>
 </head>
 <body>
-    <div class="wrap">
-        <header class="header">
-            <a href="<?= htmlspecialchars($url_retorno) ?>" class="btn-retorno"><i class="fas fa-arrow-left"></i> Retorno</a>
-            <img src="<?= htmlspecialchars($logo_url) ?>" alt="La Estación del Dominó">
-        </header>
-
-        <h1 class="page-title">Resumen Individual</h1>
-        <p class="sub" style="text-align: center;"><?= htmlspecialchars($torneo_nombre) ?></p>
-
-        <div class="card">
-            <!-- Fila 1: ID y Nombre -->
-            <div class="stats-row">
-                <div class="stat-item"><span class="label">Número</span><span class="value"><?= (int)($id_usuario) ?></span></div>
-                <div class="stat-item"><span class="label">Nombre</span><span class="value"><?= htmlspecialchars($nombre_jugador) ?></span></div>
+<div class="container py-4">
+    <div class="card-resumen">
+        <div class="header-evento">
+            <div class="d-flex justify-content-between align-items-center mb-3 text-start">
+                <a href="<?= htmlspecialchars($url_retorno) ?>" class="btn btn-sm btn-volver">
+                    <i class="fas fa-arrow-left me-1"></i>Volver
+                </a>
+                <div class="flex-grow-1 text-center px-2">
+                    <?= AppHelpers::appLogo('', 'La Estación del Dominó', 36) ?>
+                </div>
+                <span style="width: 88px;" aria-hidden="true"></span>
             </div>
-            <!-- Fila 2: Posición, Ganados, Perdidos, Efectividad, Puntos -->
-            <div class="stats-row stats-row-2">
-                <div class="stat-item"><span class="label">Posición</span><span class="value"><?= $posicion ?: '—' ?></span></div>
-                <div class="stat-item"><span class="label">Ganados</span><span class="value"><?= (int)($resumen['ganados'] ?? 0) ?></span></div>
-                <div class="stat-item"><span class="label">Perdidos</span><span class="value"><?= (int)($resumen['perdidos'] ?? 0) ?></span></div>
-                <div class="stat-item"><span class="label">Efectividad</span><span class="value"><?= (int)($resumen['efectividad'] ?? 0) ?></span></div>
-                <div class="stat-item"><span class="label">Puntos</span><span class="value"><?= (int)($resumen['puntos'] ?? 0) ?></span></div>
-            </div>
+            <h4><i class="fas fa-user me-2"></i>Resumen del jugador</h4>
+            <h5 class="mt-2"><?= htmlspecialchars($nombre_jugador) ?></h5>
+            <p class="sub mb-0"><?= htmlspecialchars($torneo_nombre) ?><?= $fecha_torneo !== '' ? ' · ' . $fecha_torneo : '' ?></p>
+        </div>
 
-            <!-- Tabla trayectoria de partidas -->
-            <?php if (empty($partidas)): ?>
-                <p class="empty">Aún no hay partidas registradas.</p>
+        <div class="p-4">
+            <?php if ($error !== null): ?>
+                <div class="alert alert-danger mb-0"><?= htmlspecialchars($error) ?></div>
             <?php else: ?>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="num">Partida</th>
-                                <th class="num">Mesa</th>
-                                <th>Compañero</th>
-                                <th>Contrario 1</th>
-                                <th>Contrario 2</th>
-                                <th class="num">R1</th>
-                                <th class="num">R2</th>
-                                <th class="num">Efectiv.</th>
-                                <th class="num">Ganados</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php $n = 0; foreach ($partidas as $p): $n++;
-                                $mesa_raw = $p['mesa'] ?? 0;
-                                $mesa = (int)$mesa_raw;
-                                $es_bye = ($mesa === 0 || $mesa_raw === '0' || (string)$mesa_raw === '0');
-                            ?>
-                            <tr>
-                                <td class="num"><?= $n ?></td>
-                                <td class="num"><?= $es_bye ? 'BYE' : $mesa ?></td>
-                                <td class="nombre-cell" title="<?= htmlspecialchars($p['compañero'] ?? '—') ?>"><?= htmlspecialchars($p['compañero'] ?? '—') ?></td>
-                                <td class="nombre-cell" title="<?= htmlspecialchars($p['contrario1'] ?? '—') ?>"><?= htmlspecialchars($p['contrario1'] ?? '—') ?></td>
-                                <td class="nombre-cell" title="<?= htmlspecialchars($p['contrario2'] ?? '—') ?>"><?= htmlspecialchars($p['contrario2'] ?? '—') ?></td>
-                                <td class="num"><?= (int)($p['resultado1'] ?? 0) ?></td>
-                                <td class="num"><?= (int)($p['resultado2'] ?? 0) ?></td>
-                                <td class="num"><?= (int)($p['efectividad'] ?? 0) ?></td>
-                                <td class="num"><?= (int)($p['ganada'] ?? 0) ?></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                        <tfoot>
-                            <tr class="tfoot-row">
-                                <td colspan="5" class="num"><strong>TOTALES / SUMAS</strong></td>
-                                <td class="num"><?= $sum_resultado1 ?></td>
-                                <td class="num"><?= $sum_resultado2 ?></td>
-                                <td class="num"><?= $sum_efectividad ?></td>
-                                <td class="num"><?= (int)($resumen['ganados'] ?? 0) ?></td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                <div class="aviso-publico mb-4">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Consulta pública: solo se muestran los resultados generales del torneo.
+                </div>
+
+                <div class="info-list mb-4">
+                    <div class="row-line"><span class="text-muted">ID FVD</span><strong><?= $id_usuario ?></strong></div>
+                    <div class="row-line"><span class="text-muted">Club</span><strong><?= htmlspecialchars($club) ?></strong></div>
+                    <div class="row-line"><span class="text-muted">Posición</span><strong><?= $posicion > 0 ? $posicion : '—' ?></strong></div>
+                </div>
+
+                <h6 class="text-muted text-uppercase fw-semibold mb-3 text-center" style="letter-spacing:0.05em;">Estadísticas generales</h6>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="num text-success"><?= $ganados ?></span>
+                        <span class="lbl">Ganados</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="num text-danger"><?= $perdidos ?></span>
+                        <span class="lbl">Perdidos</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="num"><?= $gff ?></span>
+                        <span class="lbl">GFF</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="num"><?= $efectividad ?></span>
+                        <span class="lbl">Efectividad</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="num"><?= $puntos ?></span>
+                        <span class="lbl">Puntos</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="num text-primary"><?= $ptosrnk ?></span>
+                        <span class="lbl">Pts. ranking</span>
+                    </div>
                 </div>
             <?php endif; ?>
         </div>
+
+        <div class="p-4 border-top bg-light text-center">
+            <a href="<?= htmlspecialchars($url_retorno) ?>" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-list-ol me-1"></i>Ver clasificación del evento
+            </a>
+            <a href="<?= htmlspecialchars(AppHelpers::url('landing-spa.php')) ?>" class="btn btn-outline-secondary btn-sm ms-2">
+                <i class="fas fa-home me-1"></i>Inicio
+            </a>
+        </div>
     </div>
+</div>
 </body>
 </html>

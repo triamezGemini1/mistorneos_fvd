@@ -71,6 +71,9 @@ final class IntegralUrl
         'admin_general',
         'admin_atletas_sync',
         'importacion_torneo_externo',
+        'ranking_numfvd_admin',
+        'ranking_numfvd_detalle',
+        'reportes_pago_donacion',
         'op_especiales',
         'user_notificaciones',
     ];

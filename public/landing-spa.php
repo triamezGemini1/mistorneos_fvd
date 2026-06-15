@@ -33,6 +33,18 @@ $landing_base_href = AppHelpers::getPublicBaseHref();
 $landing_asset_href = static function (string $rel) use ($landing_web_path): string {
     return AppHelpers::assetHref($rel, rtrim($landing_web_path, '/'));
 };
+/** URL absoluta a asset en public/ (evita rutas rotas con &lt;base&gt; en producción). */
+$landing_public_asset = static function (string $rel, ?string $fallbackRel = null): string {
+    $candidates = array_filter([$rel, $fallbackRel]);
+    foreach ($candidates as $path) {
+        $disk = __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);
+        if (is_file($disk)) {
+            return AppHelpers::publicAssetUrl($path);
+        }
+    }
+
+    return AppHelpers::publicAssetUrl($rel);
+};
 $landing_page_script = basename($_SERVER['SCRIPT_NAME'] ?? 'landing-spa.php');
 if ($landing_page_script === '' || !str_ends_with(strtolower($landing_page_script), '.php')) {
     $landing_page_script = 'landing-spa.php';
@@ -60,6 +72,9 @@ $landing_resolve_brand_logo = static function (string $basename) use ($landing_a
 };
 $landing_logo_href = $landing_resolve_brand_logo('logofvd');
 $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
+
+/** Tailwind precompilado (public/assets/css/); no usar assets/dist/ en producción. */
+const LANDING_TAILWIND_CSS = 'assets/css/landing-precompiled.css';
 ?>
 <!DOCTYPE html>
 <html lang="es" class="scroll-smooth fvd-landing-page">
@@ -78,9 +93,9 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
     <link rel="canonical" href="<?= htmlspecialchars($base_url . $landing_page_script) ?>">
     <base href="<?= htmlspecialchars($landing_base_href) ?>">
 
-    <link rel="stylesheet" href="<?= htmlspecialchars($landing_asset_href('assets/dist/output.css')) ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars($landing_asset_href('assets/vendor/fontawesome/css/all.min.css')) ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars($landing_asset_href('assets/css/fvd-landing-shell.css')) ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars($landing_public_asset(LANDING_TAILWIND_CSS)) ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars($landing_public_asset('assets/vendor/fontawesome/css/all.min.css')) ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars($landing_public_asset('assets/css/fvd-landing-shell.css')) ?>">
     
     <style>
         /* ========== Tema institucional FVD ========== */
@@ -277,7 +292,207 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
         @media (min-width: 640px) {
             .fvd-footer-credits-text { font-size: 0.875rem; line-height: 1.6; }
         }
+
+        /* Podios asociaciones — tipografía institucional */
+        .fvd-podios {
+            --fvd-podios-bg: #00D0FA;
+            --fvd-podios-bg-alt: #00b8e0;
+            --fvd-podios-text: #172553;
+            --fvd-podios-fs: 1.3125rem;
+            background: var(--fvd-podios-bg);
+            color: var(--fvd-podios-text);
+            border-color: rgba(23, 37, 83, 0.22) !important;
+        }
+        .fvd-podios__head {
+            background: var(--fvd-podios-bg-alt);
+            border-bottom: 1px solid rgba(23, 37, 83, 0.18);
+        }
+        .fvd-podios__title {
+            font-size: calc(var(--fvd-podios-fs) * 1.15);
+            font-weight: 700;
+            color: var(--fvd-podios-text);
+            line-height: 1.25;
+        }
+        .fvd-podios__criterio,
+        .fvd-podios__hint,
+        .fvd-podios__empty {
+            font-size: var(--fvd-podios-fs);
+            font-weight: 700;
+            color: var(--fvd-podios-text);
+            line-height: 1.4;
+        }
+        .fvd-podios__criterio { opacity: 0.9; }
+        .fvd-podios__hint { opacity: 0.92; }
+        .fvd-podios__body { background: var(--fvd-podios-bg); }
+        .fvd-podios__table-wrap {
+            border: 1px solid rgba(23, 37, 83, 0.22);
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+        .fvd-podios table {
+            width: 100%;
+            text-align: left;
+            font-size: var(--fvd-podios-fs);
+            font-weight: 700;
+            color: var(--fvd-podios-text);
+            border-collapse: collapse;
+        }
+        .fvd-podios th,
+        .fvd-podios td {
+            color: var(--fvd-podios-text);
+            font-weight: 700;
+            padding: 0.85rem 1rem;
+            vertical-align: middle;
+        }
+        .fvd-podios thead th {
+            background: rgba(23, 37, 83, 0.08);
+            border-bottom: 1px solid rgba(23, 37, 83, 0.2);
+        }
+        .fvd-podios tbody tr {
+            border-top: 1px solid rgba(23, 37, 83, 0.14);
+            transition: background 0.15s ease;
+        }
+        .fvd-podios tbody tr:nth-child(4n+1),
+        .fvd-podios tbody tr:nth-child(4n+2) {
+            background: rgba(23, 37, 83, 0.04);
+        }
+        .fvd-podios .podio-resumen-row {
+            cursor: pointer;
+        }
+        .fvd-podios .podio-resumen-row:hover {
+            background: rgba(23, 37, 83, 0.08) !important;
+        }
+        .fvd-podios .podio-resumen-row.fvd-podios-row--active {
+            background: rgba(23, 37, 83, 0.12) !important;
+            box-shadow: inset 0 0 0 2px rgba(23, 37, 83, 0.45);
+        }
+        .fvd-podios .fvd-podios-chevron {
+            color: var(--fvd-podios-text);
+            font-size: 0.85em;
+            opacity: 0.85;
+        }
+        .fvd-podios-desglose-cell {
+            background: var(--fvd-podios-bg-alt) !important;
+            border-top: 1px solid rgba(23, 37, 83, 0.18) !important;
+            padding: 0.75rem 1rem !important;
+        }
+        .fvd-podios-desglose {
+            border: 1px solid rgba(23, 37, 83, 0.2);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            background: rgba(23, 37, 83, 0.04);
+        }
+        .fvd-podios-desglose thead th {
+            background: rgba(23, 37, 83, 0.08);
+        }
+        .fvd-podios-desglose tbody tr:nth-child(even) {
+            background: rgba(23, 37, 83, 0.04);
+        }
+        .fvd-podios tfoot td,
+        .fvd-podios tfoot th {
+            background: rgba(23, 37, 83, 0.12);
+            border-top: 1px solid rgba(23, 37, 83, 0.22);
+            font-weight: 700;
+            color: var(--fvd-podios-text);
+        }
+        @media (min-width: 768px) {
+            .fvd-podios {
+                --fvd-podios-fs: 1.40625rem;
+            }
+        }
+        /* Asociaciones activas — grid uniforme (6 por fila en desktop) */
+        .fvd-asoc-badges {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+        @media (min-width: 640px) {
+            .fvd-asoc-badges { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (min-width: 992px) {
+            .fvd-asoc-badges { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+        @media (min-width: 1200px) {
+            .fvd-asoc-badges { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+        }
+        .fvd-asoc-badge {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0.5rem;
+            min-height: 8.25rem;
+            height: 100%;
+            width: 100%;
+            padding: 0.75rem 0.5rem;
+            border-radius: 1rem;
+            border: 2px solid transparent;
+            font-size: 0.75rem;
+            font-weight: 700;
+            line-height: 1.25;
+            text-align: center;
+            text-decoration: none;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            box-shadow: 0 4px 14px rgba(23, 59, 126, 0.1);
+        }
+        .fvd-asoc-badge:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 24px rgba(23, 59, 126, 0.16);
+        }
+        .fvd-asoc-badge__logo {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 0.75rem;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+            box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+        }
+        .fvd-asoc-badge__logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 0.2rem;
+        }
+        .fvd-asoc-badge__logo i { font-size: 1.15rem; }
+        .fvd-asoc-badge__name {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            width: 100%;
+            min-height: 2.85rem;
+            word-break: break-word;
+        }
+        .fvd-asoc-badge--blue {
+            background: linear-gradient(135deg, #dbeafe, #eff6ff);
+            color: #173B7E;
+            border-color: rgba(23, 59, 126, 0.22);
+        }
+        .fvd-asoc-badge--blue .fvd-asoc-badge__logo i { color: #173B7E; }
+        .fvd-asoc-badge--amber {
+            background: linear-gradient(135deg, #fef3c7, #fffbeb);
+            color: #92400e;
+            border-color: rgba(245, 158, 11, 0.35);
+        }
+        .fvd-asoc-badge--amber .fvd-asoc-badge__logo i { color: #b45309; }
+        .fvd-asoc-badge--indigo {
+            background: linear-gradient(135deg, #e0e7ff, #eef2ff);
+            color: #3730a3;
+            border-color: rgba(79, 70, 229, 0.25);
+        }
+        .fvd-asoc-badge--indigo .fvd-asoc-badge__logo i { color: #4338ca; }
+        .fvd-asoc-badge--sky {
+            background: linear-gradient(135deg, #e0f2fe, #f0f9ff);
+            color: #0369a1;
+            border-color: rgba(14, 165, 233, 0.28);
+        }
+        .fvd-asoc-badge--sky .fvd-asoc-badge__logo i { color: #0284c7; }
     </style>
+    <?php include_once __DIR__ . '/includes/analytics-tracker.php'; ?>
 </head>
 <body class="fvd-theme antialiased">
     <div id="app" class="min-h-screen flex flex-col">
@@ -297,7 +512,8 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                                 <a href="#galeria" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Galería</a>
                                 <a href="#faq" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">FAQ</a>
                                 <a href="#comentarios" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Comentarios</a>
-                                <a href="<?= htmlspecialchars($base_url . 'ranking_atletas.php') ?>" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Ranking atletas</a>
+                                <a href="#ranking-oficial" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Ranking oficial</a>
+                                <a href="#asociaciones-activas" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Asociaciones</a>
                                 <a href="<?= htmlspecialchars($base_url . 'login.php') ?>" class="ml-4 px-6 py-2.5 fvd-btn-primary rounded-lg font-semibold transition-all shadow-lg"><i class="fas fa-sign-in-alt mr-2"></i>Iniciar Sesión</a>
                             </div>
                             <span class="fvd-landing-nav__menu-btn" aria-hidden="true"><i class="fas fa-bars text-xl"></i></span>
@@ -330,8 +546,9 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                             </div>
                         </div>
                     </div>
-                    <div class="absolute bottom-0 left-0 right-0 pointer-events-none" aria-hidden="true"><svg class="w-full h-10 md:h-14 block" viewBox="0 0 1200 80" preserveAspectRatio="none"><path d="M0,40 C200,80 400,0 600,30 C800,60 1000,20 1200,40 L1200,80 L0,80 Z" fill="#172554"></path></svg></div>
+                    <div class="absolute bottom-0 left-0 right-0 pointer-events-none" aria-hidden="true"><svg class="w-full h-10 md:h-14 block" viewBox="0 0 1200 80" preserveAspectRatio="none"><path d="M0,40 C200,80 400,0 600,30 C800,60 1000,20 1200,40 L1200,80 L0,80 Z" fill="#f8fafc"></path></svg></div>
                 </section>
+                <?php require __DIR__ . '/includes/landing_ranking_oficial_section.php'; ?>
             </div>
             <div class="landing-loading-below-fold flex flex-col items-center justify-center py-12 px-4 border-t border-white/5">
                 <div class="flex flex-col items-center gap-4">
@@ -374,7 +591,8 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                             <a href="#galeria" @click.prevent="scrollToSection('galeria')" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Galería</a>
                             <a href="#faq" @click.prevent="scrollToSection('faq')" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">FAQ</a>
                             <a href="#comentarios" @click.prevent="scrollToSection('comentarios')" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Comentarios</a>
-                            <a :href="baseUrl + 'ranking_atletas.php'" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Ranking atletas</a>
+                            <a href="#ranking-oficial" @click.prevent="scrollToSection('ranking-oficial')" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Ranking oficial</a>
+                            <a href="#asociaciones-activas" @click.prevent="scrollToSection('asociaciones-activas')" class="px-4 py-2 fvd-nav-link rounded-lg transition-all font-medium">Asociaciones</a>
                             <a :href="baseUrl + 'login.php'" class="ml-4 px-6 py-2.5 fvd-btn-primary rounded-lg font-semibold transition-all shadow-lg"><i class="fas fa-sign-in-alt mr-2"></i>Iniciar Sesión</a>
                         </div>
                     <button type="button" @click="mobileMenuOpen = !mobileMenuOpen" class="fvd-landing-nav__menu-btn" aria-label="Menú"><i class="fas fa-bars text-xl"></i></button>
@@ -388,7 +606,8 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                             <a href="#" @click.prevent="scrollToSection('galeria')" class="px-4 py-2 fvd-nav-link rounded-lg">Galería</a>
                             <a href="#" @click.prevent="scrollToSection('faq')" class="px-4 py-2 fvd-nav-link rounded-lg">FAQ</a>
                             <a href="#" @click.prevent="scrollToSection('comentarios')" class="px-4 py-2 fvd-nav-link rounded-lg">Comentarios</a>
-                            <a :href="baseUrl + 'ranking_atletas.php'" class="px-4 py-2 fvd-nav-link rounded-lg">Ranking atletas</a>
+                            <a href="#" @click.prevent="scrollToSection('ranking-oficial')" class="px-4 py-2 fvd-nav-link rounded-lg">Ranking oficial</a>
+                            <a href="#" @click.prevent="scrollToSection('asociaciones-activas')" class="px-4 py-2 fvd-nav-link rounded-lg">Asociaciones</a>
                         <a :href="baseUrl + 'login.php'" class="mt-2 px-4 py-2.5 fvd-btn-primary rounded-lg text-center inline-block"><i class="fas fa-sign-in-alt mr-2"></i>Iniciar Sesión</a>
                     </div>
                 </div>
@@ -422,7 +641,167 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                          </div>
                      </div>
                  </div>
-                <div class="absolute bottom-0 left-0 right-0 pointer-events-none" aria-hidden="true"><svg class="w-full h-10 md:h-14" viewBox="0 0 1200 80" preserveAspectRatio="none"><path d="M0,40 C200,80 400,0 600,30 C800,60 1000,20 1200,40 L1200,80 L0,80 Z" fill="#172554"></path></svg></div>
+                <div class="absolute bottom-0 left-0 right-0 pointer-events-none" aria-hidden="true"><svg class="w-full h-10 md:h-14" viewBox="0 0 1200 80" preserveAspectRatio="none"><path d="M0,40 C200,80 400,0 600,30 C800,60 1000,20 1200,40 L1200,80 L0,80 Z" fill="#f8fafc"></path></svg></div>
+            </section>
+
+            <!-- Ranking oficial -->
+            <section id="ranking-oficial" class="py-10 md:py-16 bg-gradient-to-b from-slate-50 to-white border-b border-slate-200/80">
+                <div class="fvd-landing-container">
+                    <div class="text-center mb-8 md:mb-10">
+                        <p class="fvd-section-label mb-3 justify-center"><i class="fas fa-medal" aria-hidden="true"></i> Clasificación nacional</p>
+                        <h2 class="fvd-font-title text-2xl sm:text-3xl md:text-4xl font-bold text-blue-900 mb-3">Ranking oficial</h2>
+                        <p class="text-base md:text-lg text-slate-600 max-w-3xl mx-auto">Consulta el acumulado por categoría y sexo en torneos con ranking activado de la FVD.</p>
+                    </div>
+                    <div class="max-w-5xl mx-auto space-y-6 md:space-y-8">
+                        <div class="fvd-card overflow-hidden border border-blue-100/80 shadow-md">
+                            <div class="px-5 py-4 md:px-6 md:py-5 bg-gradient-to-r from-blue-900 to-blue-800">
+                                <h3 class="text-lg md:text-xl font-bold text-white m-0"><i class="fas fa-crown mr-2 text-amber-400" aria-hidden="true"></i>Categoría libre</h3>
+                            </div>
+                            <div class="p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <a :href="urlRankingOficial('absoluto', 'M')" class="group flex flex-col items-center justify-center rounded-xl border-2 border-blue-100 bg-white px-6 py-8 text-center shadow-sm transition-all hover:border-amber-400/60 hover:shadow-lg hover:-translate-y-0.5">
+                                    <span class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-blue-50 text-blue-700 mb-3 group-hover:bg-amber-50 group-hover:text-amber-700 transition-colors"><i class="fas fa-mars text-2xl" aria-hidden="true"></i></span>
+                                    <span class="text-lg font-bold text-blue-900">Masculino</span>
+                                    <span class="text-sm text-slate-500 mt-1">Ranking absoluto</span>
+                                </a>
+                                <a :href="urlRankingOficial('absoluto', 'F')" class="group flex flex-col items-center justify-center rounded-xl border-2 border-blue-100 bg-white px-6 py-8 text-center shadow-sm transition-all hover:border-amber-400/60 hover:shadow-lg hover:-translate-y-0.5">
+                                    <span class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-pink-50 text-pink-700 mb-3 group-hover:bg-amber-50 group-hover:text-amber-700 transition-colors"><i class="fas fa-venus text-2xl" aria-hidden="true"></i></span>
+                                    <span class="text-lg font-bold text-blue-900">Femenino</span>
+                                    <span class="text-sm text-slate-500 mt-1">Ranking absoluto</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
+                            <div v-for="sub in rankingSubs" :key="sub.slug" class="fvd-card overflow-hidden border border-slate-200/90 shadow-md flex flex-col h-full">
+                                <div class="px-4 py-3 md:py-4 bg-slate-100 border-b border-slate-200">
+                                    <h3 class="text-base md:text-lg font-bold text-blue-900 m-0 text-center">{{ sub.titulo }}</h3>
+                                </div>
+                                <div class="p-4 flex flex-col gap-3 flex-1">
+                                    <a :href="urlRankingOficial(sub.slug, 'M')" class="flex items-center justify-center gap-2 rounded-lg px-4 py-3 font-semibold text-sm bg-blue-900 text-white hover:bg-blue-800 transition-colors shadow-sm"><i class="fas fa-mars" aria-hidden="true"></i> Masculino</a>
+                                    <a :href="urlRankingOficial(sub.slug, 'F')" class="flex items-center justify-center gap-2 rounded-lg px-4 py-3 font-semibold text-sm border-2 border-blue-900 text-blue-900 bg-white hover:bg-blue-50 transition-colors"><i class="fas fa-venus" aria-hidden="true"></i> Femenino</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="fvd-card fvd-podios overflow-hidden shadow-lg">
+                            <div class="fvd-podios__head px-5 py-4 md:px-6 md:py-5">
+                                <h3 class="fvd-podios__title m-0"><i class="fas fa-trophy mr-2" aria-hidden="true"></i>Podios asociaciones</h3>
+                                <p v-if="podiosAsociaciones.criterio" class="fvd-podios__criterio mb-0 mt-2">{{ podiosAsociaciones.criterio }}</p>
+                            </div>
+                            <div class="fvd-podios__body p-4 md:p-6">
+                                <div v-if="!podiosResumen.length" class="text-center py-10 fvd-podios__empty">
+                                    <i class="fas fa-medal text-4xl mb-3 opacity-80" aria-hidden="true"></i>
+                                    <p class="mb-0">Aún no hay podios registrados en torneos finalizados.</p>
+                                </div>
+                                <template v-else>
+                                    <p class="fvd-podios__hint mb-3"><i class="fas fa-hand-pointer mr-1" aria-hidden="true"></i>Seleccione una asociación para desplegar el desglose por torneo.</p>
+                                    <div class="fvd-podios__table-wrap overflow-x-auto">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Asociación</th>
+                                                    <th class="text-center"><i class="fas fa-medal" aria-hidden="true"></i> Oro</th>
+                                                    <th class="text-center">Plata</th>
+                                                    <th class="text-center">Bronce</th>
+                                                    <th class="text-right">Puntos</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template v-for="(row, idx) in podiosResumen" :key="row.entidad_id">
+                                                    <tr role="button" tabindex="0"
+                                                        class="podio-resumen-row"
+                                                        :class="{ 'fvd-podios-row--active': podioAsociacionSeleccionada && podioAsociacionSeleccionada.entidad_id === row.entidad_id }"
+                                                        @click="seleccionarPodioAsociacion(row)"
+                                                        @keydown.enter.prevent="seleccionarPodioAsociacion(row)"
+                                                        @keydown.space.prevent="seleccionarPodioAsociacion(row)">
+                                                        <td>{{ idx + 1 }}</td>
+                                                        <td>
+                                                            <i class="fas fa-chevron-right fvd-podios-chevron mr-2 transition-transform" :class="{ 'rotate-90': podioAsociacionSeleccionada && podioAsociacionSeleccionada.entidad_id === row.entidad_id }" aria-hidden="true"></i>
+                                                            {{ row.asociacion }}
+                                                        </td>
+                                                        <td class="text-center">{{ row.oro }}</td>
+                                                        <td class="text-center">{{ row.plata }}</td>
+                                                        <td class="text-center">{{ row.bronce }}</td>
+                                                        <td class="text-right">{{ row.total_puntos }}</td>
+                                                    </tr>
+                                                    <tr v-if="podioAsociacionSeleccionada && podioAsociacionSeleccionada.entidad_id === row.entidad_id">
+                                                        <td colspan="6" class="fvd-podios-desglose-cell">
+                                                            <div class="fvd-podios-desglose overflow-x-auto">
+                                                                <table>
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>Torneo</th>
+                                                                            <th class="text-center">Fecha</th>
+                                                                            <th class="text-center"><i class="fas fa-medal" aria-hidden="true"></i> Oro</th>
+                                                                            <th class="text-center">Plata</th>
+                                                                            <th class="text-center">Bronce</th>
+                                                                            <th class="text-right">Puntos</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <tr v-if="!(row.por_torneo || []).length">
+                                                                            <td colspan="6" class="text-center">Sin podios en torneos con ranking.</td>
+                                                                        </tr>
+                                                                        <tr v-for="t in (row.por_torneo || [])" :key="t.torneo_id">
+                                                                            <td>{{ t.torneo_nombre }}</td>
+                                                                            <td class="text-center whitespace-nowrap">{{ formatFecha(t.fechator) }}</td>
+                                                                            <td class="text-center">{{ t.oro }}</td>
+                                                                            <td class="text-center">{{ t.plata }}</td>
+                                                                            <td class="text-center">{{ t.bronce }}</td>
+                                                                            <td class="text-right">{{ t.total_puntos }}</td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                    <tfoot>
+                                                                        <tr>
+                                                                            <td colspan="2">Total asociación</td>
+                                                                            <td class="text-center">{{ row.oro }}</td>
+                                                                            <td class="text-center">{{ row.plata }}</td>
+                                                                            <td class="text-center">{{ row.bronce }}</td>
+                                                                            <td class="text-right">{{ row.total_puntos }}</td>
+                                                                        </tr>
+                                                                    </tfoot>
+                                                                </table>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Asociaciones activas -->
+            <section id="asociaciones-activas" class="py-10 md:py-14 bg-white border-b border-slate-200/80">
+                <div class="fvd-landing-container">
+                    <div class="text-center mb-8 md:mb-10">
+                        <p class="fvd-section-label mb-3 justify-center"><i class="fas fa-shield-alt" aria-hidden="true"></i> Red nacional FVD</p>
+                        <h2 class="fvd-font-title text-2xl sm:text-3xl md:text-4xl font-bold text-blue-900 mb-3">Asociaciones Activas</h2>
+                        <p class="text-base md:text-lg text-slate-600 max-w-3xl mx-auto">Directorio de asociaciones afiliadas. Seleccione una para ver representante, contacto y estadísticas de afiliados.</p>
+                    </div>
+                    <div v-if="asociacionesActivas.length" class="fvd-asoc-badges w-full">
+                        <a
+                            v-for="(asoc, idx) in asociacionesActivas"
+                            :key="asoc.id"
+                            :href="urlAsociacionDetalle(asoc.id)"
+                            :class="['fvd-asoc-badge', badgeToneClass(idx)]"
+                            :title="'Ver ficha de ' + asoc.nombre"
+                        >
+                            <span class="fvd-asoc-badge__logo" aria-hidden="true">
+                                <img v-if="urlAsociacionLogo(asoc)" :src="urlAsociacionLogo(asoc)" :alt="''" loading="lazy" decoding="async" @error="onAsocLogoError(asoc.id)">
+                                <i v-else class="fas fa-shield-alt"></i>
+                            </span>
+                            <span class="fvd-asoc-badge__name">{{ asoc.nombre }}</span>
+                        </a>
+                    </div>
+                    <div v-else class="text-center py-10 text-slate-500 max-w-xl mx-auto">
+                        <i class="fas fa-building text-4xl mb-3 opacity-60" aria-hidden="true"></i>
+                        <p class="mb-0">No hay asociaciones activas publicadas en este momento.</p>
+                    </div>
+                </div>
             </section>
 
             <!-- Documentos oficiales de dominó -->
@@ -458,7 +837,8 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                             <div v-for="doc in data.invitaciones_fvd" :key="doc.path" class="fvd-card overflow-hidden">
                                 <div class="p-6">
                                     <div class="flex items-center justify-center w-14 h-14 bg-green-100 rounded-xl mb-4"><i class="fas fa-file-pdf text-2xl text-green-600"></i></div>
-                                    <h4 class="text-lg font-bold text-gray-900 mb-3">{{ doc.titulo }}</h4>
+                                    <h4 class="text-lg font-bold text-gray-900 mb-1">{{ doc.titulo }}</h4>
+                                    <p v-if="doc.fecha_limite" class="text-xs text-gray-500 mb-3"><i class="fas fa-calendar-check mr-1"></i>Vigente hasta {{ doc.fecha_limite }}</p>
                                     <div class="flex flex-wrap gap-2">
                                         <a :href="'view_documento.php?path=' + encodeURIComponent(doc.path)" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-4 py-2 fvd-btn-primary rounded-lg font-semibold text-blue-900 transition-all text-sm"><i class="fas fa-external-link-alt mr-2"></i>Ver en línea</a>
                                         <a :href="'view_documento.php?path=' + encodeURIComponent(doc.path) + '&download=1'" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-all text-sm" download><i class="fas fa-download mr-2"></i>Descargar</a>
@@ -483,9 +863,11 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                         <div v-for="ev in data.eventos_masivos" :key="ev.id" class="fvd-event-card-dark rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden transform hover:-translate-y-1 text-center">
-                            <div class="w-full h-48 bg-white/20 flex flex-col items-center justify-center p-4">
-                                <img v-if="ev.logo_url" :src="ev.logo_url" alt="" class="landing-logo-org object-contain mb-2" loading="lazy">
-                                <span class="text-white text-xl font-bold">{{ ev.organizacion_nombre || 'Organizador' }}</span>
+                            <div class="w-full h-48 flex flex-col items-center justify-center p-4 bg-white/20 bg-cover bg-center" :style="ev.portada_url ? { backgroundImage: 'url(' + ev.portada_url + ')' } : {}">
+                                <template v-if="!ev.portada_url">
+                                    <img v-if="ev.logo_url" :src="ev.logo_url" alt="" class="landing-logo-org object-contain mb-2" loading="lazy">
+                                    <span class="text-white text-xl font-bold">{{ ev.organizacion_nombre || 'Organizador' }}</span>
+                                </template>
                             </div>
                             <div class="p-6 text-center">
                                 <div class="inline-flex items-center px-3 py-1 bg-amber-400 text-blue-900 rounded-full text-sm font-bold mb-4"><i class="fas fa-calendar mr-2"></i>{{ formatFecha(ev.fechator) }}</div>
@@ -497,6 +879,7 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                                     <span v-if="ev.costo > 0" class="px-3 py-1 bg-green-500/80 text-white rounded-full text-xs font-semibold">${{ parseFloat(ev.costo).toFixed(2) }}</span>
                                     <span class="px-3 py-1 bg-amber-400 text-blue-900 rounded-full text-xs font-bold"><i class="fas fa-users mr-1"></i>{{ ev.total_inscritos||0 }} inscritos</span>
                                 </div>
+                                <a :href="ev.detalle_url || (baseUrl + 'torneo_detalle.php?torneo_id=' + ev.id)" class="block w-full px-4 py-2 mb-2 bg-white/15 text-white font-semibold rounded-lg hover:bg-white/25 transition-all text-center border border-white/30"><i class="fas fa-info-circle mr-2"></i>Ver ficha del torneo</a>
                                 <a v-if="inscripcionLineaPublica && parseInt(ev.permite_inscripcion_linea||1)===1 && !esHoy(ev.fechator)" :href="baseUrl + 'inscribir_evento_masivo.php?torneo_id=' + ev.id" class="block w-full px-4 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-blue-900 font-bold rounded-lg hover:from-yellow-500 hover:to-orange-600 transition-all text-center shadow-lg"><i class="fas fa-mobile-alt mr-2"></i>Inscribirme Ahora</a>
                                 <div v-else-if="inscripcionLineaPublica && parseInt(ev.permite_inscripcion_linea||1)===1 && esHoy(ev.fechator)" class="bg-yellow-400/20 rounded-lg p-3 border border-yellow-400/50"><p class="text-xs text-blue-900 text-center mb-0"><i class="fas fa-info-circle mr-1"></i>Inscripción deshabilitada el día del torneo.</p></div>
                                 <div v-else class="bg-yellow-400/20 rounded-lg p-3 border border-yellow-400/50">
@@ -519,9 +902,11 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                             <div v-for="ev in data.eventos_futuros" :key="ev.id" class="fvd-card overflow-hidden text-center">
-                                <div class="w-full h-48 bg-gray-100 flex flex-col items-center justify-center p-4">
-                                    <img v-if="ev.logo_url" :src="ev.logo_url" alt="" class="landing-logo-org object-contain mb-2" loading="lazy">
-                                    <span class="text-gray-900 text-xl font-bold">{{ ev.organizacion_nombre || 'Organizador' }}</span>
+                                <div class="w-full h-48 bg-gray-100 flex flex-col items-center justify-center p-4 bg-cover bg-center" :style="ev.portada_url ? { backgroundImage: 'url(' + ev.portada_url + ')' } : {}">
+                                    <template v-if="!ev.portada_url">
+                                        <img v-if="ev.logo_url" :src="ev.logo_url" alt="" class="landing-logo-org object-contain mb-2" loading="lazy">
+                                        <span class="text-gray-900 text-xl font-bold">{{ ev.organizacion_nombre || 'Organizador' }}</span>
+                                    </template>
                                 </div>
                                 <div class="p-6 text-center">
                                     <div class="inline-flex items-center px-3 py-1 bg-primary-500 text-white rounded-full text-sm font-semibold mb-4"><i class="fas fa-calendar mr-2"></i>{{ formatFecha(ev.fechator) }}</div>
@@ -532,10 +917,10 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                                         <span class="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-xs font-semibold">{{ MODALIDADES[parseInt(ev.modalidad)||1] || 'Individual' }}</span>
                                         <span v-if="ev.costo > 0" class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">${{ parseFloat(ev.costo).toFixed(2) }}</span>
                                     </div>
+                                    <a :href="ev.detalle_url || (baseUrl + 'torneo_detalle.php?torneo_id=' + ev.id)" class="block w-full px-4 py-2 fvd-btn-primary rounded-lg font-semibold text-blue-900 transition-all text-center mb-2"><i class="fas fa-info-circle mr-2"></i>Ver ficha del torneo</a>
                                     <a v-if="inscripcionLineaPublica && parseInt(ev.permite_inscripcion_linea||1)===1 && !esHoy(ev.fechator)" :href="baseUrl + 'tournament_register.php?torneo_id=' + ev.id" class="block w-full px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-all text-center mb-2"><i class="fas fa-sign-in-alt mr-2"></i>Inscribirme</a>
                                     <p v-else-if="inscripcionLineaPublica && parseInt(ev.permite_inscripcion_linea||1)===1 && esHoy(ev.fechator)" class="text-xs text-gray-500 text-center mb-2">Inscripción deshabilitada el día del torneo.</p>
                                     <a v-else-if="ev.admin_celular || ev.club_telefono" :href="'tel:' + (ev.admin_celular || ev.club_telefono || '').replace(/\D/g,'')" class="block w-full px-4 py-2 bg-green-500 text-white font-semibold rounded-lg text-center mb-2"><i class="fas fa-phone mr-2"></i>Contactar</a>
-                                    <a :href="baseUrl + 'consulta_credencial.php'" class="block w-full px-4 py-2 fvd-btn-primary rounded-lg font-semibold text-blue-900 transition-all text-center"><i class="fas fa-info-circle mr-2"></i>Ver Información</a>
                                 </div>
                             </div>
                         </div>
@@ -547,9 +932,11 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                             <div v-for="ev in data.eventos_realizados" :key="ev.id" class="fvd-card overflow-hidden text-center">
-                                <div class="w-full h-48 bg-gray-100 flex flex-col items-center justify-center p-4">
-                                    <img v-if="ev.logo_url" :src="ev.logo_url" alt="" class="landing-logo-org object-contain mb-2" loading="lazy">
-                                    <span class="text-gray-900 text-xl font-bold">{{ ev.organizacion_nombre || 'Organizador' }}</span>
+                                <div class="w-full h-48 bg-gray-100 flex flex-col items-center justify-center p-4 bg-cover bg-center" :style="ev.portada_url ? { backgroundImage: 'url(' + ev.portada_url + ')' } : {}">
+                                    <template v-if="!ev.portada_url">
+                                        <img v-if="ev.logo_url" :src="ev.logo_url" alt="" class="landing-logo-org object-contain mb-2" loading="lazy">
+                                        <span class="text-gray-900 text-xl font-bold">{{ ev.organizacion_nombre || 'Organizador' }}</span>
+                                    </template>
                                 </div>
                                 <div class="p-6 text-center">
                                     <div class="inline-flex items-center px-3 py-1 bg-gray-600 text-white rounded-full text-sm font-semibold mb-4"><i class="fas fa-calendar mr-2"></i>{{ formatFecha(ev.fechator) }}</div>
@@ -559,6 +946,7 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                                         <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">{{ CLASES[parseInt(ev.clase)||1] || 'Torneo' }}</span>
                                         <span class="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-xs font-semibold">{{ MODALIDADES[parseInt(ev.modalidad)||1] || 'Individual' }}</span>
                                     </div>
+                                    <a :href="ev.detalle_url || (baseUrl + 'torneo_detalle.php?torneo_id=' + ev.id)" class="block w-full px-4 py-2 fvd-btn-primary rounded-lg font-semibold text-blue-900 transition-all text-center mb-2"><i class="fas fa-info-circle mr-2"></i>Ver ficha del torneo</a>
                                     <a :href="baseUrl + 'evento_resultados.php?torneo_id=' + ev.id" class="block w-full px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-all text-center mb-2"><i class="fas fa-chart-bar mr-2"></i>Ver Resultados</a>
                                     <button v-if="ev.total_fotos > 0" type="button" @click="viewEventPhotos(ev.id, ev.nombre)" class="w-full px-4 py-2 fvd-btn-primary rounded-lg font-semibold text-blue-900 transition-all"><i class="fas fa-images mr-2"></i>Ver Fotos ({{ ev.total_fotos }})</button>
                                 </div>
@@ -604,7 +992,19 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
                         <h2 class="fvd-font-title text-2xl sm:text-3xl md:text-4xl font-bold text-blue-900 mb-3"><i class="fas fa-images mr-3 text-amber-500"></i>Galería de Torneos</h2>
                         <p class="text-lg text-gray-600">Momentos destacados de nuestros eventos</p>
                     </div>
-                    <div class="text-center py-12 bg-white rounded-2xl shadow-lg">
+                    <div v-if="data.galeria_destacada?.length" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+                        <a v-for="foto in data.galeria_destacada" :key="foto.id" :href="foto.detalle_url || (baseUrl + 'torneo_detalle.php?torneo_id=' + foto.torneo_id)" class="group block rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all">
+                            <img :src="foto.url" :alt="foto.torneo_nombre" class="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy">
+                            <div class="p-3 bg-slate-50 text-left">
+                                <p class="text-sm font-semibold text-blue-900 truncate">{{ foto.torneo_nombre }}</p>
+                                <p class="text-xs text-gray-500 truncate">{{ foto.organizacion_nombre }}</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="text-center py-6">
+                        <a :href="baseUrl + 'galeria_fotos.php'" class="inline-block bg-primary-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-600 transition-all"><i class="fas fa-images mr-2"></i>Ver galería completa</a>
+                    </div>
+                    <div v-if="!data.galeria_destacada?.length" class="text-center py-12 bg-white rounded-2xl shadow-lg">
                         <i class="fas fa-images text-6xl text-gray-300 mb-4"></i>
                         <p class="text-gray-600 text-lg mb-4">Momentos de nuestros torneos</p>
                         <a :href="baseUrl + 'galeria_fotos.php'" class="inline-block bg-primary-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-600 transition-all"><i class="fas fa-images mr-2"></i>Ver Galería</a>
@@ -807,7 +1207,12 @@ $landing_estacion_logo_href = $landing_resolve_brand_logo('logoled');
             inscripcionLineaPublica: <?= json_encode($landing_inscripcion_linea_publica) ?>
         };
     </script>
-    <script src="<?= htmlspecialchars($landing_asset_href('assets/vendor/vue/vue.global.prod.js')) ?>"></script>
-    <script src="<?= htmlspecialchars($landing_asset_href('assets/landing-spa.js')) ?>"></script>
+    <script src="<?= htmlspecialchars($landing_public_asset('assets/vendor/vue/vue.global.prod.js')) ?>"></script>
+    <script>
+        if (typeof Vue === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"><\/script>');
+        }
+    </script>
+    <script src="<?= htmlspecialchars($landing_public_asset('assets/landing-spa.js')) ?>"></script>
 </body>
 </html>

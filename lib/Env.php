@@ -43,7 +43,10 @@ class Env
             // Parsear KEY=VALUE
             if (strpos($line, '=') !== false) {
                 [$key, $value] = explode('=', $line, 2);
-                $key = trim($key);
+                $key = self::normalizeKey(trim($key));
+                if ($key === '') {
+                    continue;
+                }
                 $value = self::parseValue(trim($value));
 
                 // Establecer en entorno
@@ -54,6 +57,77 @@ class Env
         }
 
         self::$loaded = true;
+    }
+
+    /**
+     * Completa variables faltantes (sin sobrescribir .env).
+     * Útil para config/env.production.php cuando el valor solo está ahí.
+     */
+    public static function mergeMissing(array $vars): void
+    {
+        foreach ($vars as $key => $value) {
+            if (!is_string($key)) {
+                continue;
+            }
+            $key = self::normalizeKey($key);
+            if ($key === '' || self::hasNonEmpty($key)) {
+                continue;
+            }
+            $value = trim((string) $value);
+            if ($value === '' || self::isPlaceholderValue($value)) {
+                continue;
+            }
+            putenv("$key=$value");
+            $_ENV[$key] = $value;
+            self::$variables[$key] = $value;
+        }
+    }
+
+    private static function hasNonEmpty(string $key): bool
+    {
+        if (isset(self::$variables[$key]) && trim((string) self::$variables[$key]) !== '') {
+            return true;
+        }
+        if (isset($_ENV[$key]) && trim((string) $_ENV[$key]) !== '') {
+            return true;
+        }
+        $fromGetenv = getenv($key);
+        if ($fromGetenv !== false && trim((string) $fromGetenv) !== '') {
+            return true;
+        }
+
+        return false;
+    }
+
+    /** Valores de plantilla que no deben usarse como credenciales reales. */
+    private static function isPlaceholderValue(string $value): bool
+    {
+        static $needles = [
+            'TU_USUARIO_AQUI',
+            'TU_PASSWORD_AQUI',
+            'TU_PASSWORD_CORREO',
+            'cambiar_esta_clave',
+        ];
+        foreach ($needles as $needle) {
+            if (stripos($value, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function normalizeKey(string $key): string
+    {
+        $key = trim($key);
+        if ($key === '') {
+            return '';
+        }
+        if (str_starts_with($key, "\xEF\xBB\xBF")) {
+            $key = substr($key, 3);
+        }
+
+        return trim($key);
     }
 
     /**
@@ -133,7 +207,7 @@ class Env
             return self::get($matches[1], '');
         }, $value);
 
-        return $value;
+        return trim($value, " \t\n\r\0\x0B,;");
     }
 
     /**

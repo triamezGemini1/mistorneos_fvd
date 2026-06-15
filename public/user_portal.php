@@ -8,6 +8,8 @@ require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../config/auth_service.php';
 require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/csrf.php';
+require_once __DIR__ . '/../lib/RankingAtletasPdfAccesoHelper.php';
+require_once __DIR__ . '/../lib/RankingCategoriaFvdHelper.php';
 AuthService::requireAuth();
 
 $user = $_SESSION['user'];
@@ -25,6 +27,28 @@ if ($user_data) {
 
 // Obtener sección activa
 $section = $_GET['section'] ?? 'inicio';
+
+$public_portal_url = rtrim(class_exists('AppHelpers') ? AppHelpers::getPublicUrl() : $base_url, '/');
+$landing_ranking_url = $public_portal_url . '/landing-spa.php#ranking-oficial';
+$credencial_acceso_url = $public_portal_url . '/entrar_credencial.php?id=' . (int)Auth::id();
+$credencial_qr_img = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=1&data=' . rawurlencode($credencial_acceso_url);
+
+$accesoReportesPersonales = RankingAtletasPdfAccesoHelper::evaluar($pdo, is_array($user) ? $user : null);
+$tieneReportesPersonales = $accesoReportesPersonales['permitido'];
+$user_genero_ranking = strtoupper((string) ($user['sexo'] ?? 'M')) === 'F' ? 'F' : 'M';
+$reportes_detalle_url = $public_portal_url . '/ranking_atletas_detalle.php?' . http_build_query([
+    'genero' => $user_genero_ranking,
+    'id_usuario' => (int) Auth::id(),
+]);
+$reportes_pdf_url = $public_portal_url . '/ranking_atletas_detalle_pdf.php?' . http_build_query([
+    'genero' => $user_genero_ranking,
+    'id_usuario' => (int) Auth::id(),
+]);
+
+if (isset($_GET['download']) && (string)$_GET['download'] === '1' && $section === 'credencial') {
+    header('Location: ' . $public_portal_url . '/generate_credential.php?user_id=' . (int)Auth::id());
+    exit;
+}
 
 // Procesar acciones POST
 $message = '';
@@ -241,11 +265,13 @@ $modalidades = [1 => 'Individual', 2 => 'Parejas', 3 => 'Equipos'];
 $clases = [1 => 'Abierto', 2 => 'Por Categorías'];
 
 // Notificaciones (sección campanita): conteo pendientes para el badge y listado
+require_once __DIR__ . '/../lib/TournamentAppScope.php';
 $notificaciones_portal = [];
 $notif_pendientes_count = 0;
 $uid = Auth::id();
 if ($uid > 0) {
-    $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM notifications_queue WHERE usuario_id = ? AND canal = 'web' AND estado = 'pendiente'");
+    $sqlNotifFiltro = TournamentAppScope::sqlExcluirNotificacionesFvd('nq');
+    $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM notifications_queue nq WHERE nq.usuario_id = ? AND nq.canal = 'web' AND nq.estado = 'pendiente'{$sqlNotifFiltro}");
     $stmtCount->execute([$uid]);
     $notif_pendientes_count = (int) $stmtCount->fetchColumn();
     if ($section === 'notificaciones') {
@@ -255,20 +281,18 @@ if ($uid > 0) {
         $hasDatosJsonPortal = $pdo->query("SHOW COLUMNS FROM notifications_queue LIKE 'datos_json'")->rowCount() > 0;
         $stmt = $pdo->prepare("
             SELECT id, mensaje, url_destino, fecha_creacion" . ($hasDatosJsonPortal ? ", datos_json" : "") . "
-            FROM notifications_queue
-            WHERE usuario_id = ? AND canal = 'web'
-            ORDER BY fecha_creacion DESC
+            FROM notifications_queue nq
+            WHERE nq.usuario_id = ? AND nq.canal = 'web'{$sqlNotifFiltro}
+            ORDER BY nq.fecha_creacion DESC
             LIMIT 100
         ");
         $stmt->execute([$uid]);
-        $notificaciones_portal = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $notificaciones_portal = TournamentAppScope::filtrarFilasNotificaciones($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 }
 
-// Foto del usuario
-$photo_url = !empty($user['photo_path']) && file_exists(__DIR__ . '/../' . $user['photo_path'])
-    ? $base_url . '/' . $user['photo_path']
-    : null;
+// Foto del usuario (vía view_image.php para rutas fuera de public/)
+$photo_url = AppHelpers::userPhotoUrl($user['photo_path'] ?? '') ?: null;
 
 // Telegram: verificar si el usuario tiene chat_id y si el bot está configurado
 $telegram_chat_id_actual = trim((string)($user['telegram_chat_id'] ?? ''));
@@ -693,9 +717,15 @@ $tiene_telegram = !empty($telegram_chat_id_actual);
                         <a class="nav-link <?= $section === 'resultados' ? 'active' : '' ?>" href="?section=resultados">
                             <i class="fas fa-medal me-2"></i>Resultados
                         </a>
-                        <a class="nav-link <?= $section === 'ranking' ? 'active' : '' ?>" href="?section=ranking">
-                            <i class="fas fa-chart-line me-2"></i>Ranking
+                        <a class="nav-link" href="<?= htmlspecialchars($landing_ranking_url) ?>" target="_blank" rel="noopener">
+                            <i class="fas fa-chart-line me-2"></i>Ranking oficial
+                            <i class="fas fa-external-link-alt ms-auto" style="font-size: 0.75rem;"></i>
                         </a>
+                        <?php if ($tieneReportesPersonales): ?>
+                        <a class="nav-link <?= $section === 'reportes_personales' ? 'active' : '' ?>" href="?section=reportes_personales">
+                            <i class="fas fa-file-pdf me-2"></i>Reportes personales
+                        </a>
+                        <?php endif; ?>
                         <a class="nav-link <?= $section === 'clubes' ? 'active' : '' ?>" href="?section=clubes">
                             <i class="fas fa-building me-2"></i>Clubes
                         </a>
@@ -863,6 +893,33 @@ $tiene_telegram = !empty($telegram_chat_id_actual);
                     <?php endif; ?>
                 </div>
                 
+                <?php elseif ($section === 'reportes_personales'): ?>
+                <?php if (! $tieneReportesPersonales): ?>
+                <div class="content-card">
+                    <div class="alert alert-warning mb-0">
+                        Los reportes personales en PDF no están habilitados para su usuario.
+                    </div>
+                </div>
+                <?php else: ?>
+                <div class="content-card">
+                    <h4><i class="fas fa-file-pdf me-2 text-danger"></i>Reportes personales</h4>
+                    <p class="text-muted mb-4">
+                        Consulte y descargue únicamente su información en el ranking actual y su participación a lo largo del tiempo.
+                    </p>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="<?= htmlspecialchars($reportes_detalle_url) ?>" class="btn btn-primary" target="_blank" rel="noopener">
+                            <i class="fas fa-chart-line me-1"></i>Ver mi detalle en el ranking
+                        </a>
+                        <a href="<?= htmlspecialchars($reportes_pdf_url) ?>" class="btn btn-danger" target="_blank" rel="noopener">
+                            <i class="fas fa-file-pdf me-1"></i>Descargar PDF personal
+                        </a>
+                    </div>
+                    <p class="small text-muted mt-3 mb-0">
+                        El historial completo por afiliación se incorporará próximamente. Por ahora solo puede acceder a sus propios datos.
+                    </p>
+                </div>
+                <?php endif; ?>
+
                 <?php elseif ($section === 'ranking'): ?>
                 <!-- RANKING -->
                 <div class="content-card">
@@ -989,7 +1046,7 @@ $tiene_telegram = !empty($telegram_chat_id_actual);
                             <form method="POST" enctype="multipart/form-data" id="photo-form">
                                 <input type="hidden" name="csrf_token" value="<?= CSRF::token() ?>">
                                 <input type="hidden" name="action" value="upload_photo">
-                                <input type="file" name="photo" id="photo-input" accept="image/*" style="display:none" data-preview-target="portal-photo-preview">
+                                <input type="file" name="photo" id="photo-input" accept="image/*" style="display:none" data-preview-target="portal-photo-preview" data-preview-inline=".profile-photo-container .profile-photo, .profile-photo-container .profile-photo-placeholder">
                                 <div id="portal-photo-preview"></div>
                                 <div class="mt-2">
                                     <button type="submit" class="btn btn-sm btn-primary">Guardar foto</button>
@@ -1148,11 +1205,11 @@ $tiene_telegram = !empty($telegram_chat_id_actual);
                                 <div class="text-white-50"><?= htmlspecialchars($user['cedula'] ?? '') ?></div>
                                 <div class="credential-id"><?= htmlspecialchars($user['uuid']) ?></div>
                                 <div class="mt-3">
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=<?= urlencode($user['uuid']) ?>" 
-                                         alt="QR Code" style="border-radius: 8px; background: white; padding: 5px;">
+                                    <img src="<?= htmlspecialchars($credencial_qr_img) ?>"
+                                         alt="QR acceso al portal" style="border-radius: 8px; background: white; padding: 5px;">
                                 </div>
                                 <div class="mt-2 text-white-50" style="font-size: 0.75rem;">
-                                    La Estación del Dominó
+                                    Escanee para ingresar a su perfil
                                 </div>
                             </div>
                         </div>
@@ -1164,7 +1221,12 @@ $tiene_telegram = !empty($telegram_chat_id_actual);
                                     <strong><i class="fas fa-fingerprint me-2"></i>Identificador Único</strong>
                                 </div>
                                 <div class="card-body">
-                                    <p class="text-muted mb-3">Este es tu identificador único en el sistema. Puedes usarlo para identificarte en torneos.</p>
+                                    <p class="text-muted mb-3">El código QR abre el acceso a su perfil en el móvil. Tras escanear, ingrese su contraseña para continuar.</p>
+                                    <p class="small text-muted mb-2">Enlace directo:</p>
+                                    <div class="uuid-display mb-2" style="font-size:0.7rem;word-break:break-all;">
+                                        <?= htmlspecialchars($credencial_acceso_url) ?>
+                                    </div>
+                                    <p class="text-muted mb-3">Identificador único del sistema:</p>
                                     <div class="uuid-display mb-3">
                                         <?= htmlspecialchars($user['uuid']) ?>
                                     </div>
@@ -1181,6 +1243,9 @@ $tiene_telegram = !empty($telegram_chat_id_actual);
                                 </div>
                                 <div class="card-body">
                                     <div class="d-grid gap-2">
+                                        <a href="<?= htmlspecialchars($landing_ranking_url) ?>" class="btn btn-info text-white" target="_blank" rel="noopener">
+                                            <i class="fas fa-chart-line me-2"></i>Ranking oficial FVD
+                                        </a>
                                         <a href="?section=credencial&download=1" class="btn btn-primary">
                                             <i class="fas fa-download me-2"></i>Descargar Credencial
                                         </a>
@@ -1383,11 +1448,3 @@ $tiene_telegram = !empty($telegram_chat_id_actual);
     </script>
 </body>
 </html>
-<?php
-// Descargar credencial como imagen
-if (isset($_GET['download']) && $_GET['download'] == '1') {
-    // Redirigir a un endpoint de generación de credencial
-    header('Location: generate_credential.php?user_id=' . Auth::id());
-    exit;
-}
-?>

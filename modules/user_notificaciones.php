@@ -6,6 +6,7 @@ require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../lib/NotificationManager.php';
+require_once __DIR__ . '/../lib/TournamentAppScope.php';
 
 $user = Auth::user();
 if (!$user) {
@@ -29,7 +30,7 @@ $stmt = $pdo->prepare("
     LIMIT 100
 ");
 $stmt->execute([$uid]);
-$notificaciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$notificaciones = TournamentAppScope::filtrarFilasNotificaciones($stmt->fetchAll(PDO::FETCH_ASSOC));
 
 // Verificar si el usuario tiene Telegram vinculado (para mostrar invitación)
 $tiene_telegram = false;

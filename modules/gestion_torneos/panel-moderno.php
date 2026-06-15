@@ -107,6 +107,25 @@ $inscritos_para_rondas = isset($inscritos_confirmados) && $inscritos_confirmados
 $total_equipos = isset($total_equipos) && $total_equipos !== null ? (int)$total_equipos : (isset($estadisticas['total_equipos']) ? (int)$estadisticas['total_equipos'] : 0);
 $estadisticas = isset($estadisticas) && is_array($estadisticas) ? $estadisticas : [];
 
+$movimiento_import_resumen = [
+    'disponible' => false,
+    'pendientes' => 0,
+    'total_movimientos' => 0,
+    'es_campeonato' => false,
+];
+try {
+  if (!isset($pdo)) {
+      $pdo = DB::pdo();
+  }
+  require_once __DIR__ . '/../../lib/MovimientoTorneoInscripcionImportService.php';
+  $movimiento_import_resumen = MovimientoTorneoInscripcionImportService::resumenParaPanel(
+      $pdo,
+      (int) ($torneo['id'] ?? 0)
+  );
+} catch (Throwable $ignored) {
+    /* panel sigue sin el botón */
+}
+
 // Obtener primera mesa para registrar resultados
 $primera_mesa = null;
 if ($ultima_ronda > 0 && isset($torneo['id'])) {
@@ -352,6 +371,36 @@ $url_reportes_pago_usuarios = ($tid_panel > 0 && class_exists('AppHelpers', fals
                            title="Transferencia de inscritos y partidas para Microsoft Access">
                             <i class="fas fa-database mr-2"></i> Trans Access
                         </a>
+                        <?php
+                        $href_galeria = ($use_standalone ? $base_url : 'index.php?page=torneo_gestion')
+                            . ($use_standalone ? '?' : '&') . 'action=galeria_fotos&torneo_id=' . (int)($torneo['id'] ?? 0);
+                        ?>
+                        <a href="<?php echo htmlspecialchars($href_galeria, ENT_QUOTES, 'UTF-8'); ?>"
+                           class="tw-btn bg-sky-600 hover:bg-sky-700 text-white w-full text-center"
+                           title="Subir y gestionar fotos del torneo">
+                            <i class="fas fa-images mr-2"></i> Galería de fotos
+                        </a>
+                        <?php
+                        $mostrar_carga_movimiento = !$isLocked
+                            && $ultima_ronda === 0
+                            && !empty($movimiento_import_resumen['disponible']);
+                        if ($mostrar_carga_movimiento):
+                            $pendientes_mov = (int) ($movimiento_import_resumen['pendientes'] ?? 0);
+                            $es_camp_mov = !empty($movimiento_import_resumen['es_campeonato']);
+                        ?>
+                        <form method="POST"
+                              action="<?php echo $use_standalone ? $base_url : 'index.php?page=torneo_gestion'; ?>"
+                              class="w-full"
+                              onsubmit="return confirm('¿Cargar <?php echo $pendientes_mov; ?> inscrito(s) desde movimiento_torneo<?php echo $es_camp_mov ? ' (se asignarán al torneo correspondiente por género/edad)' : ''; ?>?');">
+                            <input type="hidden" name="action" value="cargar_inscritos_movimiento">
+                            <input type="hidden" name="csrf_token" value="<?php echo CSRF::token(); ?>">
+                            <input type="hidden" name="torneo_id" value="<?php echo (int)($torneo['id'] ?? 0); ?>">
+                            <button type="submit" class="tw-btn bg-teal-600 hover:bg-teal-700 text-white w-full text-center">
+                                <i class="fas fa-user-check mr-2"></i>
+                                Iniciar torneo: cargar inscritos (<?php echo $pendientes_mov; ?>)
+                            </button>
+                        </form>
+                        <?php endif; ?>
                         <?php
                         $tid_op = (int)($torneo['id'] ?? 0);
                         $href_op_swap = class_exists('AppHelpers', false)

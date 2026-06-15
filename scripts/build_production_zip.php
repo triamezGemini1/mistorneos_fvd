@@ -20,12 +20,11 @@ $excludeDirNames = [
     '.vscode',
     'dist',
     'coverage',
+    'config', // producción conserva su config/ y .env en el servidor
 ];
 
 $excludeFilePatterns = [
-    '/^\.env$/',
-    '/^\.env\.local$/',
-    '/^\.env\..+\.local$/',
+    '/^\.env/', // .env, .env.example, .env.production.example, etc.
     '/^vendor \(2\)\.zip$/i',
     '/^vendor\.zip$/i',
     '/^\.gitkeep$/', // se incluyen solo en carpetas vacías clave — ver abajo
@@ -46,8 +45,6 @@ $forceInclude = [
     'uploads/.gitkeep',
     'storage/cache/.gitkeep',
     'logs/.gitkeep',
-    '.env.production.example',
-    'config/env.production.example',
 ];
 
 function normalizeRel(string $root, string $path): string
@@ -95,8 +92,9 @@ if (is_file($packageJson)) {
     echo "Compilando assets (npm run build:assets)...\n";
     $npmCmd = 'npm run build:assets 2>&1';
     passthru($npmCmd, $npmCode);
-    if ($npmCode !== 0 || !is_file($root . '/public/assets/dist/output.css')) {
-        fwrite(STDERR, "Advertencia: build:assets falló o no generó output.css. Ejecuta: npm ci && npm run build:assets\n");
+    $precompiled = $root . '/public/assets/css/landing-precompiled.css';
+    if ($npmCode !== 0 || !is_file($precompiled)) {
+        fwrite(STDERR, "Advertencia: build:assets falló o no generó landing-precompiled.css. Ejecuta: npm ci && npm run build:assets\n");
     }
 }
 
@@ -165,8 +163,8 @@ MISTORNEOS FVD — Paquete de producción
 1. Extraer TODO el contenido en: public_html/mistorneos_fvd/
    (debe quedar: index.php, .htaccess, config/, lib/, public/, vendor/, etc.)
 
-2. Crear .env en la raíz copiando .env.production.example
-   y completar DB_USERNAME, DB_PASSWORD, CSRF_KEY, APP_KEY.
+2. Este paquete NO incluye .env ni config/ (se conservan los del servidor).
+   Si es instalación nueva, copie .env y config/ desde un respaldo de producción.
 
 3. Permisos 755 en: upload/, uploads/, storage/cache/, logs/
 

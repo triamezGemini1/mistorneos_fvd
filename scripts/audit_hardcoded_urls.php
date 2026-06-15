@@ -12,6 +12,8 @@ require_once $root . '/config/php_polyfills.php';
 $patterns = [
     'mistorneos_fvd1' => 'Monorepo obsoleto (standalone usa mistorneos_fvd)',
     '/mistorneos/public' => 'Ruta antigua sin _fvd',
+    '/mistorneos_beta/' => 'Ruta beta obsoleta (usar mistorneos_fvd)',
+    '/pruebas/public' => 'Ruta de pruebas obsoleta (usar mistorneos_fvd/public)',
     'INTEGRAL_WEB_ROOT=mistorneos_fvd1' => 'Variable de monorepo en .env',
     '/public/public/' => 'Doble segmento public',
 ];

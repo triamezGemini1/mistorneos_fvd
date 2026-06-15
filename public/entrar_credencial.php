@@ -19,6 +19,7 @@ $identificador_tipo = ''; // 'id' o 'cedula'
 
 $id_param = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $cedula_param = isset($_GET['cedula']) ? trim((string)$_GET['cedula']) : '';
+$uuid_param = isset($_GET['uuid']) ? trim((string)$_GET['uuid']) : '';
 
 if ($id_param > 0) {
     $pdo = DB::pdo();
@@ -43,6 +44,12 @@ if ($id_param > 0) {
         }
         $identificador_tipo = 'cedula';
     }
+} elseif ($uuid_param !== '') {
+    $pdo = DB::pdo();
+    $stmt = $pdo->prepare("SELECT id, username, nombre, cedula, role FROM usuarios WHERE uuid = ? AND role = 'usuario' LIMIT 1");
+    $stmt->execute([$uuid_param]);
+    $jugador = $stmt->fetch(PDO::FETCH_ASSOC);
+    $identificador_tipo = 'uuid';
 }
 
 if (!$jugador) {
@@ -76,7 +83,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $jugador) {
             if (function_exists('session_regenerate_id')) {
                 session_regenerate_id(true);
             }
-            $redirect = class_exists('AppHelpers') ? rtrim(AppHelpers::getPublicUrl(), '/') . '/user_portal.php' : 'user_portal.php';
+            $redirect = class_exists('AppHelpers')
+                ? rtrim(AppHelpers::getPublicUrl(), '/') . '/user_portal.php?section=perfil'
+                : 'user_portal.php?section=perfil';
             header('Location: ' . $redirect);
             exit;
         }

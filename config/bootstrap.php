@@ -45,6 +45,21 @@ if (is_file($utf8Bootstrap)) {
 require_once APP_ROOT . '/lib/Env.php';
 Env::load(APP_ROOT . '/.env');
 
+$envProductionPhp = APP_CONFIG_DIR . '/env.production.php';
+if (is_file($envProductionPhp)) {
+    $productionVars = require $envProductionPhp;
+    if (is_array($productionVars)) {
+        // En localhost no mezclar plantilla de producción (TU_USUARIO_AQUI rompe WAMP sin .env).
+        $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+        $isLocalHost = ($host === 'localhost' || $host === '127.0.0.1'
+            || str_starts_with($host, 'localhost:')
+            || str_starts_with($host, '127.0.0.1:'));
+        if (! $isLocalHost) {
+            Env::mergeMissing($productionVars);
+        }
+    }
+}
+
 // Load environment configuration
 require_once APP_CONFIG_DIR . '/environment.php';
 $GLOBALS['APP_CONFIG'] = Environment::getConfig();
@@ -107,7 +122,7 @@ if ($is_web_request && $is_localhost && $is_https && !$is_production && !headers
 // =================================================================
 // URL_BASE: ruta de la aplicación (subcarpeta en producción)
 // =================================================================
-// En producción bajo /pruebas/public/ definir BASE_PATH=/pruebas/public/ en .env
+// Producción FVD: BASE_PATH=/mistorneos_fvd/public/ en .env (véase config/env.production.php).
 // Todas las redirecciones y enlaces deben usar: header("Location: " . URL_BASE . "index.php?page=...");
 if (!defined('URL_BASE')) {
     $url_base_path = class_exists('AppHelpers', false) && method_exists('AppHelpers', 'resolveUrlBasePath')
