@@ -36,9 +36,17 @@ $modalidad = $torneoActual ? (int) ($torneoActual['modalidad'] ?? 1) : 0;
 $esIndividual = $modalidad === 1;
 $requiereClasiequi = ImportacionAccessExternoService::requiereClasiequi($modalidad);
 $jugadoresUnidad = ImportacionAccessExternoService::jugadoresPorUnidad($modalidad);
-$mapaCampeonatoGenero = ($torneoIdSel > 0)
-    ? CampeonatoTorneoHelper::mapaImportacionCampeonatoGenero($pdo, $torneoIdSel)
+$mapaCampeonato = ($torneoIdSel > 0)
+    ? CampeonatoTorneoHelper::mapaImportacionCampeonato($pdo, $torneoIdSel)
     : null;
+$mapaCampeonatoGenero = ($mapaCampeonato !== null && ($mapaCampeonato['tipo'] ?? '') === 'genero')
+    ? $mapaCampeonato
+    : null;
+$mapaCampeonatoCategoriaSub = ($mapaCampeonato !== null && ($mapaCampeonato['tipo'] ?? '') === 'categoria_sub')
+    ? $mapaCampeonato
+    : null;
+$omitirPasoAtletas = $torneoIdSel > 0
+    && ! ImportacionAccessExternoService::requierePasoSincronizacionAtletas($pdo, $torneoIdSel);
 $modalidadLabels = [1 => 'Individual', 2 => 'Parejas', 3 => 'Equipos', 4 => 'Parejas fijas'];
 $etiqModalidad = $modalidadLabels[$modalidad] ?? 'Modalidad ' . $modalidad;
 $apiUrl = AppHelpers::url('api/importacion_access_externo.php');
@@ -55,6 +63,9 @@ $basePage = 'index.php?page=importacion_torneo_externo';
             Carga desde exportaciones Access: <strong>parejas inscritas</strong>, <strong>parti2017</strong>
             <?php if ($requiereClasiequi): ?> y <strong>clasiequi</strong><?php endif; ?>.
             Paso 0: alinear padrón <code>atletas</code> → <code>usuarios</code> (incluye <code>numfvd</code>).
+            <?php if ($omitirPasoAtletas): ?>
+                <strong class="text-info">SUB 12 / SUB 15:</strong> este paso no es obligatorio; los datos del archivo se cargan directamente.
+            <?php endif; ?>
         </p>
     </div>
 </div>
@@ -106,7 +117,7 @@ $basePage = 'index.php?page=importacion_torneo_externo';
         <div class="alert alert-warning">Seleccione el torneo destino para desbloquear el panel de importación.</div>
     <?php else: ?>
 
-    <div id="imp-access-panel" data-torneo-id="<?= (int) $torneoIdSel ?>" data-requiere-clasiequi="<?= $requiereClasiequi ? '1' : '0' ?>">
+    <div id="imp-access-panel" data-torneo-id="<?= (int) $torneoIdSel ?>" data-requiere-clasiequi="<?= $requiereClasiequi ? '1' : '0' ?>" data-omitir-paso-atletas="<?= $omitirPasoAtletas ? '1' : '0' ?>">
 
         <!-- Paso 0: Atletas → usuarios -->
         <div class="card imp-access-card imp-access-card--padron shadow-sm mb-3">
@@ -153,7 +164,7 @@ $basePage = 'index.php?page=importacion_torneo_externo';
             <div class="card-header bg-white">
                 <span class="badge bg-info me-2">1</span>
                 <strong>Inscripciones — parejas inscritas</strong>
-                <div class="small text-muted">Cédula → usuario · numfvd y club desde usuarios<?php if ($mapaCampeonatoGenero): ?> · columna torneo 1/2<?php endif; ?><?php if ($requiereClasiequi): ?> · columna activo/titular/banca opcional<?php endif; ?></div>
+                <div class="small text-muted">Cédula → usuario · numfvd y club desde usuarios<?php if ($mapaCampeonatoGenero): ?> · columna torneo 1/2<?php elseif ($mapaCampeonatoCategoriaSub): ?> · columna torneo 1=SUB12, 2=SUB15, 3=SUB18<?php endif; ?><?php if ($omitirPasoAtletas): ?> · <strong>SUB 12/15: carga directa sin validar usuarios</strong><?php endif; ?><?php if ($requiereClasiequi): ?> · columna activo/titular/banca opcional<?php endif; ?></div>
             </div>
             <div class="card-body">
                 <div class="row g-2 align-items-end mb-2">
@@ -245,10 +256,11 @@ $basePage = 'index.php?page=importacion_torneo_externo';
 
     const torneoId = panel.dataset.torneoId;
     const requiereClasiequi = panel.dataset.requiereClasiequi === '1';
+    const omitirPasoAtletas = panel.dataset.omitirPasoAtletas === '1';
     const apiUrl = <?= json_encode($apiUrl, JSON_UNESCAPED_UNICODE) ?>;
     const csrf = <?= json_encode($csrfToken, JSON_UNESCAPED_UNICODE) ?>;
 
-    const state = { atletas: false, parejas: false, parti: false, clasiequi: !requiereClasiequi };
+    const state = { atletas: omitirPasoAtletas, parejas: false, parti: false, clasiequi: !requiereClasiequi };
 
     function renderMuestra(rows) {
         if (!rows || !rows.length) return '';
@@ -529,12 +541,13 @@ $basePage = 'index.php?page=importacion_torneo_externo';
     }
 
     function refreshEjecutarBtn() {
-        const ok = state.atletas && state.parejas && state.parti && state.clasiequi;
+        const okAtletas = omitirPasoAtletas || state.atletas;
+        const ok = okAtletas && state.parejas && state.parti && state.clasiequi;
         document.getElementById('btn-ejecutar').disabled = !ok;
-        document.getElementById('btn-analizar-parejas').disabled = !state.atletas;
-        document.getElementById('btn-analizar-parti').disabled = !state.atletas;
+        document.getElementById('btn-analizar-parejas').disabled = !okAtletas;
+        document.getElementById('btn-analizar-parti').disabled = !okAtletas;
         var btnClasi = document.getElementById('btn-analizar-clasiequi');
-        if (btnClasi) btnClasi.disabled = !state.atletas;
+        if (btnClasi) btnClasi.disabled = !okAtletas;
     }
 
     function postForm(action, extraFiles) {
@@ -685,11 +698,13 @@ $basePage = 'index.php?page=importacion_torneo_externo';
             const s = res.stats || {};
             state.parejas = !!s.ok;
             let html = '<div><strong>Torneo destino:</strong> #' + (s.torneo_destino || torneoId) + '</div>';
-            if (s.campeonato_genero) {
-                html += '<div class="small text-info mb-1"><strong>Campeonato por género:</strong> torneo 1 = hombres · torneo 2 = mujeres</div>';
+            if (s.campeonato_genero || s.campeonato_categoria_sub) {
+                html += '<div class="small text-info mb-1"><strong>Campeonato'
+                    + (s.campeonato_categoria_sub ? ' por categoría SUB' : ' por género')
+                    + ':</strong></div>';
                 if (s.por_torneo) {
                     html += '<ul class="small mb-1">';
-                    [1, 2].forEach(function (slot) {
+                    Object.keys(s.por_torneo).sort().forEach(function (slot) {
                         var pt = s.por_torneo[slot] || {};
                         html += '<li>Torneo ' + slot + (pt.nombre ? ' (' + escapeHtml(String(pt.nombre)) + ')' : '')
                             + ': ' + (pt.filas || 0) + ' filas · listos ' + (pt.listos || 0)
@@ -758,9 +773,9 @@ $basePage = 'index.php?page=importacion_torneo_externo';
             const s = res.stats || {};
             state.parti = !!s.ok;
             let html = '<div><strong>Filas leídas:</strong> ' + (s.filas_leidas || 0) + ' · numfvd únicos: ' + (s.numfvd_unicos || 0) + '</div>';
-            if (s.campeonato_genero && s.por_torneo) {
+            if ((s.campeonato_genero || s.campeonato_categoria_sub) && s.por_torneo) {
                 html += '<ul class="small mb-1">';
-                [1, 2].forEach(function (slot) {
+                Object.keys(s.por_torneo).sort().forEach(function (slot) {
                     var pt = s.por_torneo[slot] || {};
                     html += '<li>Torneo ' + slot + ': ' + (pt.filas || 0) + ' filas · ' + (pt.numfvd_unicos || 0) + ' numfvd</li>';
                 });
@@ -897,6 +912,12 @@ $basePage = 'index.php?page=importacion_torneo_externo';
     });
 
     refreshEjecutarBtn();
+    if (omitirPasoAtletas) {
+        var elAt = document.getElementById('stats-atletas');
+        if (elAt) {
+            setStats(elAt, true, '<div class="text-info fw-semibold">SUB 12 / SUB 15: paso 0 omitido. Los datos del archivo se cargan directamente sin validar cédula ni usuario.</div>');
+        }
+    }
 })();
 </script>
 <?php endif; ?>

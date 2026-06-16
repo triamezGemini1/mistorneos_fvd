@@ -9,8 +9,23 @@ $entidades_options = $entidades_options ?? [];
     <input type="hidden" name="return_to" value="admin_torneo_operadores">
     <input type="hidden" name="return_tab" value="<?= $modal_role === 'operador' ? 'operadores' : $modal_role ?>">
     <input type="hidden" name="return_club_id" value="<?= $club_id_val ?>">
+    <?php if (!empty($return_torneo_id)): ?><input type="hidden" name="return_torneo_id" value="<?= (int) $return_torneo_id ?>"><?php endif; ?>
     <input type="hidden" name="role" value="<?= htmlspecialchars($modal_role) ?>">
+    <?php if (!$is_admin_club && $club_id_val <= 0 && !empty($clubes_options)): ?>
+    <div class="row mb-2">
+        <div class="col-md-8">
+            <label class="form-label">Asociación *</label>
+            <select class="form-select form-select-sm" name="club_id" required>
+                <option value="">-- Seleccione asociación --</option>
+                <?php foreach ($clubes_options as $c): ?>
+                    <option value="<?= (int)$c['id'] ?>"><?= htmlspecialchars($c['nombre']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+    </div>
+    <?php else: ?>
     <input type="hidden" name="club_id" value="<?= $club_id_val ?>">
+    <?php endif; ?>
 
     <div class="row mb-2">
         <div class="col-md-3">

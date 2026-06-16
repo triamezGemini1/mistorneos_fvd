@@ -18,9 +18,9 @@ FvdAdminGate::rejectPageIfDisabled('asociacion/afiliar_atleta');
 
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 
-if (!Auth::isOperativoSoloAsociacion() && !Auth::isAdminGeneral()) {
+if (!AsociacionAdminHelper::usuarioTieneAccesoModulosAsociacion()) {
     http_response_code(403);
-    echo '<div class="alert alert-danger m-4">Acceso restringido.</div>';
+    echo '<div class="alert alert-danger m-4">Acceso restringido al administrador de asociación.</div>';
     return;
 }
 
@@ -209,11 +209,10 @@ $numfvdVal = (int) ($userEdit['numfvd'] ?? 0);
                 </div>
 
                 <div class="afiliacion-media-pane">
-                    <h3 class="afiliacion-block-title">Foto carnet e imagen de cédula</h3>
                     <div class="afiliacion-media-stack">
                         <div class="afiliacion-media-block">
-                            <label class="afiliacion-field" for="foto_atleta"><span>Foto carnet</span></label>
-                            <input type="file" name="foto_atleta" id="foto_atleta" accept="image/jpeg,image/png,image/webp">
+                            <input type="file" name="foto_atleta" id="foto_atleta" class="form-control form-control-sm"
+                                   accept="image/jpeg,image/png,image/webp" aria-label="Foto carnet">
                             <div class="afiliacion-preview" id="preview_foto">
                                 <?php if ($fotoPrev !== ''): ?>
                                     <img src="<?= htmlspecialchars(AppHelpers::url($fotoPrev)) ?>" alt="" class="afiliacion-preview-img" id="img_preview_foto" style="display:block">
@@ -224,8 +223,8 @@ $numfvdVal = (int) ($userEdit['numfvd'] ?? 0);
                             </div>
                         </div>
                         <div class="afiliacion-media-block">
-                            <label class="afiliacion-field" for="imagen_cedula"><span>Imagen cédula</span></label>
-                            <input type="file" name="imagen_cedula" id="imagen_cedula" accept="image/jpeg,image/png,image/webp">
+                            <input type="file" name="imagen_cedula" id="imagen_cedula" class="form-control form-control-sm"
+                                   accept="image/jpeg,image/png,image/webp" aria-label="Imagen cédula">
                             <div class="afiliacion-preview" id="preview_cedula">
                                 <?php if ($cedPrev !== ''): ?>
                                     <img src="<?= htmlspecialchars(AppHelpers::url($cedPrev)) ?>" alt="" class="afiliacion-preview-img" id="img_preview_cedula" style="display:block">

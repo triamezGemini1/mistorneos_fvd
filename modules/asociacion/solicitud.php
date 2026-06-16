@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * Solicitudes operativas de asociación → movimiento_torneo (pendiente FVD).
- * Tipos: afiliacion, anualidad, traspaso, carnet.
+ * Tipos: afiliacion, traspaso, carnet.
  */
 if (!defined('APP_BOOTSTRAPPED')) {
     require_once __DIR__ . '/../../config/bootstrap.php';
@@ -20,9 +20,9 @@ FvdAdminGate::rejectPageIfDisabled('asociacion/solicitud');
 
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 
-if (!Auth::isOperativoSoloAsociacion()) {
+if (!AsociacionAdminHelper::usuarioTieneAccesoModulosAsociacion()) {
     http_response_code(403);
-    echo '<div class="alert alert-danger m-4">Acceso restringido al administrador operativo de asociación.</div>';
+    echo '<div class="alert alert-danger m-4">Acceso restringido al administrador de asociación.</div>';
     return;
 }
 
@@ -35,7 +35,6 @@ if ($club === null) {
 
 $tiposPermitidos = [
     'afiliacion' => 'Nueva afiliación',
-    'anualidad' => 'Anualidad',
     'traspaso' => 'Traspaso de atleta',
     'carnet' => 'Carnet / credencial',
 ];

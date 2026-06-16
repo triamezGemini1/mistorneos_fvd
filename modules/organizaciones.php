@@ -9,6 +9,7 @@ if (!defined('APP_BOOTSTRAPPED')) {
 require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../lib/FvdConfig.php';
+require_once __DIR__ . '/../lib/AsociacionAdminHelper.php';
 
 Auth::requireRole(['admin_club', 'admin_general', 'admin_torneo']);
 
@@ -134,10 +135,17 @@ if ($organizacion_id && ($club_id || $entidad_id)) {
                 }
             }
             if ($club && (int) ($club['id'] ?? 0) > 0) {
-                $idsPermitidos = OrganizacionDashboardStats::clubIdsForOrganizacion($pdo, $organizacion, $has_cod_org);
-                if (!in_array((int) $club['id'], $idsPermitidos, true)) {
+                if (class_exists('AsociacionAdminHelper', false)
+                    && Auth::isOperativoSoloAsociacion()
+                    && !AsociacionAdminHelper::usuarioPuedeVerClubOperativo($pdo, (int) $club['id'])) {
                     $club = null;
                     $organizacion = null;
+                } else {
+                    $idsPermitidos = OrganizacionDashboardStats::clubIdsForOrganizacion($pdo, $organizacion, $has_cod_org);
+                    if (!in_array((int) $club['id'], $idsPermitidos, true)) {
+                        $club = null;
+                        $organizacion = null;
+                    }
                 }
             }
         } else {

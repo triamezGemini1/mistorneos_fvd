@@ -98,7 +98,9 @@ $fvd_torneos_tabla = DashboardData::filtrarTorneosHomeDashboard(
 
     <?php include $views_dashboard . '/_fvd_kpi_compact.php'; ?>
 
-
+    <?php if (empty($torneos_solo ?? false)): ?>
+    <?php include __DIR__ . '/_panel_operativo.php'; ?>
+    <?php endif; ?>
 
     <?php include $views_dashboard . '/_fvd_torneos_home_section.php'; ?>
 

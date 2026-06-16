@@ -4,16 +4,24 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/FvdAdminGate.php';
 
+if (!class_exists('FvdInstitutionalScope', false)) {
+    require_once __DIR__ . '/FvdInstitutionalScope.php';
+}
+
 /**
- * Alcance de mistorneos_fvd: administración de torneos.
- * La administración institucional FVD (panel operativo, finanzas, afiliación, etc.)
- * vive en otra aplicación; aquí no se muestran esas rutas ni notificaciones.
+ * Alcance de la app según modo instalación.
+ * - Institucional (FVD_INSTITUTIONAL_ONLY=true): panel FVD + CRUD campeonatos; operación de mesas en otra app.
+ * - Torneos solo (FVD_ADMIN_ENABLED=false): operación de torneos sin módulos FVD institucionales.
  */
 final class TournamentAppScope
 {
-    /** Esta app es solo torneos salvo que FVD_ADMIN_ENABLED=true (modo integral). */
+    /** Modo restringido FVD (sin finanzas/afiliación en menú). */
     public static function isTorneosOnly(): bool
     {
+        if (class_exists('FvdInstitutionalScope', false) && FvdInstitutionalScope::isEnabled()) {
+            return false;
+        }
+
         return FvdAdminGate::isRestricted();
     }
 

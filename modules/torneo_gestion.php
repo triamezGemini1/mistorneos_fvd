@@ -17,31 +17,17 @@ require_once __DIR__ . '/../lib/Tournament/Handlers/TournamentActionHandler.php'
 require_once __DIR__ . '/../lib/Tournament/Handlers/RoundManagerHandler.php';
 require_once __DIR__ . '/../lib/Tournament/Handlers/TournamentStatusHandler.php';
 require_once __DIR__ . '/../lib/FvdConfig.php';
+require_once __DIR__ . '/../lib/TournamentAdminAccess.php';
 
 // Carga solo funciones (p. ej. actualizarEstadisticasInscritos) sin sesión ni router: definir
 // TORNEO_GESTION_SKIP_AUTH y TORNEO_GESTION_SKIP_ROUTER antes de incluir este archivo.
 if (! defined('TORNEO_GESTION_SKIP_AUTH') || ! TORNEO_GESTION_SKIP_AUTH) {
     $current_user = Auth::user();
+    TournamentAdminAccess::requireTorneoPanelAccess();
+    $tg_action_guard = trim((string) ($_GET['action'] ?? $_POST['action'] ?? 'index'));
+    TournamentAdminAccess::enforceOperadorTorneoAction($tg_action_guard);
     $user_role = $current_user['role'] ?? '';
     $user_id = Auth::id();
-
-    // Jugadores (usuario) solo pueden ver resumen_individual (el propio) y posiciones
-    if ($user_role === 'usuario') {
-        $action = $_GET['action'] ?? '';
-        $torneo_id = (int)($_GET['torneo_id'] ?? 0);
-        $inscrito_id = (int)($_GET['inscrito_id'] ?? 0);
-        $allowed = ($torneo_id > 0 && in_array($action, ['resumen_individual', 'resumen_individual_pdf', 'posiciones'], true));
-        if ($allowed && in_array($action, ['resumen_individual', 'resumen_individual_pdf'], true)) {
-            $allowed = ($inscrito_id > 0 && $inscrito_id === $user_id);
-        }
-        if (! $allowed) {
-            require_once __DIR__ . '/../lib/app_helpers.php';
-            header('Location: ' . AppHelpers::url('user_portal.php'));
-            exit;
-        }
-    } else {
-        Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
-    }
 
     $current_user = Auth::user();
     $user_role = $current_user['role'];
@@ -5297,7 +5283,7 @@ function obtenerDatosHojasAnotacion($torneo_id, $ronda) {
 }
 
 /**
- * Obtiene datos para asignar mesas a operadores (operadores del club del torneo, mesas de la ronda, asignaciones actuales).
+ * Obtiene datos para asignar mesas a operadores (ámbito nacional: cualquier operador activo).
  */
 function obtenerDatosAsignarMesasOperador($torneo_id, $ronda) {
     $pdo = DB::pdo();
@@ -5307,20 +5293,13 @@ function obtenerDatosAsignarMesasOperador($torneo_id, $ronda) {
     if (!$torneo) {
         throw new Exception('Torneo no encontrado');
     }
-    $club_responsable = (int)($torneo['club_responsable'] ?? 0);
-    require_once __DIR__ . '/../lib/ClubHelper.php';
-    $club_ids = ClubHelper::getClubesSupervised($club_responsable);
-    if (empty($club_ids)) {
-        $club_ids = [$club_responsable];
-    }
-    $placeholders = implode(',', array_fill(0, count($club_ids), '?'));
-    $stmt = $pdo->prepare("
-        SELECT u.id, u.nombre, u.username
+    $stmt = $pdo->query("
+        SELECT u.id, u.nombre, u.username, c.nombre AS club_nombre
         FROM usuarios u
-        WHERE u.role = 'operador' AND u.club_id IN ($placeholders) AND u.status = 0
-        ORDER BY u.nombre ASC
+        LEFT JOIN clubes c ON u.club_id = c.id
+        WHERE u.role = 'operador' AND u.status = 0
+        ORDER BY c.nombre ASC, u.nombre ASC
     ");
-    $stmt->execute(array_values($club_ids));
     $operadores = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt = $pdo->prepare("
         SELECT DISTINCT CAST(pr.mesa AS UNSIGNED) as numero

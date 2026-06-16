@@ -19,9 +19,9 @@ FvdAdminGate::rejectPageIfDisabled($pageGate);
 
 Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
 
-if (!Auth::isOperativoSoloAsociacion() && !Auth::isAdminGeneral()) {
+if (!AsociacionAdminHelper::usuarioTieneAccesoModulosAsociacion()) {
     http_response_code(403);
-    echo '<div class="alert alert-danger m-4">Acceso restringido.</div>';
+    echo '<div class="alert alert-danger m-4">Acceso restringido al administrador de asociación.</div>';
     exit;
 }
 

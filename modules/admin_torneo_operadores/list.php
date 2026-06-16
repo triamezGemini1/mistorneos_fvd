@@ -2,6 +2,11 @@
 $page_title = 'Administrador de Torneo y Operadores';
 $dashboard_url = function_exists('AppHelpers::dashboard') ? AppHelpers::dashboard('admin_torneo_operadores') : 'index.php?page=admin_torneo_operadores';
 $current_tab = $tab ?? 'admin_torneo';
+$return_torneo_id = isset($return_torneo_id) ? (int) $return_torneo_id : (int) ($_GET['return_torneo_id'] ?? 0);
+$url_volver_panel = ($return_torneo_id > 0 && class_exists('AppHelpers'))
+    ? AppHelpers::torneoGestionUrl('panel', $return_torneo_id)
+    : '';
+$return_torneo_qs = $return_torneo_id > 0 ? '&return_torneo_id=' . $return_torneo_id : '';
 ?>
 <style>
 /* Tabs: Administrador de Torneo | Operadores — siempre visibles; activo verde, inactivo morado, texto blanco */
@@ -33,6 +38,11 @@ $current_tab = $tab ?? 'admin_torneo';
 <div class="container-fluid page-admin-torneo-operadores">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0"><i class="fas fa-user-cog text-primary me-2"></i><?= htmlspecialchars($page_title) ?></h1>
+        <?php if ($url_volver_panel !== ''): ?>
+            <a href="<?= htmlspecialchars($url_volver_panel) ?>" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Volver al panel del torneo
+            </a>
+        <?php endif; ?>
     </div>
 
     <?php if ($success_message): ?>
@@ -47,12 +57,16 @@ $current_tab = $tab ?? 'admin_torneo';
     <?php if (!$is_admin_club && !empty($clubes_options)): ?>
         <div class="card mb-3">
             <div class="card-body py-2">
-                <label class="me-2">Club:</label>
-                <select class="form-select form-select-sm d-inline-block w-auto" onchange="window.location.href='<?= htmlspecialchars($dashboard_url) ?>&club_id='+this.value+'&tab=<?= htmlspecialchars($current_tab) ?>'">
+                <label class="me-2">Asociación:</label>
+                <select class="form-select form-select-sm d-inline-block w-auto" onchange="window.location.href='<?= htmlspecialchars($dashboard_url) ?>&club_id='+this.value+'&tab=<?= htmlspecialchars($current_tab) ?><?= $return_torneo_qs ?>'">
+                    <option value="0" <?= ($club_id <= 0) ? 'selected' : '' ?>>Todas las asociaciones</option>
                     <?php foreach ($clubes_options as $c): ?>
                         <option value="<?= (int)$c['id'] ?>" <?= ($club_id === (int)$c['id']) ? 'selected' : '' ?>><?= htmlspecialchars($c['nombre']) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <?php if ($club_id <= 0): ?>
+                    <span class="text-muted small ms-2">Ámbito nacional: operadores de cualquier asociación.</span>
+                <?php endif; ?>
             </div>
         </div>
     <?php endif; ?>
@@ -60,21 +74,21 @@ $current_tab = $tab ?? 'admin_torneo';
     <!-- Dos menús superiores (tabs) -->
     <ul class="nav nav-tabs mb-4">
         <li class="nav-item">
-            <a class="nav-link <?= $current_tab === 'admin_torneo' ? 'active' : '' ?>" href="<?= htmlspecialchars($dashboard_url) ?>&tab=admin_torneo<?= $club_id ? '&club_id='.(int)$club_id : '' ?>">
+            <a class="nav-link <?= $current_tab === 'admin_torneo' ? 'active' : '' ?>" href="<?= htmlspecialchars($dashboard_url) ?>&tab=admin_torneo<?= $club_id > 0 ? '&club_id='.(int)$club_id : '&club_id=0' ?><?= $return_torneo_qs ?>">
                 <i class="fas fa-user-tie me-1"></i> Administrador de Torneo
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link <?= $current_tab === 'operadores' ? 'active' : '' ?>" href="<?= htmlspecialchars($dashboard_url) ?>&tab=operadores<?= $club_id ? '&club_id='.(int)$club_id : '' ?>">
+            <a class="nav-link <?= $current_tab === 'operadores' ? 'active' : '' ?>" href="<?= htmlspecialchars($dashboard_url) ?>&tab=operadores<?= $club_id > 0 ? '&club_id='.(int)$club_id : '&club_id=0' ?><?= $return_torneo_qs ?>">
                 <i class="fas fa-users-cog me-1"></i> Operadores de Torneo
             </a>
         </li>
     </ul>
 
     <?php 
-    $tiene_clubes_para_listar = $is_admin_club ? !empty($club_ids) : ($club_id > 0);
+    $tiene_clubes_para_listar = $is_admin_club ? !empty($club_ids) : true;
     if (!$tiene_clubes_para_listar): ?>
-        <div class="alert alert-info"><?= $is_admin_club ? 'No hay asociaciones en su organización. Regístrelas en Asociaciones de la organización.' : 'Seleccione una asociación para ver administradores de torneo y operadores.' ?></div>
+        <div class="alert alert-info"><?= $is_admin_club ? 'No hay asociaciones en su organización. Regístrelas en Asociaciones de la organización.' : 'No hay asociaciones registradas.' ?></div>
     <?php else: ?>
 
     <!-- Bloque: Administrador de Torneo -->
@@ -181,6 +195,7 @@ $current_tab = $tab ?? 'admin_torneo';
                 <input type="hidden" name="return_to" value="admin_torneo_operadores">
                 <input type="hidden" name="return_tab" value="<?= htmlspecialchars($current_tab) ?>">
                 <input type="hidden" name="return_club_id" value="<?= (int)($club_id ?? 0) ?>">
+                <?php if ($return_torneo_id > 0): ?><input type="hidden" name="return_torneo_id" value="<?= (int) $return_torneo_id ?>"><?php endif; ?>
                 <input type="hidden" name="user_id" id="changeRoleUserId">
                 <?php if ($is_admin_club && $club_id): ?><input type="hidden" name="club_id" value="<?= (int)$club_id ?>"><?php endif; ?>
                 <div class="modal-header">

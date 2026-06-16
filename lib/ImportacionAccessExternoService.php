@@ -124,6 +124,253 @@ final class ImportacionAccessExternoService
         return $res;
     }
 
+    /** SUB 12/15: no exige atletas→usuarios previo si todos los sub-torneos del evento son directos. */
+    private static function requiereSincronizacionAtletas(PDO $pdo, int $torneoId, ?array $mapa): bool
+    {
+        if ($mapa !== null) {
+            foreach ($mapa['slots'] as $slotData) {
+                if (empty($slotData['importacion_directa'])) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return ! CampeonatoTorneoHelper::importacionDirectaSub1215($pdo, $torneoId);
+    }
+
+    /** @return list<int> */
+    private static function slotsCampeonato(?array $mapa): array
+    {
+        if ($mapa === null || empty($mapa['slots'])) {
+            return [];
+        }
+        $slots = array_map('intval', array_keys($mapa['slots']));
+        sort($slots);
+
+        return $slots;
+    }
+
+    private static function clubDesdeAsociacionArchivo(PDO $pdo, array $row, int $iAsoc): ?int
+    {
+        $asoc = $iAsoc >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iAsoc] ?? '')) : 0;
+        if ($asoc <= 0) {
+            return null;
+        }
+
+        return AsociacionAdminHelper::resolverClubIdDesdeEntidad($pdo, $asoc);
+    }
+
+    /**
+     * Inscripción directa Access (SUB 12/15): numfvd del archivo como clave; sin usuario en plataforma.
+     */
+    private static function insertarInscritoDirectoAccess(PDO $pdo, array $datos): int
+    {
+        $torneoId = (int) ($datos['torneo_id'] ?? 0);
+        $numfvd = (int) ($datos['numfvd'] ?? 0);
+        if ($torneoId <= 0 || $numfvd <= 0) {
+            throw new RuntimeException('Inscripción directa: torneo y numfvd obligatorios.');
+        }
+        $idUsuario = $numfvd;
+        $cedula = trim((string) ($datos['cedula'] ?? ''));
+        if ($cedula === '') {
+            $cedula = (string) $numfvd;
+        }
+        $nacionalidad = strtoupper(trim((string) ($datos['nacionalidad'] ?? 'V')));
+        if (! in_array($nacionalidad, ['V', 'E', 'J', 'P'], true)) {
+            $nacionalidad = 'V';
+        }
+
+        $stDup = $pdo->prepare(
+            'SELECT id FROM inscritos WHERE torneo_id = ? AND (id_usuario = ? OR numfvd = ?) LIMIT 1'
+        );
+        $stDup->execute([$torneoId, $idUsuario, $numfvd]);
+        $existente = (int) ($stDup->fetchColumn() ?: 0);
+        if ($existente > 0) {
+            self::actualizarInscritoDesdeImportacion($pdo, $existente, array_merge($datos, [
+                'id_usuario' => $idUsuario,
+                'numfvd' => $numfvd,
+                'cedula' => $cedula,
+                'nacionalidad' => $nacionalidad,
+            ]));
+
+            return $existente;
+        }
+
+        $cols = $pdo->query('SHOW COLUMNS FROM inscritos')->fetchAll(PDO::FETCH_COLUMN);
+        $have = [];
+        foreach ($cols as $c) {
+            $have[strtolower((string) $c)] = $c;
+        }
+        $insertCols = [];
+        $insertVals = [];
+        $params = [];
+        $push = static function (string $col, $val) use (&$insertCols, &$insertVals, &$params, $have): void {
+            $k = strtolower($col);
+            if (! isset($have[$k])) {
+                return;
+            }
+            $insertCols[] = '`' . str_replace('`', '``', $have[$k]) . '`';
+            $insertVals[] = '?';
+            $params[] = $val;
+        };
+
+        $push('id_usuario', $idUsuario);
+        $push('torneo_id', $torneoId);
+        $push('numfvd', $numfvd);
+        $push('numero', $numfvd);
+        $push('cedula', $cedula);
+        $push('nacionalidad', $nacionalidad);
+        $push('id_club', isset($datos['id_club']) ? (int) $datos['id_club'] : null);
+        $push('estatus', (int) ($datos['estatus'] ?? InscritosHelper::ESTATUS_CONFIRMADO_NUM));
+        $push('inscrito_por', (int) ($datos['inscrito_por'] ?? 0));
+        $push('codigo_equipo', (string) ($datos['codigo_equipo'] ?? '000-000'));
+        if (isset($datos['entidad_id'])) {
+            $push('entidad_id', (int) $datos['entidad_id']);
+        }
+        if (array_key_exists('activo_mesa', $datos)) {
+            $am = (int) $datos['activo_mesa'] === InscritosHelper::ACTIVO_MESA_BANCA ? 0 : 1;
+            $push('activo_mesa', $am);
+        }
+
+        $sql = 'INSERT INTO inscritos (' . implode(', ', $insertCols) . ') VALUES (' . implode(', ', $insertVals) . ')';
+        $pdo->prepare($sql)->execute($params);
+
+        return (int) $pdo->lastInsertId();
+    }
+
+    /**
+     * @param list<list<string>> $rows
+     * @return array{insertados: int, actualizados: int, omitidos: int, banca: int, reporte_banca: array<string, mixed>}
+     */
+    private static function importarParejasInscritasDirectaSub1215(
+        PDO $pdo,
+        int $torneoId,
+        array $rows,
+        int $modalidad,
+        int $inscritoPor,
+        ?array $clasiequiRows = null,
+        ?int $soloSlot = null,
+        ?array &$incidenciasEjecucion = null
+    ): array {
+        $parsed = self::separarCabecera($rows, [['pareja', 'numfvd']]);
+        $h = $parsed['header'];
+        $iCed = self::indiceColumna($h, ['cedula', 'ced', 'documento']);
+        $iNumfvd = self::indiceColumna($h, ['numfvd', 'num_fvd', 'carnet', 'pareja']);
+        $iAsoc = self::indiceColumna($h, ['asociacion', 'entidad']);
+        $iEqN = self::indiceColumna($h, ['equipo', 'numero_equipo']);
+        $iCod = self::indiceColumna($h, ['codigo_equipo', 'codequipo']);
+        $iActivo = self::indiceColumnaActivoMesa($h);
+        $iTorneo = self::indiceColumnaTorneo($h);
+        $jugadoresReq = self::jugadoresPorUnidad($modalidad);
+        $titularesAuto = [];
+        $codigosClasiequi = ($clasiequiRows !== null && $clasiequiRows !== [])
+            ? self::codigosEquipoDesdeClasiequi($clasiequiRows, $soloSlot)
+            : null;
+        $reporteBanca = ['total' => 0, 'por_asociacion' => [], 'detalle' => []];
+
+        $insertados = 0;
+        $actualizados = 0;
+        $omitidos = 0;
+        $banca = 0;
+
+        foreach ($parsed['data'] as $rowIdx => $row) {
+            if ($soloSlot !== null && $iTorneo >= 0 && self::slotDesdeFila($row, $iTorneo) !== $soloSlot) {
+                continue;
+            }
+            $numfvd = $iNumfvd >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iNumfvd] ?? '')) : 0;
+            if ($numfvd <= 0) {
+                $omitidos++;
+                continue;
+            }
+
+            $ced = $iCed >= 0 ? self::normalizarCedula($row[$iCed] ?? '') : '';
+            $codEq = '000-000';
+            if ($modalidad !== 1) {
+                $codEq = self::codigoEquipoDesdeFilaPareja($row, $iCod, $iAsoc, $iEqN);
+                if ($codEq === '') {
+                    $codEq = '000-001';
+                }
+            }
+
+            $asocCod = $iAsoc >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iAsoc] ?? '')) : 0;
+            $idClub = self::clubDesdeAsociacionArchivo($pdo, $row, $iAsoc);
+
+            $activoMesa = InscritosHelper::ACTIVO_MESA_SI;
+            if ($modalidad !== 1 && $codEq !== '000-000') {
+                $incidencia = null;
+                if ($asocCod <= 0 && preg_match('/^(\d{1,3})-/', $codEq, $mAsoc)) {
+                    $asocCod = (int) $mAsoc[1];
+                }
+                $activoMesa = self::resolverActivoMesaFilaPareja(
+                    $row,
+                    $iActivo,
+                    $codEq,
+                    $jugadoresReq,
+                    $titularesAuto,
+                    self::equipoEnClasiequi($codigosClasiequi, $codEq),
+                    $incidencia
+                );
+                if ($incidencia !== null) {
+                    self::acumularReporteBanca($reporteBanca, $incidencia, $ced !== '' ? $ced : (string) $numfvd, '', $asocCod, $soloSlot);
+                }
+            }
+            if ($activoMesa === InscritosHelper::ACTIVO_MESA_BANCA) {
+                $banca++;
+            }
+
+            $stDup = $pdo->prepare(
+                'SELECT id FROM inscritos WHERE torneo_id = ? AND (id_usuario = ? OR numfvd = ?) LIMIT 1'
+            );
+            $stDup->execute([$torneoId, $numfvd, $numfvd]);
+            $idExistente = (int) ($stDup->fetchColumn() ?: 0);
+
+            $datosIns = [
+                'torneo_id' => $torneoId,
+                'id_usuario' => $numfvd,
+                'numfvd' => $numfvd,
+                'numero' => $numfvd,
+                'cedula' => $ced,
+                'nacionalidad' => 'V',
+                'id_club' => $idClub,
+                'estatus' => InscritosHelper::ESTATUS_CONFIRMADO_NUM,
+                'inscrito_por' => $inscritoPor,
+                'codigo_equipo' => $codEq,
+                'activo_mesa' => $activoMesa,
+            ];
+            if ($asocCod > 0) {
+                $datosIns['entidad_id'] = $asocCod;
+            }
+
+            if ($idExistente > 0) {
+                self::actualizarInscritoDesdeImportacion($pdo, $idExistente, $datosIns);
+                $actualizados++;
+            } else {
+                self::insertarInscritoDirectoAccess($pdo, $datosIns);
+                $insertados++;
+            }
+        }
+
+        $reporteBanca['situaciones_detalle'] = self::situacionesDesdeReporteBanca($reporteBanca);
+
+        return [
+            'insertados' => $insertados,
+            'actualizados' => $actualizados,
+            'omitidos' => $omitidos,
+            'banca' => $banca,
+            'reporte_banca' => $reporteBanca,
+        ];
+    }
+
+    /** Indica si el paso 0 (atletas→usuarios) es obligatorio antes de importar. */
+    public static function requierePasoSincronizacionAtletas(PDO $pdo, int $torneoId): bool
+    {
+        $mapa = CampeonatoTorneoHelper::mapaImportacionCampeonato($pdo, $torneoId);
+
+        return self::requiereSincronizacionAtletas($pdo, $torneoId, $mapa);
+    }
+
     /**
      * @return array{rows: list<list<string>>, error: string|null}
      */
@@ -188,13 +435,11 @@ final class ImportacionAccessExternoService
             'ok' => false,
             'torneo_destino' => $torneoId,
             'campeonato_genero' => false,
+            'campeonato_categoria_sub' => false,
             'campeonato_mapa' => null,
             'filas_leidas' => 0,
             'por_asociacion' => [],
-            'por_torneo' => [
-                1 => ['filas' => 0, 'listos' => 0, 'ya_inscritos' => 0, 'nombre' => ''],
-                2 => ['filas' => 0, 'listos' => 0, 'ya_inscritos' => 0, 'nombre' => ''],
-            ],
+            'por_torneo' => [],
             'total_general' => 0,
             'cedulas_sin_usuario' => [],
             'cedulas_duplicadas_archivo' => [],
@@ -215,21 +460,39 @@ final class ImportacionAccessExternoService
             'errores_columnas' => [],
         ];
 
-        if ($iCed < 0) {
+        $mapa = CampeonatoTorneoHelper::mapaImportacionCampeonato($pdo, $torneoId);
+        $requiereCedula = self::requiereSincronizacionAtletas($pdo, $torneoId, $mapa);
+
+        if ($iCed < 0 && $requiereCedula) {
             $stats['errores_columnas'][] = 'Falta columna cédula (obligatoria para buscar en usuarios).';
         }
+        if (! $requiereCedula && $iNumfvd < 0) {
+            $stats['errores_columnas'][] = 'Importación directa SUB 12/15: columna numfvd/pareja obligatoria.';
+        }
 
-        $mapa = CampeonatoTorneoHelper::mapaImportacionCampeonatoGenero($pdo, $torneoId);
         if ($mapa !== null) {
-            $stats['campeonato_genero'] = true;
-            $stats['campeonato_mapa'] = [
-                1 => ['id' => $mapa['slots'][1]['id'], 'nombre' => $mapa['slots'][1]['nombre']],
-                2 => ['id' => $mapa['slots'][2]['id'], 'nombre' => $mapa['slots'][2]['nombre']],
-            ];
-            $stats['por_torneo'][1]['nombre'] = (string) $mapa['slots'][1]['nombre'];
-            $stats['por_torneo'][2]['nombre'] = (string) $mapa['slots'][2]['nombre'];
+            $stats['campeonato_genero'] = ($mapa['tipo'] ?? '') === 'genero';
+            $stats['campeonato_categoria_sub'] = ($mapa['tipo'] ?? '') === 'categoria_sub';
+            $stats['campeonato_mapa'] = [];
+            foreach ($mapa['slots'] as $slot => $slotData) {
+                $slot = (int) $slot;
+                $stats['campeonato_mapa'][$slot] = [
+                    'id' => (int) $slotData['id'],
+                    'nombre' => (string) $slotData['nombre'],
+                ];
+                $stats['por_torneo'][$slot] = [
+                    'filas' => 0,
+                    'listos' => 0,
+                    'ya_inscritos' => 0,
+                    'nombre' => (string) $slotData['nombre'],
+                ];
+            }
             if ($iTorneo < 0) {
-                $stats['errores_columnas'][] = 'Campeonato por género: columna torneo obligatoria (1 = hombres, 2 = mujeres).';
+                if ($stats['campeonato_categoria_sub']) {
+                    $stats['errores_columnas'][] = 'Campeonato por categoría SUB: columna torneo obligatoria (1=SUB 12, 2=SUB 15, 3=SUB 18).';
+                } else {
+                    $stats['errores_columnas'][] = 'Campeonato por género: columna torneo obligatoria (1 = hombres, 2 = mujeres).';
+                }
             }
         }
 
@@ -247,7 +510,8 @@ final class ImportacionAccessExternoService
         $inscritosUsuario = self::mapaInscritosUsuario($pdo, $torneoId);
         $inscritosPorSlot = [];
         if ($mapa !== null) {
-            foreach ([1, 2] as $slot) {
+            foreach (array_keys($mapa['slots']) as $slotKey) {
+                $slot = (int) $slotKey;
                 $tid = CampeonatoTorneoHelper::torneoIdDesdeSlot($mapa['slots'], $slot);
                 $inscritosPorSlot[$slot] = [
                     'numfvd' => self::mapaInscritosNumfvd($pdo, $tid),
@@ -259,8 +523,14 @@ final class ImportacionAccessExternoService
 
         $cedulasVistas = [];
         $numfvdVistos = [];
-        $numfvdVistosPorSlot = [1 => [], 2 => []];
+        $numfvdVistosPorSlot = [];
+        if ($mapa !== null) {
+            foreach (array_keys($mapa['slots']) as $slotKey) {
+                $numfvdVistosPorSlot[(int) $slotKey] = [];
+            }
+        }
         $porAsoc = [];
+        $slotsValidosMapa = $mapa !== null ? array_map('intval', array_keys($mapa['slots'])) : [];
 
         $ctxCols = [
             'iCed' => $iCed,
@@ -275,27 +545,32 @@ final class ImportacionAccessExternoService
 
         foreach ($parsed['data'] as $rowIdx => $row) {
             $filaArchivo = $parsed['header_row'] + 2 + (int) $rowIdx;
-            $ced = self::normalizarCedula($iCed >= 0 ? ($row[$iCed] ?? '') : '');
-            if ($ced === '') {
-                continue;
-            }
 
             $slot = 0;
             $torneoFila = $torneoId;
             if ($mapa !== null) {
                 $slot = self::slotDesdeFila($row, $iTorneo);
-                if ($slot === 0) {
-                    $stats['torneo_archivo_invalido'][] = $ced;
+                if ($slot === 0 || ! in_array($slot, $slotsValidosMapa, true)) {
+                    $refInvalido = $iNumfvd >= 0
+                        ? (string) (int) preg_replace('/\D/', '', (string) ($row[$iNumfvd] ?? ''))
+                        : '';
+                    if ($refInvalido === '' || $refInvalido === '0') {
+                        $refInvalido = 'fila_' . $filaArchivo;
+                    }
+                    $stats['torneo_archivo_invalido'][] = $refInvalido;
                     $valTor = $iTorneo >= 0 ? trim((string) ($row[$iTorneo] ?? '')) : '';
+                    $msgTor = $stats['campeonato_categoria_sub']
+                        ? 'Valor de columna torneo inválido (esperado 1=SUB 12, 2=SUB 15 o 3=SUB 18).'
+                        : 'Valor de columna torneo distinto de 1 (hombres) o 2 (mujeres).';
                     $stats['divergencias_detalle'][] = self::armarDivergenciaPareja(
                         'torneo_invalido',
-                        $ced,
+                        $refInvalido,
                         null,
                         self::metaArchivoPareja($row, $ctxCols, 0),
-                        'Valor de columna torneo distinto de 1 (hombres) o 2 (mujeres).',
+                        $msgTor,
                         $filaArchivo,
                         'torneo=' . $valTor,
-                        'esperado: 1 o 2'
+                        'esperado: ' . implode(', ', $slotsValidosMapa)
                     );
                     continue;
                 }
@@ -305,6 +580,92 @@ final class ImportacionAccessExternoService
                 if ($torneoArch > 0 && $torneoArch !== $torneoId) {
                     $stats['torneo_archivo_distinto'][] = (string) $torneoArch;
                 }
+            }
+
+            $directoFila = CampeonatoTorneoHelper::importacionDirectaSub1215DesdeMapa($mapa, $slot, $torneoFila, $pdo);
+            if ($directoFila) {
+                $numfvdArch = $iNumfvd >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iNumfvd] ?? '')) : 0;
+                if ($numfvdArch <= 0) {
+                    continue;
+                }
+                $stats['filas_leidas']++;
+                if ($mapa !== null && $slot > 0) {
+                    $stats['por_torneo'][$slot]['filas']++;
+                }
+                if ($mapa !== null && $slot > 0) {
+                    if (isset($numfvdVistosPorSlot[$slot][$numfvdArch])) {
+                        $stats['numfvd_duplicados_resueltos'][] = (string) $numfvdArch . ' (torneo ' . $slot . ')';
+                        $stats['divergencias_detalle'][] = self::armarDivergenciaPareja(
+                            'numfvd_duplicado_archivo',
+                            (string) $numfvdArch,
+                            null,
+                            self::metaArchivoPareja($row, $ctxCols, $slot),
+                            'numfvd ' . $numfvdArch . ' repetido en parejas inscritas (torneo ' . $slot . ', fila ' . $filaArchivo . ').',
+                            $filaArchivo,
+                            'numfvd=' . $numfvdArch,
+                            'único por sub-torneo'
+                        );
+                    }
+                    $numfvdVistosPorSlot[$slot][$numfvdArch] = true;
+                } elseif (isset($numfvdVistos[$numfvdArch])) {
+                    $stats['numfvd_duplicados_resueltos'][] = (string) $numfvdArch;
+                    $stats['divergencias_detalle'][] = self::armarDivergenciaPareja(
+                        'numfvd_duplicado_archivo',
+                        (string) $numfvdArch,
+                        null,
+                        self::metaArchivoPareja($row, $ctxCols, $slot),
+                        'numfvd ' . $numfvdArch . ' repetido en parejas inscritas (fila ' . $filaArchivo . ').',
+                        $filaArchivo,
+                        'numfvd=' . $numfvdArch,
+                        'único por torneo'
+                    );
+                }
+                $numfvdVistos[$numfvdArch] = true;
+
+                $asocArch = $iAsoc >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iAsoc] ?? '')) : 0;
+                $etiqAsoc = $asocArch > 0
+                    ? EntidadFvdCatalogo::etiqueta($asocArch)
+                    : 'Sin asociación';
+                $porAsoc[$etiqAsoc] = ($porAsoc[$etiqAsoc] ?? 0) + 1;
+
+                if (count($stats['muestra']) < 8) {
+                    $cedMuestra = $iCed >= 0 ? self::normalizarCedula($row[$iCed] ?? '') : '';
+                    $stats['muestra'][] = [
+                        'cedula' => $cedMuestra,
+                        'id_usuario' => $numfvdArch,
+                        'numfvd' => $numfvdArch,
+                        'id_club' => self::clubDesdeAsociacionArchivo($pdo, $row, $iAsoc),
+                        'entidad' => $asocArch,
+                        'asociacion' => $etiqAsoc,
+                        'nombre' => $iNombre >= 0 ? trim((string) ($row[$iNombre] ?? '')) : '',
+                        'torneo_id' => $torneoFila,
+                        'slot' => $slot > 0 ? $slot : null,
+                        'torneo_etiqueta' => self::etiquetaTorneoSlot($mapa, $slot),
+                        'estatus_usuario' => 'importación directa SUB',
+                    ];
+                }
+
+                $insNf = $inscritosTorneo;
+                if ($mapa !== null && $slot > 0) {
+                    $insNf = $inscritosPorSlot[$slot]['numfvd'];
+                }
+                if (isset($insNf[$numfvdArch])) {
+                    $stats['ya_inscritos']++;
+                    if ($mapa !== null && $slot > 0) {
+                        $stats['por_torneo'][$slot]['ya_inscritos']++;
+                    }
+                } else {
+                    $stats['listos']++;
+                    if ($mapa !== null && $slot > 0) {
+                        $stats['por_torneo'][$slot]['listos']++;
+                    }
+                }
+                continue;
+            }
+
+            $ced = self::normalizarCedula($iCed >= 0 ? ($row[$iCed] ?? '') : '');
+            if ($ced === '') {
+                continue;
             }
 
             $stats['filas_leidas']++;
@@ -346,7 +707,7 @@ final class ImportacionAccessExternoService
 
             $metaArch = self::metaArchivoPareja($row, $ctxCols, $slot, $usuario);
 
-            if ($mapa !== null && $slot > 0) {
+            if ($mapa !== null && $slot > 0 && ($mapa['tipo'] ?? '') === 'genero') {
                 $generoEsperado = (string) ($mapa['slots'][$slot]['genero'] ?? '');
                 $sexo = CampeonatoTorneoHelper::sexoNormalizado((string) ($usuario['sexo'] ?? ''));
                 if ($sexo === '') {
@@ -555,13 +916,11 @@ final class ImportacionAccessExternoService
         $stats = [
             'ok' => false,
             'campeonato_genero' => false,
+            'campeonato_categoria_sub' => false,
             'filas_leidas' => 0,
             'numfvd_unicos' => 0,
             'numfvd_sin_inscrito' => [],
-            'por_torneo' => [
-                1 => ['filas' => 0, 'numfvd_unicos' => 0],
-                2 => ['filas' => 0, 'numfvd_unicos' => 0],
-            ],
+            'por_torneo' => [],
             'errores_columnas' => [],
             'situaciones_detalle' => [],
         ];
@@ -588,22 +947,33 @@ final class ImportacionAccessExternoService
             return $stats;
         }
 
-        $mapa = CampeonatoTorneoHelper::mapaImportacionCampeonatoGenero($pdo, $torneoId);
+        $mapa = CampeonatoTorneoHelper::mapaImportacionCampeonato($pdo, $torneoId);
         $mapaNfSlot = [];
-        $extraPorSlot = [1 => [], 2 => []];
+        $extraPorSlot = [];
+        $slotsValidosParti = [];
         if ($mapa !== null) {
-            $stats['campeonato_genero'] = true;
+            $stats['campeonato_genero'] = ($mapa['tipo'] ?? '') === 'genero';
+            $stats['campeonato_categoria_sub'] = ($mapa['tipo'] ?? '') === 'categoria_sub';
+            $slotsValidosParti = self::slotsCampeonato($mapa);
+            foreach ($slotsValidosParti as $slotInit) {
+                $stats['por_torneo'][$slotInit] = ['filas' => 0, 'numfvd_unicos' => 0];
+                $extraPorSlot[$slotInit] = [];
+            }
             if ($parejasRows !== null) {
                 $mapaNfSlot = self::mapaNumfvdSlotDesdeParejas($pdo, $parejasRows);
                 $extraPorSlot = self::extraerNumfvdParejasPorSlot($pdo, $parejasRows);
             } elseif ($numfvdExtra !== null) {
                 foreach ($numfvdExtra as $nf) {
-                    $extraPorSlot[1][(int) $nf] = true;
-                    $extraPorSlot[2][(int) $nf] = true;
+                    foreach ($slotsValidosParti as $slotInit) {
+                        $extraPorSlot[$slotInit][(int) $nf] = true;
+                    }
                 }
             }
             if ($iTorneo < 0 && $mapaNfSlot === []) {
-                $stats['errores_columnas'][] = 'Campeonato por género: columna torneo en parti2017 o archivo parejas de referencia.';
+                $msgTor = $stats['campeonato_categoria_sub']
+                    ? 'Campeonato por categoría SUB: columna torneo en parti2017 o archivo parejas de referencia.'
+                    : 'Campeonato por género: columna torneo en parti2017 o archivo parejas de referencia.';
+                $stats['errores_columnas'][] = $msgTor;
                 $stats['situaciones_detalle'] = self::situacionesDesdeErroresColumnas(
                     'parti2017',
                     'parti2017 (resultados)',
@@ -613,7 +983,7 @@ final class ImportacionAccessExternoService
                 return $stats;
             }
             $inscritosPorSlot = [];
-            foreach ([1, 2] as $slot) {
+            foreach ($slotsValidosParti as $slot) {
                 $tid = CampeonatoTorneoHelper::torneoIdDesdeSlot($mapa['slots'], $slot);
                 $inscritosPorSlot[$slot] = self::mapaInscritosNumfvd($pdo, $tid);
             }
@@ -628,7 +998,12 @@ final class ImportacionAccessExternoService
         }
 
         $unicos = [];
-        $unicosPorSlot = [1 => [], 2 => []];
+        $unicosPorSlot = [];
+        if ($mapa !== null) {
+            foreach ($slotsValidosParti as $slotInit) {
+                $unicosPorSlot[$slotInit] = [];
+            }
+        }
         $situaciones = [];
         foreach ($parsed['data'] as $rowIdx => $row) {
             $filaArchivo = $parsed['header_row'] + 2 + (int) $rowIdx;
@@ -643,22 +1018,23 @@ final class ImportacionAccessExternoService
 
             if ($mapa !== null) {
                 $slot = $iTorneo >= 0 ? self::slotDesdeFila($row, $iTorneo) : (int) ($mapaNfSlot[$nf] ?? 0);
-                if ($slot !== 1 && $slot !== 2) {
+                if ($slot === 0 || ! in_array($slot, $slotsValidosParti, true)) {
                     $stats['numfvd_sin_inscrito'][] = (string) $nf . ' (torneo no identificado)';
                     $situaciones[] = self::armarSituacion('numfvd_sin_inscrito', [
                         'fila_archivo' => $filaArchivo,
                         'elemento' => 'numfvd=' . $nf,
                         'valor_archivo' => 'pareja/numfvd=' . $nf . ', partida=' . $partida . ', mesa=' . $mesa,
                         'valor_sistema' => 'sin sub-torneo (columna torneo inválida)',
-                        'explicacion' => 'numfvd ' . $nf . ' en parti2017 fila ' . $filaArchivo . ': no se identifica torneo 1/2.',
+                        'explicacion' => 'numfvd ' . $nf . ' en parti2017 fila ' . $filaArchivo . ': no se identifica sub-torneo válido.',
                     ]);
                     continue;
                 }
                 $stats['por_torneo'][$slot]['filas']++;
                 $unicosPorSlot[$slot][$nf] = true;
                 $ins = $inscritosPorSlot[$slot];
-                $extra = $extraPorSlot[$slot];
-                if (!isset($ins[$nf]) && !isset($extra[$nf])) {
+                $extra = $extraPorSlot[$slot] ?? [];
+                $directoSlot = ! empty($mapa['slots'][$slot]['importacion_directa']);
+                if (! $directoSlot && ! isset($ins[$nf]) && ! isset($extra[$nf])) {
                     $stats['numfvd_sin_inscrito'][] = (string) $nf . ' (torneo ' . $slot . ')';
                     $situaciones[] = self::armarSituacion('numfvd_sin_inscrito', [
                         'fila_archivo' => $filaArchivo,
@@ -669,7 +1045,11 @@ final class ImportacionAccessExternoService
                         'explicacion' => 'numfvd ' . $nf . ' en parti2017 no está en parejas inscritas ni en inscritos del sub-torneo ' . $slot . '.',
                     ]);
                 }
-            } elseif (!isset($inscritos[$nf]) && !isset($extra[$nf])) {
+            } elseif (
+                ! CampeonatoTorneoHelper::importacionDirectaSub1215($pdo, $torneoId)
+                && ! isset($inscritos[$nf])
+                && ! isset($extra[$nf])
+            ) {
                 $stats['numfvd_sin_inscrito'][] = (string) $nf;
                 $situaciones[] = self::armarSituacion('numfvd_sin_inscrito', [
                     'fila_archivo' => $filaArchivo,
@@ -683,8 +1063,9 @@ final class ImportacionAccessExternoService
 
         $stats['numfvd_unicos'] = count($unicos);
         if ($mapa !== null) {
-            $stats['por_torneo'][1]['numfvd_unicos'] = count($unicosPorSlot[1]);
-            $stats['por_torneo'][2]['numfvd_unicos'] = count($unicosPorSlot[2]);
+            foreach ($slotsValidosParti as $slotInit) {
+                $stats['por_torneo'][$slotInit]['numfvd_unicos'] = count($unicosPorSlot[$slotInit] ?? []);
+            }
         }
         $stats['numfvd_sin_inscrito'] = array_values(array_unique($stats['numfvd_sin_inscrito']));
         $stats['situaciones_detalle'] = $situaciones;
@@ -731,7 +1112,7 @@ final class ImportacionAccessExternoService
             return $stats;
         }
 
-        $mapa = CampeonatoTorneoHelper::mapaImportacionCampeonatoGenero($pdo, $torneoId);
+        $mapa = CampeonatoTorneoHelper::mapaImportacionCampeonato($pdo, $torneoId);
         if ($mapa !== null) {
             $stats['campeonato_genero'] = true;
             if ($iTorneo < 0) {
@@ -800,7 +1181,7 @@ final class ImportacionAccessExternoService
             return ['ok' => true, 'equipos_incompletos' => [], 'mensaje' => 'Torneo individual: no aplica verificación de equipos.'];
         }
 
-        $mapa = CampeonatoTorneoHelper::mapaImportacionCampeonatoGenero($pdo, $torneoId);
+        $mapa = CampeonatoTorneoHelper::mapaImportacionCampeonato($pdo, $torneoId);
         if ($mapa !== null) {
             $incompletos = [];
             $porTorneo = [];
@@ -938,15 +1319,23 @@ final class ImportacionAccessExternoService
         bool $reemplazarInscripcion = true
     ): array {
         $fechaTorneo = self::fechaTorneo($pdo, $torneoId);
-        $mapa = CampeonatoTorneoHelper::mapaImportacionCampeonatoGenero($pdo, $torneoId);
+        $mapa = CampeonatoTorneoHelper::mapaImportacionCampeonato($pdo, $torneoId);
 
-        $cedulasImport = self::extraerCedulasParejas($parejasRows);
-        $syncAtletas = self::sincronizarAtletasParaImportacion($pdo, $cedulasImport, true);
-        if (!$syncAtletas['ok']) {
-            return [
-                'ok' => false,
-                'error' => 'Sincronización atletas → usuarios incompleta. Revise el paso 0 antes de importar.',
-                'sync_atletas' => $syncAtletas,
+        if (self::requiereSincronizacionAtletas($pdo, $torneoId, $mapa)) {
+            $cedulasImport = self::extraerCedulasParejas($parejasRows);
+            $syncAtletas = self::sincronizarAtletasParaImportacion($pdo, $cedulasImport, true);
+            if (! $syncAtletas['ok']) {
+                return [
+                    'ok' => false,
+                    'error' => 'Sincronización atletas → usuarios incompleta. Revise el paso 0 antes de importar.',
+                    'sync_atletas' => $syncAtletas,
+                ];
+            }
+        } else {
+            $syncAtletas = [
+                'ok' => true,
+                'omitido' => true,
+                'motivo' => 'SUB 12/15: importación directa sin validar cédulas ni usuarios',
             ];
         }
 
@@ -1070,7 +1459,7 @@ final class ImportacionAccessExternoService
             };
 
             if ($mapa !== null) {
-                foreach ([1, 2] as $slot) {
+                foreach (self::slotsCampeonato($mapa) as $slot) {
                     $tid = CampeonatoTorneoHelper::torneoIdDesdeSlot($mapa['slots'], $slot);
                     $filasP = self::filtrarArchivoPorSlot($parejasRows, $slot);
                     $filasC = ($clasiequiRows !== null && $clasiequiRows !== [] && self::requiereClasiequi($modalidad))
@@ -1115,7 +1504,7 @@ final class ImportacionAccessExternoService
             }
 
             if ($mapa !== null) {
-                foreach ([1, 2] as $slot) {
+                foreach (self::slotsCampeonato($mapa) as $slot) {
                     $tid = CampeonatoTorneoHelper::torneoIdDesdeSlot($mapa['slots'], $slot);
                     $filas = self::filtrarArchivoPorSlot($partiRows, $slot);
                     $fecha = self::fechaTorneo($pdo, $tid) ?: $fechaTorneo;
@@ -1175,16 +1564,24 @@ final class ImportacionAccessExternoService
         $iCed = self::indiceColumna($h, ['cedula', 'ced', 'documento']);
         $iNum = self::indiceColumna($h, ['numfvd', 'num_fvd', 'carnet', 'pareja']);
         $out = [];
-        if ($iCed < 0) {
+        if ($iCed < 0 && $iNum < 0) {
             return $out;
         }
         foreach ($parsed['data'] as $row) {
+            $nf = $iNum >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iNum] ?? '')) : 0;
+            if ($nf > 0) {
+                $out[] = $nf;
+                continue;
+            }
+            if ($iCed < 0) {
+                continue;
+            }
+
             $ced = self::normalizarCedula((string) ($row[$iCed] ?? ''));
             if ($ced === '') {
                 continue;
             }
 
-            $nf = $iNum >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iNum] ?? '')) : 0;
             if ($nf <= 0) {
                 $usuario = self::resolverUsuarioPorCedula($pdo, $ced);
                 if ($usuario === null) {
@@ -1377,6 +1774,19 @@ final class ImportacionAccessExternoService
         ?int $soloSlot = null,
         ?array &$incidenciasEjecucion = null
     ): array {
+        if (CampeonatoTorneoHelper::importacionDirectaSub1215($pdo, $torneoId)) {
+            return self::importarParejasInscritasDirectaSub1215(
+                $pdo,
+                $torneoId,
+                $rows,
+                $modalidad,
+                $inscritoPor,
+                $clasiequiRows,
+                $soloSlot,
+                $incidenciasEjecucion
+            );
+        }
+
         $parsed = self::separarCabecera($rows, [['cedula', 'ced']]);
         $h = $parsed['header'];
         $iCed = self::indiceColumna($h, ['cedula', 'ced', 'documento']);
@@ -1610,10 +2020,14 @@ final class ImportacionAccessExternoService
     private static function contarFilasParejasValidas(array $rows): int
     {
         $parsed = self::separarCabecera($rows, [['cedula', 'ced']]);
-        $iCed = self::indiceColumna($parsed['header'], ['cedula', 'ced', 'documento']);
+        $h = $parsed['header'];
+        $iCed = self::indiceColumna($h, ['cedula', 'ced', 'documento']);
+        $iNum = self::indiceColumna($h, ['numfvd', 'num_fvd', 'carnet', 'pareja']);
         $n = 0;
         foreach ($parsed['data'] as $row) {
-            if (self::normalizarCedula($iCed >= 0 ? ($row[$iCed] ?? '') : '') !== '') {
+            $ced = self::normalizarCedula($iCed >= 0 ? ($row[$iCed] ?? '') : '');
+            $nf = $iNum >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iNum] ?? '')) : 0;
+            if ($ced !== '' || $nf > 0) {
                 $n++;
             }
         }
@@ -3602,7 +4016,7 @@ final class ImportacionAccessExternoService
 
     /**
      * @param list<list<string>> $rows
-     * @return array<int, int> numfvd => slot (1|2)
+     * @return array<int, int> numfvd => slot (1|2|3)
      */
     private static function mapaNumfvdSlotDesdeParejas(PDO $pdo, array $rows): array
     {
@@ -3612,21 +4026,24 @@ final class ImportacionAccessExternoService
         $iNum = self::indiceColumna($h, ['numfvd', 'num_fvd', 'carnet', 'pareja']);
         $iTorneo = self::indiceColumnaTorneo($h);
         $map = [];
-        if ($iCed < 0 || $iTorneo < 0) {
+        if ($iTorneo < 0 || $iNum < 0) {
             return $map;
         }
 
         foreach ($parsed['data'] as $row) {
-            $ced = self::normalizarCedula((string) ($row[$iCed] ?? ''));
-            if ($ced === '') {
-                continue;
-            }
             $slot = self::slotDesdeFila($row, $iTorneo);
-            if ($slot !== 1 && $slot !== 2) {
+            if ($slot <= 0 || $slot > 3) {
                 continue;
             }
-            $nf = $iNum >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iNum] ?? '')) : 0;
+            $nf = (int) preg_replace('/\D/', '', (string) ($row[$iNum] ?? ''));
             if ($nf <= 0) {
+                if ($iCed < 0) {
+                    continue;
+                }
+                $ced = self::normalizarCedula((string) ($row[$iCed] ?? ''));
+                if ($ced === '') {
+                    continue;
+                }
                 $usuario = self::resolverUsuarioPorCedula($pdo, $ced);
                 if ($usuario === null) {
                     continue;
@@ -3643,31 +4060,34 @@ final class ImportacionAccessExternoService
 
     /**
      * @param list<list<string>> $rows
-     * @return array{1: array<int, true>, 2: array<int, true>}
+     * @return array<int, array<int, true>>
      */
     private static function extraerNumfvdParejasPorSlot(PDO $pdo, array $rows): array
     {
-        $out = [1 => [], 2 => []];
+        $out = [];
         $parsed = self::separarCabecera($rows, [['cedula', 'ced']]);
         $h = $parsed['header'];
         $iCed = self::indiceColumna($h, ['cedula', 'ced', 'documento']);
         $iNum = self::indiceColumna($h, ['numfvd', 'num_fvd', 'carnet', 'pareja']);
         $iTorneo = self::indiceColumnaTorneo($h);
-        if ($iCed < 0) {
+        if ($iNum < 0) {
             return $out;
         }
 
         foreach ($parsed['data'] as $row) {
-            $ced = self::normalizarCedula((string) ($row[$iCed] ?? ''));
-            if ($ced === '') {
-                continue;
-            }
             $slot = $iTorneo >= 0 ? self::slotDesdeFila($row, $iTorneo) : 0;
-            if ($slot !== 1 && $slot !== 2) {
+            if ($slot <= 0 || $slot > 3) {
                 continue;
             }
-            $nf = $iNum >= 0 ? (int) preg_replace('/\D/', '', (string) ($row[$iNum] ?? '')) : 0;
+            $nf = (int) preg_replace('/\D/', '', (string) ($row[$iNum] ?? ''));
             if ($nf <= 0) {
+                if ($iCed < 0) {
+                    continue;
+                }
+                $ced = self::normalizarCedula((string) ($row[$iCed] ?? ''));
+                if ($ced === '') {
+                    continue;
+                }
                 $usuario = self::resolverUsuarioPorCedula($pdo, $ced);
                 if ($usuario === null) {
                     continue;
@@ -3675,6 +4095,9 @@ final class ImportacionAccessExternoService
                 $nf = self::resolverNumfvdUsuario($pdo, $usuario, $ced);
             }
             if ($nf > 0) {
+                if (! isset($out[$slot])) {
+                    $out[$slot] = [];
+                }
                 $out[$slot][$nf] = true;
             }
         }

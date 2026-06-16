@@ -41,9 +41,13 @@ final class AsociacionAdminHelper
         'asociacion_panel',
         'asociacion/torneo_ver',
         'asociacion/solicitud',
+        'asociacion/afiliar_atleta',
+        'asociacion/informes',
         'torneo_gestion',
         'tournament_admin',
         'finanzas/resumen_asociacion',
+        'reportes_pago_usuarios',
+        'organizaciones',
         'users/profile',
         'api_search_user_persona',
         'user_notificaciones',
@@ -138,6 +142,76 @@ final class AsociacionAdminHelper
         $row = $st->fetch(PDO::FETCH_ASSOC);
 
         return is_array($row) && !empty($row) ? $row : null;
+    }
+
+    /**
+     * URL al detalle de la asociación (club) del usuario autenticado dentro de la org FVD.
+     */
+    public static function urlMiOrganizacion(?PDO $pdo = null, ?int $userId = null, ?string $role = null): ?string
+    {
+        if (!class_exists('AppHelpers', false)) {
+            require_once __DIR__ . '/app_helpers.php';
+        }
+        $pdo = $pdo ?? (class_exists('DB', false) ? DB::pdo() : null);
+        if (!$pdo instanceof PDO) {
+            return null;
+        }
+        $userId = $userId ?? (class_exists('Auth', false) ? Auth::id() : 0);
+        $role = $role ?? (class_exists('Auth', false) ? (string) (Auth::user()['role'] ?? '') : '');
+        $club = self::clubOperativo($pdo, (int) $userId, $role);
+        if ($club === null) {
+            return null;
+        }
+        $clubId = (int) ($club['id'] ?? 0);
+        if ($clubId <= 0) {
+            return null;
+        }
+        $orgFvd = class_exists('FvdConfig') ? (int) FvdConfig::ORGANIZACION_ID : 1;
+
+        return AppHelpers::dashboard('organizaciones', [
+            'id' => $orgFvd,
+            'club_id' => $clubId,
+        ]);
+    }
+
+    /** Operativo de asociación solo puede ver su propio club (no el listado FVD completo). */
+    public static function usuarioPuedeVerClubOperativo(PDO $pdo, int $clubId): bool
+    {
+        if ($clubId <= 0) {
+            return false;
+        }
+        if (!class_exists('Auth', false) || !Auth::isOperativoSoloAsociacion()) {
+            return true;
+        }
+        $club = self::clubOperativo($pdo, Auth::id(), (string) (Auth::user()['role'] ?? ''));
+
+        return $club !== null && (int) ($club['id'] ?? 0) === $clubId;
+    }
+
+    /**
+     * @param array<string, mixed> $query
+     */
+    public static function esPaginaMiOrganizacionActiva(string $currentPage, array $query, ?PDO $pdo = null): bool
+    {
+        if ($currentPage !== 'organizaciones') {
+            return false;
+        }
+        $clubIdGet = (int) ($query['club_id'] ?? 0);
+        if ($clubIdGet <= 0) {
+            return false;
+        }
+        if (!class_exists('Auth', false) || !Auth::isOperativoSoloAsociacion()) {
+            $orgId = class_exists('FvdConfig') ? (int) FvdConfig::ORGANIZACION_ID : (int) ($query['id'] ?? 0);
+
+            return (int) ($query['id'] ?? 0) === $orgId;
+        }
+        $pdo = $pdo ?? (class_exists('DB', false) ? DB::pdo() : null);
+        if (!$pdo instanceof PDO) {
+            return false;
+        }
+        $club = self::clubOperativo($pdo, Auth::id(), (string) (Auth::user()['role'] ?? ''));
+
+        return $club !== null && (int) ($club['id'] ?? 0) === $clubIdGet;
     }
 
     public static function esEventoMasivo(?array $torneo): bool
@@ -295,6 +369,37 @@ final class AsociacionAdminHelper
         return (bool) $st->fetchColumn();
     }
 
+    /** Admin general o delegado / admin_club con club operativo asignado. */
+    public static function usuarioTieneAccesoModulosAsociacion(): bool
+    {
+        if (!class_exists('Auth', false) || !Auth::user()) {
+            return false;
+        }
+        if (Auth::isAdminGeneral()) {
+            return true;
+        }
+
+        return Auth::clubOperativoAsociacion() !== null;
+    }
+
+    /** Visibilidad de torneo para el panel de asociación (incluye eventos masivos FVD). */
+    public static function usuarioPuedeVerTorneo(PDO $pdo, int $torneoId, ?array $club = null): bool
+    {
+        if ($torneoId <= 0) {
+            return false;
+        }
+        if (class_exists('Auth', false) && Auth::isAdminGeneral()) {
+            return true;
+        }
+        $club = $club ?? (class_exists('Auth', false) ? Auth::clubOperativoAsociacion() : null);
+        if ($club === null || !is_array($club)) {
+            return class_exists('Auth', false) && Auth::canAccessTournament($torneoId);
+        }
+        $orgFvd = class_exists('FvdConfig') ? (int) FvdConfig::ORGANIZACION_ID : 1;
+
+        return self::torneoVisibleParaClub($pdo, $torneoId, $club, $orgFvd);
+    }
+
     public static function accionTorneoGestionPermitida(string $action): bool
     {
         $action = trim($action);
@@ -323,6 +428,9 @@ final class AsociacionAdminHelper
     {
         $page = trim($page);
         if ($page === '' || $page === 'home') {
+            return true;
+        }
+        if (str_starts_with($page, 'asociacion/')) {
             return true;
         }
 

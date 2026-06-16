@@ -62,14 +62,6 @@ $buscar_api_url = class_exists('AppHelpers')
         </div>
     </div>
 
-    <div class="row mb-3">
-        <div class="col-12">
-            <a href="<?php echo htmlspecialchars($url_panel_torneo); ?>" class="btn btn-secondary btn-sm">
-                <i class="fas fa-arrow-left mr-2"></i> Retornar al Panel
-            </a>
-        </div>
-    </div>
-
     <?php if (isset($_SESSION['success'])): ?>
         <div class="alert alert-success alert-dismissible fade show py-2">
             <?php echo htmlspecialchars($_SESSION['success']); unset($_SESSION['success']); ?>

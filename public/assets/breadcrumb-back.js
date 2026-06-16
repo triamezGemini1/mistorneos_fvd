@@ -73,6 +73,9 @@
     }
 
     function initBreadcrumbBack() {
+        if (document.body && document.body.getAttribute('data-skip-volver') === '1') {
+            return;
+        }
         injectStyles();
         var slot = document.getElementById('breadcrumb-back-slot');
         if (slot && !slot.querySelector('.btn-breadcrumb-back')) {

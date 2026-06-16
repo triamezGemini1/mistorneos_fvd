@@ -16,6 +16,60 @@ body.fvd-dashboard-compact.page-fvd-listado main.fvd-main-scroll {
   flex-wrap: nowrap;
 }
 
+.fvd-mi-org-logo--toolbar {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  padding: 2px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.fvd-mi-org-logo--toolbar.fvd-mi-org-logo-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--fvd-app-accent, #0e85a3);
+}
+
+.fvd-listado-page--mi-org .fvd-listado-toolbar--compact {
+  margin-bottom: 0.35rem;
+}
+
+.fvd-listado-page--mi-org .fvd-listado-title {
+  font-size: calc(1rem * var(--fvd-app-scale, 1.25));
+}
+
+.fvd-listado-page--mi-org .fvd-listado-kpi {
+  min-height: calc(2.2rem * var(--fvd-app-scale, 1.25));
+  padding: calc(0.25rem * var(--fvd-app-scale, 1.25)) calc(0.35rem * var(--fvd-app-scale, 1.25));
+}
+
+.fvd-listado-page--mi-org .fvd-listado-card .card-header {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+.fvd-listado-page--mi-org .fvd-listado-card .card-body {
+  padding-top: 0.5rem;
+}
+
+@media (max-width: 575.98px) {
+  .fvd-page-toolbar-row--with-logo {
+    align-items: flex-end;
+  }
+
+  .fvd-mi-org-logo--toolbar {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 /* Toolbar clubes asociados */
 .fvd-clubes-toolbar {
   align-items: center;

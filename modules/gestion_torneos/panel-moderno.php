@@ -12,6 +12,9 @@ if (!class_exists('AppHelpers', false)) {
 if (!class_exists('CSRF', false)) {
     require_once __DIR__ . '/../../config/csrf.php';
 }
+if (!class_exists('TournamentAdminAccess', false)) {
+    require_once __DIR__ . '/../../lib/TournamentAdminAccess.php';
+}
 
 $script_actual = basename($_SERVER['PHP_SELF'] ?? '');
 $use_standalone = in_array($script_actual, ['admin_torneo.php', 'panel_torneo.php']);
@@ -51,6 +54,15 @@ if (!isset($torneo) || empty($torneo) || !is_array($torneo)) {
 }
 
 $page_title = 'Panel de Control - ' . htmlspecialchars($torneo['nombre'] ?? 'Torneo');
+
+$puede_gestionar_operadores = class_exists('TournamentAdminAccess') && TournamentAdminAccess::isFullTorneoAdmin();
+$url_gestionar_operadores = '';
+if ($puede_gestionar_operadores && !empty($torneo['id'])) {
+    $url_gestionar_operadores = AppHelpers::dashboard('admin_torneo_operadores', [
+        'tab' => 'operadores',
+        'return_torneo_id' => (int) $torneo['id'],
+    ]);
+}
 
 // Detectar modalidad del torneo (2 = Parejas, 3 = Equipos, 4 = Parejas fijas)
 $modalidad_num_panel = (int)($torneo['modalidad'] ?? 0);
@@ -453,6 +465,13 @@ $url_reportes_pago_usuarios = ($tid_panel > 0 && class_exists('AppHelpers', fals
                             </div>
                         <?php endif; ?>
                         
+                        <?php if ($puede_gestionar_operadores && $url_gestionar_operadores !== ''): ?>
+                            <a href="<?php echo htmlspecialchars($url_gestionar_operadores); ?>"
+                               class="tw-btn bg-purple-600 hover:bg-purple-700 text-white">
+                                <i class="fas fa-users-cog"></i> Gestionar operadores
+                            </a>
+                        <?php endif; ?>
+
                         <!-- Mostrar Asignaciones (solo si hay rondas generadas) -->
                         <?php if ($ultima_ronda > 0): ?>
                             <a href="<?php echo $base_url . ($use_standalone ? '?' : '&'); ?>action=mesas&torneo_id=<?php echo $torneo['id']; ?>&ronda=<?php echo $ultima_ronda; ?>" 

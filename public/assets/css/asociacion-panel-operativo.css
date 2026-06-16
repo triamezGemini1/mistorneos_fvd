@@ -155,6 +155,24 @@
   margin-bottom: 0.25rem;
 }
 
+.asoc-panel-operativo .asoc-po-toolbar__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.asoc-panel-operativo .asoc-quick-search,
+.asoc-panel-operativo .asoc-panel-search {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.asoc-panel-operativo .asoc-panel-search .form-control:focus {
+  box-shadow: none;
+}
+
 @media (min-width: 1024px) {
   .asoc-panel-operativo .asoc-po-btn {
     font-size: 0.875rem;

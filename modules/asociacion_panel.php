@@ -61,18 +61,13 @@ $clubNombreDisplay = $upperLabel($normalizeLabel($clubNombre));
 $entidadDisplay = $normalizeLabel($entidadNombre);
 
 $torneoHighlight = (int) ($_GET['torneo_nuevo'] ?? 0);
-$tabActiva = (int) ($_GET['tab'] ?? 3);
-if ($tabActiva < 1 || $tabActiva > 3) {
-    $tabActiva = 3;
+$tabActiva = (int) ($_GET['tab'] ?? 2);
+if ($tabActiva !== 2 && $tabActiva !== 3) {
+    $tabActiva = 2;
 }
 
-$urlPanel = AppHelpers::dashboard('asociacion_panel');
-$urlPerfil = AppHelpers::url('index.php', ['page' => 'users/profile']);
-$urlLogout = AppHelpers::logout();
 $urlFinanzasBase = AppHelpers::dashboard('finanzas/resumen_asociacion');
-$urlNotif = AppHelpers::dashboard('user_notificaciones');
 
-$fvdLogo = AppHelpers::getAppLogo();
 $clubLogo = !empty($club['logo']) ? AppHelpers::imageUrl((string) $club['logo']) : '';
 
 $torneosSede = AsociacionAdminHelper::listarTorneosFvdParaClub($pdo, $club, $orgFvd, 30);
@@ -84,9 +79,7 @@ if ($torneoHighlight > 0) {
     $torneoPanelId = $torneoHighlight;
 }
 if ($torneoPanelId <= 0) {
-    if ($tabActiva === 1 && $torneosSede !== []) {
-        $torneoPanelId = (int) $torneosSede[0]['id'];
-    } elseif ($tabActiva === 2 && $torneosMasivos !== []) {
+    if ($tabActiva === 2 && $torneosMasivos !== []) {
         $torneoPanelId = (int) $torneosMasivos[0]['id'];
     } elseif ($torneosLista !== []) {
         $torneoPanelId = (int) $torneosLista[0]['id'];
@@ -116,24 +109,27 @@ $urlVerTorneo = $torneoPanelId > 0
 $urlInscripciones = $urlTorneo('inscripciones');
 $urlInscribirSitio = $urlTorneo('inscribir_sitio');
 $urlInscribirEquipo = $urlTorneo('inscribir_equipo_sitio');
-$urlCargaParejas = $urlTorneo('carga_masiva_parejas_sitio');
-$urlCargaEquipos = $urlTorneo('carga_masiva_equipos_sitio');
 $urlCarnetQr = $torneoPanelId > 0
     ? AppHelpers::dashboard('tournament_admin', ['torneo_id' => $torneoPanelId, 'action' => 'generar_qr'])
     : '#';
 
-$sinTorneo = $torneoPanelId <= 0 || !Auth::canAccessTournament($torneoPanelId);
+$sinTorneo = $torneoPanelId <= 0
+    || !AsociacionAdminHelper::usuarioPuedeVerTorneo($pdo, $torneoPanelId, $club);
 $esEventoMasivo = AsociacionAdminHelper::esEventoMasivo($torneoCtx);
 $urlFinanzas = $esEventoMasivo && $torneoPanelId > 0
     ? AppHelpers::dashboard('finanzas/resumen_asociacion', ['torneo_id' => $torneoPanelId, 'evento_masivo' => 1])
-    : $urlFinanzasBase;
+    : ($torneoPanelId > 0
+        ? AppHelpers::dashboard('finanzas/resumen_asociacion', ['torneo_id' => $torneoPanelId])
+        : $urlFinanzasBase);
 $panelError = trim((string) ($_GET['error'] ?? ''));
-$urlSolicitud = static function (string $tipo) use ($torneoPanelId): string {
-    $p = ['tipo' => $tipo];
-    if ($torneoPanelId > 0) {
-        $p['torneo_id'] = $torneoPanelId;
+
+$urlAsoc = static function (string $page, array $extra = []) use ($torneoPanelId): string {
+    $q = $extra;
+    if ($torneoPanelId > 0 && !isset($q['torneo_id'])) {
+        $q['torneo_id'] = $torneoPanelId;
     }
-    return AppHelpers::dashboard('asociacion/solicitud', $p);
+
+    return AppHelpers::dashboard($page, $q);
 };
 
 $panelQs = static function (array $extra = []) use ($torneoPanelId, $torneoHighlight): array {
@@ -146,11 +142,10 @@ $panelQs = static function (array $extra = []) use ($torneoPanelId, $torneoHighl
     }
     return $q;
 };
-$tab1Href = AppHelpers::dashboard('asociacion_panel', $panelQs(['tab' => 1]));
 $tab2Href = AppHelpers::dashboard('asociacion_panel', $panelQs(['tab' => 2]));
 $tab3Href = AppHelpers::dashboard('asociacion_panel', $panelQs(['tab' => 3]));
 
-$listaContexto = $tabActiva === 1 ? $torneosSede : ($tabActiva === 2 ? $torneosMasivos : $torneosLista);
+$listaContexto = $tabActiva === 2 ? $torneosMasivos : $torneosLista;
 $urlInscripcionPrincipal = $modalidadTorneo === 3
     ? $urlInscribirEquipo
     : $urlInscribirSitio;
@@ -158,28 +153,13 @@ $btnTorneoOff = $sinTorneo ? ' asoc-po-btn--disabled' : '';
 ?>
 <link rel="stylesheet" href="<?= htmlspecialchars(AppHelpers::assetVersion('assets/css/asociacion-panel-operativo.css')) ?>">
 <div class="asoc-fvd-wrap asoc-panel-operativo text-dark">
-    <header class="asoc-fvd-topbar">
-        <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between py-2 px-3 gap-2">
-            <div class="d-flex align-items-center gap-3">
-                <img src="<?= htmlspecialchars($fvdLogo) ?>" alt="<?= htmlspecialchars(FvdBranding::siglas()) ?>" class="asoc-fvd-logo-fvd" height="40">
-                <span class="asoc-fvd-topbar-title d-none d-sm-inline"><?= htmlspecialchars(FvdBranding::nombre()) ?></span>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-                <a href="<?= htmlspecialchars($urlPanel) ?>" class="btn btn-sm btn-outline-light"><i class="fas fa-home me-1"></i>Panel</a>
-                <a href="<?= htmlspecialchars($urlPerfil) ?>" class="btn btn-sm btn-outline-light"><i class="fas fa-user me-1"></i>Mi perfil</a>
-                <a href="<?= htmlspecialchars($urlLogout) ?>" class="btn btn-sm btn-warning text-dark"><i class="fas fa-sign-out-alt me-1"></i>Salir</a>
-            </div>
-        </div>
-    </header>
-
-    <div class="container-fluid px-3 px-lg-4 py-4">
+    <div class="container-fluid py-2 px-0">
         <?php if ($torneoHighlight > 0): ?>
         <div class="alert alert-primary border-0 shadow-sm d-flex align-items-center flex-wrap gap-2 mb-4">
             <i class="fas fa-bullhorn fa-lg"></i>
             <div class="flex-grow-1">
-                <strong>Nuevo torneo publicado.</strong> Revise notificaciones y use las pestañas de contexto para abrir inscripciones o carnets.
+                <strong>Nuevo torneo publicado.</strong> Seleccione el evento en el listado y use inscripciones o solicitudes según corresponda.
             </div>
-            <a href="<?= htmlspecialchars($urlNotif) ?>" class="btn btn-sm btn-light">Notificaciones</a>
         </div>
         <?php endif; ?>
 
@@ -218,13 +198,13 @@ $btnTorneoOff = $sinTorneo ? ' asoc-po-btn--disabled' : '';
             </div>
         </div>
 
-        <div class="mb-3">
-            <label for="asocQuickSearch" class="visually-hidden">Acción rápida</label>
+        <div class="asoc-po-toolbar mb-3">
+            <label for="asocQuickSearch" class="form-label asoc-po-toolbar__label mb-1">Acción rápida</label>
             <div class="input-group asoc-quick-search shadow-sm">
-                <span class="input-group-text bg-dark text-white border-0"><i class="fas fa-search"></i></span>
-                <input type="search" id="asocQuickSearch" class="form-control border-0" placeholder="Acción rápida (Ctrl+Q)" autocomplete="off" aria-describedby="asocQuickHint">
+                <span class="input-group-text bg-dark text-white border-0"><i class="fas fa-bolt"></i></span>
+                <input type="search" id="asocQuickSearch" class="form-control border-0" placeholder="Filtrar botones (Ctrl+Q)" autocomplete="off" aria-describedby="asocQuickHint">
             </div>
-            <div id="asocQuickHint" class="form-text small text-muted">Filtra los botones del panel. Atajo: Ctrl+Q.</div>
+            <div id="asocQuickHint" class="form-text small text-muted mt-1 mb-0">Filtra los botones del panel · Atajo Ctrl+Q</div>
         </div>
 
         <?php if ($listaContexto !== []): ?>
@@ -247,22 +227,15 @@ $btnTorneoOff = $sinTorneo ? ' asoc-po-btn--disabled' : '';
             <div class="asoc-po-card asoc-po-card--solicitudes">
                 <h3 class="asoc-po-card__title">Solicitudes</h3>
                 <div class="asoc-po-actions">
-                    <?php if ($esEventoMasivo): ?>
-                    <p class="asoc-po-empty">No aplica en eventos masivos FVD.</p>
-                    <?php else: ?>
-                    <a href="<?= htmlspecialchars($urlSolicitud('afiliacion')) ?>" class="asoc-po-btn asoc-po-btn--violet asoc-proc-link">
+                    <a href="<?= htmlspecialchars($urlAsoc('asociacion/afiliar_atleta')) ?>" class="asoc-po-btn asoc-po-btn--violet asoc-proc-link">
                         <span>Afiliación</span><i class="fas fa-user-plus"></i>
                     </a>
-                    <a href="<?= htmlspecialchars($urlSolicitud('traspaso')) ?>" class="asoc-po-btn asoc-po-btn--orange asoc-proc-link">
+                    <a href="<?= htmlspecialchars($urlAsoc('asociacion/reportes/traspasos')) ?>" class="asoc-po-btn asoc-po-btn--orange asoc-proc-link">
                         <span>Traspaso</span><i class="fas fa-exchange-alt"></i>
                     </a>
-                    <a href="<?= htmlspecialchars($urlSolicitud('carnet')) ?>" class="asoc-po-btn asoc-po-btn--slate asoc-proc-link">
+                    <a href="<?= htmlspecialchars($urlAsoc('asociacion/reportes/carnets')) ?>" class="asoc-po-btn asoc-po-btn--slate asoc-proc-link">
                         <span>Carnets</span><i class="fas fa-id-card"></i>
                     </a>
-                    <a href="<?= htmlspecialchars($urlSolicitud('anualidad')) ?>" class="asoc-po-btn asoc-po-btn--blue asoc-proc-link asoc-po-btn--sub">
-                        <span>Anualidad</span><i class="fas fa-calendar-check"></i>
-                    </a>
-                    <?php endif; ?>
                 </div>
             </div>
 
@@ -273,22 +246,13 @@ $btnTorneoOff = $sinTorneo ? ' asoc-po-btn--disabled' : '';
                         <span>Inscripciones</span><i class="fas fa-user-check"></i>
                     </a>
                     <a href="<?= htmlspecialchars($urlInscripciones) ?>" class="asoc-po-btn asoc-po-btn--blue asoc-proc-link<?= $btnTorneoOff ?>">
-                        <span>Administración de inscripciones</span><i class="fas fa-clipboard-list"></i>
+                        <span>Administrador de inscripciones</span><i class="fas fa-clipboard-list"></i>
                     </a>
-                    <a href="<?= htmlspecialchars($urlVerTorneo) ?>" class="asoc-po-btn asoc-po-btn--slate asoc-proc-link asoc-po-btn--sub<?= $btnTorneoOff ?>">
-                        <span>Ver torneo (solo lectura)</span><i class="fas fa-eye"></i>
+                    <a href="<?= htmlspecialchars($urlVerTorneo) ?>" class="asoc-po-btn asoc-po-btn--slate asoc-proc-link<?= $btnTorneoOff ?>">
+                        <span>Ver torneo</span><i class="fas fa-eye"></i>
                     </a>
-                    <?php if ($modalidadTorneo === 3): ?>
-                    <a href="<?= htmlspecialchars($urlCargaEquipos) ?>" class="asoc-po-btn asoc-po-btn--teal asoc-proc-link asoc-po-btn--sub<?= $btnTorneoOff ?>">
-                        <span>Carga masiva equipos</span><i class="fas fa-file-upload"></i>
-                    </a>
-                    <?php elseif ($modalidadTorneo === 2): ?>
-                    <a href="<?= htmlspecialchars($urlCargaParejas) ?>" class="asoc-po-btn asoc-po-btn--teal asoc-proc-link asoc-po-btn--sub<?= $btnTorneoOff ?>">
-                        <span>Carga masiva parejas</span><i class="fas fa-file-upload"></i>
-                    </a>
-                    <?php endif; ?>
-                    <a href="<?= htmlspecialchars($urlCarnetQr) ?>" class="asoc-po-btn asoc-po-btn--pink asoc-proc-link asoc-po-btn--sub<?= $btnTorneoOff ?>">
-                        <span>Carnets QR del torneo</span><i class="fas fa-qrcode"></i>
+                    <a href="<?= htmlspecialchars($urlCarnetQr) ?>" class="asoc-po-btn asoc-po-btn--pink asoc-proc-link<?= $btnTorneoOff ?>">
+                        <span>Carnets QR</span><i class="fas fa-qrcode"></i>
                     </a>
                 </div>
             </div>
@@ -300,16 +264,10 @@ $btnTorneoOff = $sinTorneo ? ' asoc-po-btn--disabled' : '';
                         <span>Estado de cuenta</span><i class="fas fa-file-invoice-dollar"></i>
                     </a>
                     <a href="<?= htmlspecialchars($tab2Href) ?>" class="asoc-po-btn asoc-po-btn--violet asoc-proc-link">
-                        <span>Eventos nacionales / masivos</span><i class="fas fa-flag"></i>
+                        <span>Eventos nacionales</span><i class="fas fa-flag"></i>
                     </a>
                     <a href="<?= htmlspecialchars($tab3Href) ?>" class="asoc-po-btn asoc-po-btn--blue asoc-proc-link">
                         <span>Consultar otros torneos</span><i class="fas fa-trophy"></i>
-                    </a>
-                    <a href="<?= htmlspecialchars($tab1Href) ?>" class="asoc-po-btn asoc-po-btn--teal asoc-proc-link asoc-po-btn--sub">
-                        <span>Torneos de mi sede</span><i class="fas fa-map-marker-alt"></i>
-                    </a>
-                    <a href="<?= htmlspecialchars($urlNotif) ?>" class="asoc-po-btn asoc-po-btn--slate asoc-proc-link asoc-po-btn--sub">
-                        <span>Notificaciones FVD</span><i class="fas fa-bell"></i>
                     </a>
                 </div>
             </div>
@@ -326,13 +284,6 @@ $btnTorneoOff = $sinTorneo ? ' asoc-po-btn--disabled' : '';
 
 <style>
 .asoc-fvd-wrap { background: #f4f6f9; min-height: 60vh; }
-.asoc-fvd-topbar {
-    background: linear-gradient(90deg, #0a1628 0%, #132a4a 50%, #0a1628 100%);
-    color: #fff;
-    border-bottom: 3px solid #c9a227;
-}
-.asoc-fvd-logo-fvd { object-fit: contain; max-height: 40px; }
-.asoc-fvd-topbar-title { font-size: 0.9rem; letter-spacing: .04em; opacity: .95; }
 .asoc-fvd-h1 {
     font-family: 'Montserrat', system-ui, sans-serif;
     font-weight: 800;
@@ -371,7 +322,6 @@ $btnTorneoOff = $sinTorneo ? ' asoc-po-btn--disabled' : '';
 .asoc-club-logo-placeholder:not(.asoc-club-logo--active) { width: 64px; height: 64px; }
 .asoc-entity-name { font-size: 0.95rem; letter-spacing: .04em; line-height: 1.2; }
 .asoc-fvd-identity__body .small { font-size: 0.75rem; }
-.asoc-quick-search { border-radius: .5rem; overflow: hidden; }
 .asoc-col-header {
     background: #0a1628;
     color: #fff;

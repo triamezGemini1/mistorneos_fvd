@@ -10,7 +10,10 @@ require_once __DIR__ . '/../config/auth_service.php';
 require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../lib/app_helpers.php';
 AuthService::requireAuth();
-Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
+require_once __DIR__ . '/../lib/TournamentAdminAccess.php';
+require_once __DIR__ . '/../lib/FvdInstitutionalScope.php';
+FvdInstitutionalScope::rejectStandaloneOperationalEntry();
+TournamentAdminAccess::requireTorneoPanelAccess();
 $user = Auth::user();
 
 $torneo_id = isset($_GET['torneo_id']) ? (int)$_GET['torneo_id'] : 0;

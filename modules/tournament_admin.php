@@ -11,9 +11,9 @@ require_once __DIR__ . '/../lib/InscritosHelper.php';
 require_once __DIR__ . '/../lib/InscritosPartiresulHelper.php';
 require_once __DIR__ . '/../lib/TournamentAdminHelper.php';
 require_once __DIR__ . '/../lib/TournamentPhaseHelper.php';
+require_once __DIR__ . '/../lib/TournamentAdminAccess.php';
 
-// Verificar permisos
-Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
+TournamentAdminAccess::requireTorneoPanelAccess();
 
 // Obtener ID del torneo
 $torneo_id = isset($_GET['torneo_id']) ? (int)$_GET['torneo_id'] : 0;

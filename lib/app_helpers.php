@@ -368,12 +368,26 @@ class AppHelpers {
     }
     
     /**
+     * Portal público (landing y consultas) para usuarios sin administración de torneos.
+     */
+    public static function publicPortalUrl(): string
+    {
+        return self::url('landing-spa.php');
+    }
+
+    /**
      * Página de inicio según rol.
      */
     public static function landingUrl(): string
     {
         if (!class_exists('Auth', false) || !Auth::user()) {
-            return self::dashboard('home');
+            return self::publicPortalUrl();
+        }
+        if (!class_exists('TournamentAdminAccess', false)) {
+            require_once __DIR__ . '/TournamentAdminAccess.php';
+        }
+        if (!TournamentAdminAccess::canAccessTorneoPanel()) {
+            return self::publicPortalUrl();
         }
         if (Auth::isOperativoSoloAsociacion()) {
             return self::dashboard('asociacion_panel');

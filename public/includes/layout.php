@@ -16,13 +16,18 @@ if (!class_exists('FvdConfig', false) && is_file(__DIR__ . '/../../lib/FvdConfig
     require_once __DIR__ . '/../../lib/FvdConfig.php';
 }
 require_once __DIR__ . '/../../lib/FvdAdminGate.php';
+require_once __DIR__ . '/../../lib/FvdInstitutionalScope.php';
 $layout_modulos_extendidos = FvdAdminGate::isEnabled();
-$layout_torneos_solo = FvdAdminGate::isRestricted();
+$layout_torneos_solo = FvdAdminGate::isRestricted() && ! FvdInstitutionalScope::isEnabled();
+$layout_institutional_only = FvdInstitutionalScope::isEnabled();
 $current_page = (isset($page) && $page !== '') ? $page : ($_GET['page'] ?? 'home');
-/** Panel operativo asociación: sin menú superior (ancho completo) */
-$layout_operativo_asoc = Auth::isOperativoSoloAsociacion();
+/** Panel operativo asociación: sin menú secundario (navegación en header + panel). */
+$layout_operativo_asoc = Auth::isOperativoSoloAsociacion()
+    || ($layout_institutional_only && ($user['role'] ?? '') === 'admin_club');
 $layout_hide_sidebar = true;
-$layout_show_top_nav = ($current_page !== 'asociacion_panel') && ! $layout_operativo_asoc;
+$layout_on_asoc_panel = ($current_page ?? '') === 'asociacion_panel';
+$layout_show_top_nav = ! $layout_on_asoc_panel && ! $layout_operativo_asoc;
+$layout_show_page_search = true;
 $layout_nav_action = trim((string) ($_GET['action'] ?? ''));
 require_once __DIR__ . '/../../lib/ReportReturnNavigation.php';
 ReportReturnNavigation::updateSessionFromRequest($current_page, $layout_nav_action);
@@ -110,6 +115,81 @@ try {
     $show_link_panel_asociacion = false;
 }
 
+$url_mi_organizacion_topbar = null;
+$url_mi_organizacion_topbar_active = false;
+if (in_array($user['role'] ?? '', ['admin_club', 'admin_general', 'admin_torneo'], true)) {
+    try {
+        if (Auth::isOperativoSoloAsociacion()) {
+            $url_mi_organizacion_topbar = AsociacionAdminHelper::urlMiOrganizacion(
+                DB::pdo(),
+                (int) ($user['id'] ?? 0),
+                (string) ($user['role'] ?? '')
+            );
+            $url_mi_organizacion_topbar_active = AsociacionAdminHelper::esPaginaMiOrganizacionActiva(
+                (string) $current_page,
+                $_GET,
+                DB::pdo()
+            );
+        } elseif (($user['role'] ?? '') === 'admin_general') {
+            $orgFvdTop = class_exists('FvdConfig') ? (int) FvdConfig::ORGANIZACION_ID : 1;
+            $url_mi_organizacion_topbar = AppHelpers::dashboard('organizaciones', ['id' => $orgFvdTop]);
+            $url_mi_organizacion_topbar_active = in_array($current_page, ['organizaciones', 'mi_organizacion'], true)
+                && (int) ($_GET['id'] ?? $orgFvdTop) === $orgFvdTop;
+        } else {
+            $orgIdTop = Auth::getUserOrganizacionId();
+            if ($orgIdTop) {
+                $url_mi_organizacion_topbar = AppHelpers::dashboard('organizaciones', ['id' => (int) $orgIdTop]);
+                $url_mi_organizacion_topbar_active = ($current_page === 'organizaciones')
+                    && (int) ($_GET['id'] ?? 0) === (int) $orgIdTop;
+            }
+        }
+    } catch (Throwable $e) {
+        $url_mi_organizacion_topbar = null;
+    }
+}
+
+$layout_mi_org_club_detail = ($current_page ?? '') === 'organizaciones'
+    && (int) ($_GET['club_id'] ?? 0) > 0;
+$layout_toolbar_mi_org = null;
+if ($layout_mi_org_club_detail) {
+    try {
+        $clubIdToolbar = (int) $_GET['club_id'];
+        $clubToolbar = null;
+        if (Auth::isOperativoSoloAsociacion()) {
+            $clubToolbar = AsociacionAdminHelper::clubOperativo(
+                DB::pdo(),
+                (int) ($user['id'] ?? 0),
+                (string) ($user['role'] ?? '')
+            );
+            if ($clubToolbar !== null && (int) ($clubToolbar['id'] ?? 0) !== $clubIdToolbar) {
+                $clubToolbar = null;
+            }
+        } else {
+            $stClubToolbar = DB::pdo()->prepare('SELECT id, nombre, logo FROM clubes WHERE id = ? AND estatus = 1 LIMIT 1');
+            $stClubToolbar->execute([$clubIdToolbar]);
+            $clubToolbar = $stClubToolbar->fetch(PDO::FETCH_ASSOC) ?: null;
+        }
+        if (is_array($clubToolbar) && $clubToolbar !== []) {
+            $nombreToolbar = trim((string) ($clubToolbar['nombre'] ?? ''));
+            $logoToolbar = !empty($clubToolbar['logo']) && class_exists('AppHelpers')
+                ? AppHelpers::imageUrl((string) $clubToolbar['logo'])
+                : null;
+            $inicialToolbar = $nombreToolbar !== ''
+                ? (function_exists('mb_substr')
+                    ? mb_strtoupper(mb_substr($nombreToolbar, 0, 1, 'UTF-8'), 'UTF-8')
+                    : strtoupper(substr($nombreToolbar, 0, 1)))
+                : '?';
+            $layout_toolbar_mi_org = [
+                'url' => $logoToolbar,
+                'nombre' => $nombreToolbar,
+                'inicial' => $inicialToolbar,
+            ];
+        }
+    } catch (Throwable $e) {
+        $layout_toolbar_mi_org = null;
+    }
+}
+
 $fvd_nombre_layout = FvdBranding::nombre();
 $header_title = 'Dashboard - ' . htmlspecialchars($fvd_nombre_layout);
 $modo_prueba_activo = ($role_original_layout === 'admin_general' && $role_activo_layout !== 'admin_general');
@@ -153,6 +233,7 @@ $modo_prueba_badge_class = $role_badge_class[$role_activo_layout] ?? 'bg-warning
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-identidad.css') ?>">
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-app-page.css') ?>">
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-top-nav.css') ?>">
+  <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-page-chrome.css') ?>">
   <?php if (($current_page ?? '') === 'home'): ?>
   <link rel="stylesheet" href="<?= $layout_asset_href('assets/css/fvd-dashboard-home-page.css') ?>">
   <?php endif; ?>
@@ -251,6 +332,9 @@ if ($current_page === 'importacion_torneo_externo') {
 if ($current_page === 'organizaciones' && (int) ($_GET['id'] ?? 0) > 0 && empty($_GET['club_id'])) {
     $body_page_extra .= ' page-organizacion-detalle';
 }
+if (!empty($layout_mi_org_club_detail)) {
+    $body_page_extra .= ' page-mi-org-club-detail';
+}
 if ($current_page === 'mi_organizacion') {
     $body_page_extra .= ' page-mi-organizacion';
 }
@@ -263,8 +347,21 @@ if ($layout_fvd_app_shell) {
 if (($current_page ?? '') === 'fvd_guia_ui') {
     $body_page_extra .= ' page-fvd-guia-ui';
 }
+$layout_skip_volver = ($current_page ?? '') === 'asociacion_panel'
+    || ($current_page ?? '') === 'asociacion/afiliar_atleta'
+    || (($current_page ?? '') === 'organizaciones'
+        && (int) ($_GET['club_id'] ?? 0) > 0
+        && $layout_operativo_asoc)
+    || (($current_page ?? '') === 'torneo_gestion' && in_array(($_GET['action'] ?? ''), [
+        'inscribir_sitio',
+        'inscripciones',
+        'registrar_resultados',
+        'registrar_resultados_v2',
+        'cuadricula',
+        'hojas_anotacion',
+    ], true));
 ?>
-<body class="bg-light fvd-dashboard-compact layout-no-sidebar<?= !empty($layout_show_top_nav) ? ' layout-top-nav' : '' ?><?= $is_panel_control_torneos ? ' page-panel-control-torneos' : '' ?><?= htmlspecialchars($body_page_extra, ENT_QUOTES, 'UTF-8') ?>"<?= $nav_origin !== '' ? ' data-nav-origin="' . $nav_origin . '"' : '' ?>>
+<body class="bg-light fvd-dashboard-compact layout-no-sidebar<?= !empty($layout_show_top_nav) ? ' layout-top-nav' : '' ?><?= $is_panel_control_torneos ? ' page-panel-control-torneos' : '' ?><?= htmlspecialchars($body_page_extra, ENT_QUOTES, 'UTF-8') ?>"<?= $nav_origin !== '' ? ' data-nav-origin="' . $nav_origin . '"' : '' ?><?= !empty($layout_skip_volver) ? ' data-skip-volver="1"' : '' ?>>
   <!-- Contenedor para notificaciones toast (Push + tarjeta visual) -->
   <div id="notification-container" aria-live="polite"></div>
 
@@ -317,9 +414,10 @@ if (($current_page ?? '') === 'fvd_guia_ui') {
             <img src="<?= htmlspecialchars($topbar_logo_src) ?>" alt="<?= $topbar_nombre ?>" height="32" class="me-2 fvd-topbar-logo" style="object-fit: contain; width: auto; max-height: 32px;">
             <h5 class="mb-0 text-white d-none d-md-block"><?= $topbar_nombre ?></h5>
             <h6 class="mb-0 text-white d-md-none"><?= strlen($topbar_nombre) > 20 ? 'Dashboard' : $topbar_nombre ?></h6>
-            <?php if (!empty($layout_operativo_asoc) && ($current_page ?? '') !== 'asociacion_panel'): ?>
-            <a href="<?= htmlspecialchars($dashboard_href('asociacion_panel')) ?>" class="btn btn-sm btn-primary ms-2 ms-md-3">
-              <i class="fas fa-city me-1"></i><span class="d-none d-sm-inline">Panel</span> asociación
+            <?php if (!empty($layout_operativo_asoc)): ?>
+            <?php $on_asoc_panel = ($current_page ?? '') === 'asociacion_panel'; ?>
+            <a href="<?= htmlspecialchars($dashboard_href('asociacion_panel')) ?>" class="btn btn-sm ms-2 ms-md-3 <?= $on_asoc_panel ? 'btn-light text-dark' : 'btn-primary' ?>"<?= $on_asoc_panel ? ' aria-current="page"' : '' ?>>
+              <i class="fas fa-home me-1"></i><span class="d-none d-sm-inline">Panel</span>
             </a>
             <?php elseif (!empty($show_link_panel_asociacion)): ?>
             <a href="<?= htmlspecialchars($dashboard_href('asociacion_panel')) ?>" class="btn btn-sm btn-outline-primary ms-2 ms-md-3">
@@ -342,21 +440,6 @@ if (($current_page ?? '') === 'fvd_guia_ui') {
             </div>
             <?php endif; ?>
             
-            <!-- Barra de búsqueda -->
-            <div class="search-box fvd-topbar-search me-3 d-none d-lg-block">
-              <div class="input-group">
-                <span class="input-group-text bg-light border-end-0">
-                  <i class="fas fa-search text-muted"></i>
-                </span>
-                <input type="text" class="form-control border-start-0 app-search-blur-input" placeholder="Buscar (mín. 3 caracteres; al salir del campo)…" id="topbarSearchInput" minlength="3" autocomplete="off">
-              </div>
-            </div>
-            
-            <!-- Botón búsqueda móvil -->
-            <button class="btn btn-outline-secondary d-lg-none me-2" onclick="toggleMobileSearch()">
-              <i class="fas fa-search"></i>
-            </button>
-
             <?php if ($is_admin_general_base && ! $layout_torneos_solo): ?>
             <a href="<?= htmlspecialchars($dashboard_href('estadisticas_web')) ?>" class="btn btn-outline-secondary fvd-topbar-chip me-2<?= ($current_page ?? '') === 'estadisticas_web' ? ' active' : '' ?>" title="Estadísticas web (Umami)">
               <i class="fas fa-chart-line"></i>
@@ -377,10 +460,17 @@ if (($current_page ?? '') === 'fvd_guia_ui') {
             <?php endif; ?>
             
             <?php if (in_array($user['role'] ?? '', ['admin_club', 'admin_general', 'admin_torneo'], true)): ?>
+            <?php if ($url_mi_organizacion_topbar): ?>
+            <a href="<?= htmlspecialchars($url_mi_organizacion_topbar) ?>" class="btn btn-outline-primary fvd-topbar-chip fvd-topbar-chip--org me-2<?= $url_mi_organizacion_topbar_active ? ' active' : '' ?>" title="Mi organización">
+              <i class="fas fa-building me-1"></i>
+              <span class="d-none d-md-inline">Mi organización</span>
+            </a>
+            <?php else: ?>
             <button type="button" class="btn btn-outline-primary fvd-topbar-chip fvd-topbar-chip--org me-2" disabled aria-disabled="true" title="Mi organización (no disponible)">
               <i class="fas fa-building me-1"></i>
               <span class="d-none d-md-inline">Mi organización</span>
             </button>
+            <?php endif; ?>
             <?php endif; ?>
             
             <?php include __DIR__ . '/user_menu_dropdown.php'; ?>
@@ -409,19 +499,15 @@ if (($current_page ?? '') === 'fvd_guia_ui') {
       </div>
       <?php endif; ?>
 
-      <!-- Contenido dinámico (CSS/head ya cargados arriba; el módulo se incluye dentro del body con formato) -->
-      <main class="container-fluid fvd-main-scroll max-w-full px-0">
-        <?php
-        $layout_skip_global_volver = ($current_page === 'torneo_gestion' && in_array(($_GET['action'] ?? ''), [
-            'registrar_resultados',
-            'registrar_resultados_v2',
-            'cuadricula',
-            'hojas_anotacion',
-        ], true));
-        ?>
-        <?php if ($current_page !== 'home' && !$layout_skip_global_volver): ?>
-        <div id="global-volver-container"></div>
-        <?php endif; ?>
+      <!-- Contenido dinámico -->
+      <main class="container-fluid fvd-main-scroll max-w-full">
+        <div class="fvd-page-chrome">
+          <?php if ($current_page !== 'home' && empty($layout_skip_volver)): ?>
+          <div id="global-volver-container"></div>
+          <?php endif; ?>
+          <?php include __DIR__ . '/layout_page_toolbar.php'; ?>
+        </div>
+        <div class="fvd-page-body">
         <?php
         $content = __DIR__ . "/../../modules/$current_page.php";
         $action_get = $_GET['action'] ?? '';
@@ -460,6 +546,7 @@ if (($current_page ?? '') === 'fvd_guia_ui') {
           echo '</div>';
         }
         ?>
+        </div>
       </main>
     </div>
   </div>

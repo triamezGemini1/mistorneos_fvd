@@ -82,11 +82,15 @@ function getReturnUrl(): string {
         if ($return_to === 'admin_torneo_operadores') {
             $return_tab = trim($_POST['return_tab'] ?? $_GET['return_tab'] ?? '');
             $return_club_id = isset($_POST['return_club_id']) ? (int)$_POST['return_club_id'] : (isset($_GET['return_club_id']) ? (int)$_GET['return_club_id'] : 0);
+            $return_torneo_id = isset($_POST['return_torneo_id']) ? (int)$_POST['return_torneo_id'] : (isset($_GET['return_torneo_id']) ? (int)$_GET['return_torneo_id'] : 0);
             if ($return_tab !== '' && preg_match('/^(admin_torneo|operadores)$/', $return_tab)) {
                 $params['tab'] = $return_tab;
             }
             if ($return_club_id > 0) {
                 $params['club_id'] = $return_club_id;
+            }
+            if ($return_torneo_id > 0) {
+                $params['return_torneo_id'] = $return_torneo_id;
             }
         }
         $query = http_build_query($params);

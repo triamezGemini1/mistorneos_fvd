@@ -249,6 +249,35 @@ class ClubHelper {
     }
     
     /**
+     * Resuelve un club_id primario a partir de tournaments.club_responsable (puede ser org.id o club.id legacy).
+     */
+    public static function resolvePrimaryClubIdFromResponsable(int $club_responsable): ?int {
+        if ($club_responsable <= 0) {
+            return null;
+        }
+        try {
+            $pdo = DB::pdo();
+            $stmt = $pdo->prepare('SELECT id FROM clubes WHERE id = ? AND estatus = 1 LIMIT 1');
+            $stmt->execute([$club_responsable]);
+            if ($stmt->fetchColumn()) {
+                return $club_responsable;
+            }
+            $clubIds = self::getClubesByOrganizacionId($club_responsable);
+            if (!empty($clubIds)) {
+                return (int) $clubIds[0];
+            }
+            $supervised = self::getClubesSupervised($club_responsable);
+            if (!empty($supervised)) {
+                return (int) $supervised[0];
+            }
+        } catch (Exception $e) {
+            error_log('ClubHelper::resolvePrimaryClubIdFromResponsable error: ' . $e->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
      * Obtiene todos los clubes que gestiona un admin_club (por organización o admin_club_id)
      * La tabla clubes_asociados ya no se usa; se usa cod_org en clubes.
      *

@@ -39,6 +39,21 @@ final class FvdConfig
         return filter_var($raw, FILTER_VALIDATE_BOOLEAN);
     }
 
+    /**
+     * Panel institucional FVD (default true): sin operación en vivo de torneos.
+     * false = reactivar mesas, rondas, resultados y módulos operativos en esta instalación.
+     * Env: FVD_INSTITUTIONAL_ONLY=false
+     */
+    public static function institutionalOnly(): bool
+    {
+        $raw = $_ENV['FVD_INSTITUTIONAL_ONLY'] ?? getenv('FVD_INSTITUTIONAL_ONLY');
+        if ($raw === false || $raw === null || $raw === '') {
+            return true;
+        }
+
+        return filter_var($raw, FILTER_VALIDATE_BOOLEAN);
+    }
+
     /** Carpeta del proyecto bajo el document root (WAMP: /mistorneos_fvd). */
     public const APP_FOLDER = 'mistorneos_fvd';
 

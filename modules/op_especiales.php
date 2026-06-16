@@ -13,6 +13,8 @@ require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/csrf.php';
 require_once __DIR__ . '/../lib/Tournament/OpEspecialesHelper.php';
 require_once __DIR__ . '/../lib/Tournament/Handlers/RoundManagerHandler.php';
+require_once __DIR__ . '/../lib/NumfvdHelper.php';
+require_once __DIR__ . '/../lib/PartiresulJugadorHelper.php';
 
 use Tournament\OpEspecialesHelper;
 use Tournament\Handlers\RoundManagerHandler;
@@ -45,6 +47,49 @@ try {
 $es_carga_especial = OpEspecialesHelper::esCargaEspecial($torneo);
 
 $pdo = DB::pdo();
+
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'atleta_numfvd') {
+    header('Content-Type: application/json; charset=utf-8');
+    $numfvdAjax = (int) ($_GET['numfvd'] ?? 0);
+    if ($numfvdAjax <= 0) {
+        echo json_encode(['ok' => false, 'error' => 'NUMFVD inválido', 'nombre' => '', 'rondas' => []], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $uidAjax = NumfvdHelper::resolverIdUsuarioInscrito($pdo, $torneo_id, $numfvdAjax);
+    $nombreAjax = '';
+    $numfvdMostrar = $numfvdAjax;
+    if ($uidAjax !== null) {
+        $stNom = $pdo->prepare('SELECT nombre FROM usuarios WHERE id = ? LIMIT 1');
+        $stNom->execute([$uidAjax]);
+        $nombreAjax = trim((string) $stNom->fetchColumn());
+        $nfIns = NumfvdHelper::numfvdInscrito($pdo, $torneo_id, $uidAjax);
+        if ($nfIns > 0) {
+            $numfvdMostrar = $nfIns;
+        }
+    }
+    $rondasAjax = [];
+    $claves = PartiresulJugadorHelper::clavesBusquedaDesdeIdentificador($pdo, $torneo_id, $numfvdAjax);
+    if ($claves !== []) {
+        $whereClaves = PartiresulJugadorHelper::sqlWhereClaveIn('pr', $claves);
+        $stRondas = $pdo->prepare(
+            "SELECT DISTINCT partida FROM partiresul pr
+             WHERE pr.id_torneo = ? AND pr.mesa > 0 AND {$whereClaves}
+             ORDER BY partida ASC"
+        );
+        $stRondas->execute(array_merge([$torneo_id], $claves));
+        $rondasAjax = array_map('intval', $stRondas->fetchAll(PDO::FETCH_COLUMN));
+    }
+    echo json_encode([
+        'ok' => $uidAjax !== null,
+        'inscrito' => $uidAjax !== null,
+        'nombre' => $nombreAjax,
+        'numfvd' => $numfvdMostrar,
+        'rondas' => $rondasAjax,
+        'error' => $uidAjax === null ? 'NUMFVD no inscrito en este torneo' : '',
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 $uid = (int) Auth::id();
 $modalidad = (int) ($torneo['modalidad'] ?? 0);
 
@@ -83,6 +128,24 @@ function op_especiales_parse_ids_from_post(string $key): array
     }
 
     return $out;
+}
+
+/**
+ * Resuelve NUMFVD del torneo → id_usuario interno inscrito.
+ *
+ * @throws \RuntimeException
+ */
+function op_especiales_uid_desde_numfvd(PDO $pdo, int $torneoId, int $numfvd, string $etiqueta): int
+{
+    if ($numfvd <= 0) {
+        throw new \RuntimeException('Indique un NUMFVD válido para ' . $etiqueta . '.');
+    }
+    $uid = NumfvdHelper::resolverIdUsuarioInscrito($pdo, $torneoId, $numfvd);
+    if ($uid === null) {
+        throw new \RuntimeException('NUMFVD ' . $numfvd . ' (' . $etiqueta . ') no está inscrito en este torneo.');
+    }
+
+    return $uid;
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
@@ -126,14 +189,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             exit;
         } elseif ($action === 'swap') {
             $ronda = (int) ($_POST['ronda'] ?? 0);
-            $idUa = (int) ($_POST['id_usuario_a'] ?? 0);
-            $idUb = (int) ($_POST['id_usuario_b'] ?? 0);
+            $nfA = (int) ($_POST['numfvd_a'] ?? 0);
+            $nfB = (int) ($_POST['numfvd_b'] ?? 0);
+            $idUa = op_especiales_uid_desde_numfvd($pdo, $torneo_id, $nfA, 'jugador 1');
+            $idUb = op_especiales_uid_desde_numfvd($pdo, $torneo_id, $nfB, 'jugador 2');
             $resumenSwap = OpEspecialesHelper::swapAtletasPorUsuariosYRonda($torneo_id, $ronda, $idUa, $idUb, $modalidad);
+            foreach ($resumenSwap['cambios'] as &$cambioSwap) {
+                $cambioSwap['numfvd'] = NumfvdHelper::numfvdInscrito($pdo, $torneo_id, (int) ($cambioSwap['id_usuario'] ?? 0));
+            }
+            unset($cambioSwap);
             $_SESSION['op_especiales_swap_resumen'] = $resumenSwap;
             $_SESSION['success'] = 'Intercambio aplicado. Revise el detalle de mesas en el formulario.';
         } elseif ($action === 'reemplazo_usuario') {
-            $idV = (int) ($_POST['id_usuario_viejo'] ?? 0);
-            $idN = (int) ($_POST['id_usuario_nuevo'] ?? 0);
+            $nfV = (int) ($_POST['numfvd_viejo'] ?? 0);
+            $nfN = (int) ($_POST['numfvd_nuevo'] ?? 0);
+            $idV = op_especiales_uid_desde_numfvd($pdo, $torneo_id, $nfV, 'jugador sustituido');
+            $idN = op_especiales_uid_desde_numfvd($pdo, $torneo_id, $nfN, 'jugador sustituto');
             $alc = trim((string) ($_POST['alcance_rondas'] ?? 'todas'));
             $rU = (int) ($_POST['ronda_unica'] ?? 0);
             $rD = (int) ($_POST['ronda_desde'] ?? 0);
@@ -151,7 +222,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             );
             OpEspecialesHelper::sincronizarEstadisticasInscritos($torneo_id);
             $_SESSION['success'] = $n > 0
-                ? "Reemplazo de id_usuario aplicado en {$n} fila(s) de partiresul."
+                ? "Reemplazo aplicado en {$n} fila(s) de partiresul (NUMFVD {$nfV} → {$nfN})."
                 : 'No se actualizó ninguna fila.';
         } else {
             $_SESSION['error'] = 'Acción no reconocida.';
@@ -216,7 +287,7 @@ $page_title = 'Op Especiales — ' . htmlspecialchars((string) ($torneo['nombre'
     </a>
     <?php endif; ?>
     <a class="btn btn-lg <?= $view === 'swap' ? 'btn-primary' : 'btn-outline-primary' ?>" href="<?= htmlspecialchars($opEspHref(['view' => 'swap']), ENT_QUOTES, 'UTF-8') ?>">
-      <i class="fas fa-exchange-alt me-1"></i> Swap y reemplazo ID
+      <i class="fas fa-exchange-alt me-1"></i> Cambiar atleta (NUMFVD)
     </a>
     <?php if ($es_carga_especial): ?>
     <a class="btn btn-lg <?= $view === 'auditoria' ? 'btn-primary' : 'btn-outline-primary' ?>" href="<?= htmlspecialchars($opEspHref(['view' => 'auditoria']), ENT_QUOTES, 'UTF-8') ?>">
@@ -225,21 +296,16 @@ $page_title = 'Op Especiales — ' . htmlspecialchars((string) ($torneo['nombre'
     <?php endif; ?>
   </div>
 
+  <?php if ($es_carga_especial): ?>
   <ul class="nav nav-tabs mb-3 flex-nowrap overflow-auto">
-    <?php if ($es_carga_especial): ?>
     <li class="nav-item">
       <a class="nav-link <?= $view === 'carga' ? 'active' : '' ?>" href="<?= htmlspecialchars($opEspHref(['view' => 'carga']), ENT_QUOTES, 'UTF-8') ?>">Carga por ronda</a>
     </li>
-    <?php endif; ?>
-    <li class="nav-item">
-      <a class="nav-link <?= $view === 'swap' ? 'active' : '' ?>" href="<?= htmlspecialchars($opEspHref(['view' => 'swap']), ENT_QUOTES, 'UTF-8') ?>">Swap / reemplazo ID</a>
-    </li>
-    <?php if ($es_carga_especial): ?>
     <li class="nav-item">
       <a class="nav-link <?= $view === 'auditoria' ? 'active' : '' ?>" href="<?= htmlspecialchars($opEspHref(['view' => 'auditoria']), ENT_QUOTES, 'UTF-8') ?>">Auditoría</a>
     </li>
-    <?php endif; ?>
   </ul>
+  <?php endif; ?>
 
   <?php if ($view === 'carga'): ?>
     <div class="row g-4">
@@ -376,161 +442,367 @@ $page_title = 'Op Especiales — ' . htmlspecialchars((string) ($torneo['nombre'
     } else {
         $swap_resumen = null;
     }
+    $apiAtletaNumfvd = $opEspHref(['view' => 'swap', 'ajax' => 'atleta_numfvd']);
     ?>
-    <div class="card mb-4">
-      <div class="card-header">Intercambiar dos jugadores entre mesas (misma ronda)</div>
-      <div class="card-body">
-        <?php if ($swap_resumen !== null && ! empty($swap_resumen['cambios'])): ?>
-        <div class="alert alert-success border border-success mb-3">
-          <div class="fw-bold mb-2">
-            Cambio realizado — ronda <?= (int) ($swap_resumen['ronda'] ?? 0) ?>
-            (torneo #<?= (int) $torneo_id ?>)
+    <style>
+    .op-especiales-dual-cols {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: stretch;
+    }
+    .op-especiales-panel {
+      flex: 0 0 calc(50% - 0.5rem);
+      max-width: calc(50% - 0.5rem);
+    }
+    @media (max-width: 991.98px) {
+      .op-especiales-panel {
+        flex: 0 0 100%;
+        max-width: 100%;
+      }
+    }
+    .op-especiales-panel .card-body {
+      font-size: 0.875rem;
+    }
+    .op-btn-primario {
+      background: #0d6efd !important;
+      color: #fff !important;
+      font-weight: 700 !important;
+      border: none !important;
+    }
+    .op-btn-primario:hover,
+    .op-btn-primario:focus {
+      background: #0b5ed7 !important;
+      color: #fff !important;
+    }
+    .op-campo-ronda {
+      width: 20%;
+      min-width: 72px;
+    }
+    .op-campo-id {
+      width: 30%;
+      min-width: 88px;
+    }
+    .op-campo-nombre {
+      width: 60%;
+      min-height: 2.15rem;
+      padding: 0.35rem 0.5rem;
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 0.375rem;
+      font-size: 0.85rem;
+      color: #212529;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .op-campo-nombre.text-muted {
+      color: #6c757d !important;
+      font-style: italic;
+    }
+    .op-jugador-fila {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 0.45rem;
+      align-items: stretch;
+    }
+    .op-jugadores-bloque {
+      margin-top: 0.65rem;
+    }
+    .op-rondas-afectadas {
+      margin-top: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      background: #e7f1ff;
+      border: 1px solid #b6d4fe;
+      border-radius: 0.375rem;
+      font-size: 0.85rem;
+      min-height: 2.4rem;
+    }
+    .op-rondas-afectadas strong {
+      color: #084298;
+    }
+    </style>
+
+    <?php if ($swap_resumen !== null && ! empty($swap_resumen['cambios'])): ?>
+    <div class="alert alert-success border border-success mb-3">
+      <div class="fw-bold mb-2">
+        Cambio realizado — ronda <?= (int) ($swap_resumen['ronda'] ?? 0) ?>
+        (torneo #<?= (int) $torneo_id ?>)
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered mb-0 bg-white">
+          <thead class="table-light">
+            <tr>
+                  <th scope="col">NUMFVD</th>
+              <th scope="col">id fila partiresul</th>
+              <th scope="col">Mesa desde</th>
+              <th scope="col">Mesa hasta</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($swap_resumen['cambios'] as $sc): ?>
+            <tr>
+                  <td><?= (int) ($sc['numfvd'] ?? NumfvdHelper::numfvdInscrito($pdo, $torneo_id, (int) ($sc['id_usuario'] ?? 0))) ?></td>
+              <td><?= (int) ($sc['id_partiresul'] ?? 0) ?></td>
+              <td><?= (int) ($sc['mesa_desde'] ?? 0) ?></td>
+              <td><?= (int) ($sc['mesa_hasta'] ?? 0) ?></td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <div class="op-especiales-dual-cols mb-4">
+      <div class="op-especiales-panel">
+        <div class="card h-100">
+          <div class="card-header py-2"><strong><i class="fas fa-exchange-alt me-1"></i> Intercambiar jugadores</strong></div>
+          <div class="card-body">
+            <p class="small text-muted mb-2">
+              Misma ronda: intercambia las mesas de dos atletas por su <strong>NUMFVD</strong> en <code>partiresul</code>.
+            </p>
+            <form method="post" id="form-swap-atletas" action="<?= htmlspecialchars($opEspHref(['view' => $view]), ENT_QUOTES, 'UTF-8') ?>">
+              <?= CSRF::input() ?>
+              <input type="hidden" name="return_view" value="<?= htmlspecialchars($view, ENT_QUOTES, 'UTF-8') ?>">
+              <input type="hidden" name="op_action" value="swap">
+              <input type="hidden" name="torneo_id" value="<?= (int) $torneo_id ?>">
+              <div class="op-campo-ronda">
+                <label class="form-label mb-1">Ronda</label>
+                <select name="ronda" class="form-select form-select-sm" required>
+                  <?php foreach ($rondas_opts as $r): ?>
+                    <option value="<?= (int) $r ?>" <?= $r === $ronda_lista ? 'selected' : '' ?>><?= (int) $r ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <div class="op-jugadores-bloque">
+                <div class="op-jugador-fila">
+                  <div class="op-campo-id">
+                    <label class="form-label mb-1">NUMFVD jugador 1</label>
+                    <input type="number" name="numfvd_a" id="swap-numfvd-a" class="form-control form-control-sm" required min="1" placeholder="ej. 10025" autocomplete="off">
+                  </div>
+                  <div class="op-campo-nombre text-muted" id="swap-nombre-a" title="Nombre jugador 1">— nombre —</div>
+                </div>
+                <div class="op-jugador-fila">
+                  <div class="op-campo-id">
+                    <label class="form-label mb-1">NUMFVD jugador 2</label>
+                    <input type="number" name="numfvd_b" id="swap-numfvd-b" class="form-control form-control-sm" required min="1" placeholder="ej. 10048" autocomplete="off">
+                  </div>
+                  <div class="op-campo-nombre text-muted" id="swap-nombre-b" title="Nombre jugador 2">— nombre —</div>
+                </div>
+              </div>
+              <div class="mt-2">
+                <button type="submit" class="btn btn-sm op-btn-primario">Intercambiar posiciones</button>
+                <?php if ($modalidad === 3): ?>
+                  <span class="text-muted small ms-1 d-block mt-1">Equipos: no duplicar jugadores del mismo equipo en una mesa.</span>
+                <?php endif; ?>
+              </div>
+            </form>
           </div>
-          <div class="table-responsive">
-            <table class="table table-sm table-bordered mb-0 bg-white">
-              <thead class="table-light">
-                <tr>
-                  <th scope="col">id_usuario</th>
-                  <th scope="col">id fila partiresul</th>
-                  <th scope="col">Mesa desde</th>
-                  <th scope="col">Mesa hasta</th>
-                </tr>
-              </thead>
-              <tbody>
-                <?php foreach ($swap_resumen['cambios'] as $sc): ?>
-                <tr>
-                  <td><?= (int) ($sc['id_usuario'] ?? 0) ?></td>
-                  <td><?= (int) ($sc['id_partiresul'] ?? 0) ?></td>
-                  <td><?= (int) ($sc['mesa_desde'] ?? 0) ?></td>
-                  <td><?= (int) ($sc['mesa_hasta'] ?? 0) ?></td>
-                </tr>
-                <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
-          <p class="small text-muted mb-0 mt-2">
-            Por cada <code>id_usuario</code>: mesa donde jugaba antes del cambio (desde) y mesa donde quedó después (hasta). El <code>id</code> de <code>partiresul</code> es la fila/casillero que ocupa en el cuadro.
-          </p>
         </div>
-        <?php endif; ?>
-        <p class="small text-muted mb-2">
-          Indica la <strong>ronda</strong> y los dos <strong>id_usuario</strong> que están en el torneo actual (ej. ronda 1, usuarios 2525 y 1970).
-          El sistema busca ambos en <code>partiresul</code> para ese torneo y esa ronda antes de intercambiar; si falta alguno o hay más de una fila por usuario en esa ronda, se muestra el error y <strong>no se modifica nada</strong>.
-        </p>
-        <form method="post" class="row g-3" action="<?= htmlspecialchars($opEspHref(['view' => $view]), ENT_QUOTES, 'UTF-8') ?>">
-          <?= CSRF::input() ?>
-          <input type="hidden" name="return_view" value="<?= htmlspecialchars($view, ENT_QUOTES, 'UTF-8') ?>">
-          <input type="hidden" name="op_action" value="swap">
-          <input type="hidden" name="torneo_id" value="<?= (int) $torneo_id ?>">
-          <div class="col-md-3">
-            <label class="form-label">Ronda (partida)</label>
-            <select name="ronda" class="form-select" required>
-              <?php foreach ($rondas_opts as $r): ?>
-                <option value="<?= (int) $r ?>" <?= $r === $ronda_lista ? 'selected' : '' ?>><?= (int) $r ?></option>
-              <?php endforeach; ?>
-            </select>
+      </div>
+
+      <div class="op-especiales-panel">
+        <div class="card h-100">
+          <div class="card-header py-2"><strong><i class="fas fa-user-edit me-1"></i> Reemplazar jugador</strong></div>
+          <div class="card-body">
+            <p class="small text-muted mb-2">
+              Sustituye al atleta en <code>partiresul</code> por otro (por <strong>NUMFVD</strong>, alcance por ronda(s)).
+            </p>
+            <form method="post" id="form-reemplazo-usuario" action="<?= htmlspecialchars($opEspHref(['view' => $view]), ENT_QUOTES, 'UTF-8') ?>">
+              <?= CSRF::input() ?>
+              <input type="hidden" name="return_view" value="<?= htmlspecialchars($view, ENT_QUOTES, 'UTF-8') ?>">
+              <input type="hidden" name="op_action" value="reemplazo_usuario">
+              <input type="hidden" name="torneo_id" value="<?= (int) $torneo_id ?>">
+              <div class="op-jugador-fila">
+                <div class="op-campo-id">
+                  <label class="form-label mb-1">NUMFVD a sustituir</label>
+                  <input type="number" name="numfvd_viejo" id="reemplazo-numfvd-viejo" class="form-control form-control-sm" required min="1" value="">
+                </div>
+                <div class="op-campo-nombre text-muted" id="reemplazo-nombre-viejo" title="Nombre sustituido">— nombre —</div>
+              </div>
+              <div class="op-jugador-fila">
+                <div class="op-campo-id">
+                  <label class="form-label mb-1">NUMFVD sustituto</label>
+                  <input type="number" name="numfvd_nuevo" id="reemplazo-numfvd-nuevo" class="form-control form-control-sm" required min="1" value="">
+                </div>
+                <div class="op-campo-nombre text-muted" id="reemplazo-nombre-nuevo" title="Nombre sustituto">— nombre —</div>
+              </div>
+              <div class="mt-2 mb-2">
+                <label class="form-label mb-1 d-block">Alcance de rondas</label>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="alcance_rondas" id="alc_todas" value="todas" checked>
+                  <label class="form-check-label small" for="alc_todas">Todas</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="alcance_rondas" id="alc_una" value="una_ronda">
+                  <label class="form-check-label small" for="alc_una">Una ronda</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="alcance_rondas" id="alc_rango" value="rango">
+                  <label class="form-check-label small" for="alc_rango">Rango</label>
+                </div>
+              </div>
+              <div class="d-flex flex-wrap gap-2 mb-2">
+                <div class="op-campo-ronda" id="wrap-ronda-unica" style="display:none;">
+                  <label class="form-label mb-1">Ronda</label>
+                  <select name="ronda_unica" id="reemplazo-ronda-unica" class="form-select form-select-sm">
+                    <?php foreach ($rondas_opts as $r): ?>
+                      <option value="<?= (int) $r ?>" <?= $r === $ronda_lista ? 'selected' : '' ?>><?= (int) $r ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="op-campo-ronda" id="wrap-rango-desde" style="display:none;">
+                  <label class="form-label mb-1">Desde</label>
+                  <select name="ronda_desde" id="reemplazo-ronda-desde" class="form-select form-select-sm">
+                    <?php foreach ($rondas_opts as $r): ?>
+                      <option value="<?= (int) $r ?>"><?= (int) $r ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="op-campo-ronda" id="wrap-rango-hasta" style="display:none;">
+                  <label class="form-label mb-1">Hasta</label>
+                  <select name="ronda_hasta" id="reemplazo-ronda-hasta" class="form-select form-select-sm">
+                    <?php foreach ($rondas_opts as $r): ?>
+                      <option value="<?= (int) $r ?>"><?= (int) $r ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+              </div>
+              <div class="op-rondas-afectadas" id="reemplazo-rondas-info" aria-live="polite">
+                <strong>Rondas a sustituir:</strong> <span id="reemplazo-rondas-texto">Indique el NUMFVD a sustituir para ver las rondas afectadas.</span>
+              </div>
+              <div class="mt-2">
+                <button type="submit" class="btn btn-sm op-btn-primario" onclick="return confirm('¿Confirmar reemplazo en partiresul según el alcance elegido?');">Aplicar reemplazo</button>
+              </div>
+            </form>
           </div>
-          <div class="col-md-4">
-            <label class="form-label">ID usuario (jugador 1)</label>
-            <input type="number" name="id_usuario_a" class="form-control" required min="1" placeholder="ej. 2525" autocomplete="off">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">ID usuario (jugador 2)</label>
-            <input type="number" name="id_usuario_b" class="form-control" required min="1" placeholder="ej. 1970" autocomplete="off">
-          </div>
-          <div class="col-12">
-            <button type="submit" class="btn btn-primary">Intercambiar posiciones</button>
-            <?php if ($modalidad === 3): ?>
-              <span class="text-muted small ms-2">Modalidad equipos: no se permitirá duplicar jugadores del mismo equipo en una mesa.</span>
-            <?php endif; ?>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-header">Reemplazar <code>id_usuario</code> en partiresul</div>
-      <div class="card-body">
-        <p class="small text-muted mb-3">
-          Sustituye al jugador en las filas de resultados por otro usuario. Si el usuario nuevo no está inscrito en el torneo, se crea la inscripción confirmada (como en inscripción en sitio);
-          en modalidad <strong>equipos</strong> se copian <code>codigo_equipo</code> y club del jugador sustituido cuando existan.
-        </p>
-        <form method="post" class="row g-3" id="form-reemplazo-usuario" action="<?= htmlspecialchars($opEspHref(['view' => $view]), ENT_QUOTES, 'UTF-8') ?>">
-          <?= CSRF::input() ?>
-          <input type="hidden" name="return_view" value="<?= htmlspecialchars($view, ENT_QUOTES, 'UTF-8') ?>">
-          <input type="hidden" name="op_action" value="reemplazo_usuario">
-          <input type="hidden" name="torneo_id" value="<?= (int) $torneo_id ?>">
-          <div class="col-md-4">
-            <label class="form-label">ID usuario sustituido (sale de partiresul)</label>
-            <input type="number" name="id_usuario_viejo" class="form-control" required min="1" value="">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">ID usuario sustituto (entra en partiresul)</label>
-            <input type="number" name="id_usuario_nuevo" class="form-control" required min="1" value="">
-          </div>
-          <div class="col-12">
-            <label class="form-label d-block">Alcance de rondas</label>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="alcance_rondas" id="alc_todas" value="todas" checked>
-              <label class="form-check-label" for="alc_todas">Todas las rondas donde aparezca el usuario sustituido</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="alcance_rondas" id="alc_una" value="una_ronda">
-              <label class="form-check-label" for="alc_una">Una ronda específica</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="alcance_rondas" id="alc_rango" value="rango">
-              <label class="form-check-label" for="alc_rango">Rango de rondas (inclusive)</label>
-            </div>
-          </div>
-          <div class="col-md-3" id="wrap-ronda-unica" style="display:none;">
-            <label class="form-label">Ronda</label>
-            <select name="ronda_unica" class="form-select">
-              <?php foreach ($rondas_opts as $r): ?>
-                <option value="<?= (int) $r ?>" <?= $r === $ronda_lista ? 'selected' : '' ?>><?= (int) $r ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <div class="col-md-3" id="wrap-rango-desde" style="display:none;">
-            <label class="form-label">Desde ronda</label>
-            <select name="ronda_desde" class="form-select">
-              <?php foreach ($rondas_opts as $r): ?>
-                <option value="<?= (int) $r ?>"><?= (int) $r ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <div class="col-md-3" id="wrap-rango-hasta" style="display:none;">
-            <label class="form-label">Hasta ronda</label>
-            <select name="ronda_hasta" class="form-select">
-              <?php foreach ($rondas_opts as $r): ?>
-                <option value="<?= (int) $r ?>"><?= (int) $r ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <div class="col-12">
-            <button type="submit" class="btn btn-success" onclick="return confirm('¿Confirmar reemplazo de id_usuario en partiresul según el alcance elegido?');">Aplicar reemplazo</button>
-          </div>
-        </form>
-        <script>
-        (function () {
-          var f = document.getElementById('form-reemplazo-usuario');
-          if (!f) return;
-          var radios = f.querySelectorAll('input[name="alcance_rondas"]');
-          var w1 = document.getElementById('wrap-ronda-unica');
-          var wd = document.getElementById('wrap-rango-desde');
-          var wh = document.getElementById('wrap-rango-hasta');
-          function sync() {
-            var v = f.querySelector('input[name="alcance_rondas"]:checked');
-            v = v ? v.value : 'todas';
-            w1.style.display = v === 'una_ronda' ? '' : 'none';
-            wd.style.display = wh.style.display = v === 'rango' ? '' : 'none';
-          }
-          radios.forEach(function (r) { r.addEventListener('change', sync); });
-          sync();
-        })();
-        </script>
-      </div>
-    </div>
+    <script>
+    (function () {
+      var apiAtleta = <?= json_encode($apiAtletaNumfvd, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+
+      function fetchAtletaNumfvd(inputEl, outEl, onRondas) {
+        if (!inputEl || !outEl) return;
+        var nf = parseInt(inputEl.value, 10);
+        if (!nf || nf <= 0) {
+          outEl.textContent = '— nombre —';
+          outEl.classList.add('text-muted');
+          if (typeof onRondas === 'function') onRondas([]);
+          return;
+        }
+        outEl.textContent = 'Buscando…';
+        outEl.classList.add('text-muted');
+        fetch(apiAtleta + '&numfvd=' + encodeURIComponent(nf), { credentials: 'same-origin', cache: 'no-store' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data && data.ok && data.nombre) {
+              outEl.textContent = data.nombre;
+              outEl.classList.remove('text-muted');
+              outEl.title = data.nombre;
+            } else if (data && data.ok) {
+              outEl.textContent = 'Inscrito (sin nombre)';
+              outEl.classList.add('text-muted');
+            } else {
+              outEl.textContent = (data && data.error) ? data.error : 'No encontrado';
+              outEl.classList.add('text-muted');
+            }
+            if (typeof onRondas === 'function') {
+              onRondas((data && Array.isArray(data.rondas)) ? data.rondas : []);
+            }
+          })
+          .catch(function () {
+            outEl.textContent = 'Error al buscar';
+            outEl.classList.add('text-muted');
+            if (typeof onRondas === 'function') onRondas([]);
+          });
+      }
+
+      function bindNumfvd(inputId, outId, onRondas) {
+        var inp = document.getElementById(inputId);
+        var out = document.getElementById(outId);
+        if (!inp || !out) return;
+        var run = function () { fetchAtletaNumfvd(inp, out, onRondas); };
+        inp.addEventListener('change', run);
+        inp.addEventListener('blur', run);
+      }
+
+      bindNumfvd('swap-numfvd-a', 'swap-nombre-a');
+      bindNumfvd('swap-numfvd-b', 'swap-nombre-b');
+      bindNumfvd('reemplazo-numfvd-nuevo', 'reemplazo-nombre-nuevo');
+
+      var f = document.getElementById('form-reemplazo-usuario');
+      var txtRondas = document.getElementById('reemplazo-rondas-texto');
+      var rondasCache = [];
+
+      function alcanceSeleccionado() {
+        if (!f) return 'todas';
+        var v = f.querySelector('input[name="alcance_rondas"]:checked');
+        return v ? v.value : 'todas';
+      }
+
+      function rondasFiltradasPorAlcance(rondas) {
+        var alc = alcanceSeleccionado();
+        if (alc === 'todas') return rondas.slice();
+        if (alc === 'una_ronda') {
+          var ru = parseInt((document.getElementById('reemplazo-ronda-unica') || {}).value, 10);
+          return rondas.indexOf(ru) >= 0 ? [ru] : (ru > 0 ? [ru] : []);
+        }
+        var rd = parseInt((document.getElementById('reemplazo-ronda-desde') || {}).value, 10);
+        var rh = parseInt((document.getElementById('reemplazo-ronda-hasta') || {}).value, 10);
+        if (rd > rh) { var t = rd; rd = rh; rh = t; }
+        return rondas.filter(function (r) { return r >= rd && r <= rh; });
+      }
+
+      function pintarRondasAfectadas() {
+        if (!txtRondas) return;
+        var nfV = parseInt((document.getElementById('reemplazo-numfvd-viejo') || {}).value, 10);
+        if (!nfV || nfV <= 0) {
+          txtRondas.textContent = 'Indique el NUMFVD a sustituir para ver las rondas afectadas.';
+          return;
+        }
+        if (!rondasCache.length) {
+          txtRondas.textContent = 'El atleta no tiene mesas en partiresul de este torneo.';
+          return;
+        }
+        var filtradas = rondasFiltradasPorAlcance(rondasCache);
+        if (!filtradas.length) {
+          txtRondas.textContent = 'Ninguna ronda coincide con el alcance elegido.';
+          return;
+        }
+        txtRondas.textContent = filtradas.join(', ');
+      }
+
+      bindNumfvd('reemplazo-numfvd-viejo', 'reemplazo-nombre-viejo', function (rondas) {
+        rondasCache = rondas;
+        pintarRondasAfectadas();
+      });
+
+      if (f) {
+        var radios = f.querySelectorAll('input[name="alcance_rondas"]');
+        var w1 = document.getElementById('wrap-ronda-unica');
+        var wd = document.getElementById('wrap-rango-desde');
+        var wh = document.getElementById('wrap-rango-hasta');
+        function syncAlcance() {
+          var v = alcanceSeleccionado();
+          if (w1) w1.style.display = v === 'una_ronda' ? '' : 'none';
+          if (wd) wd.style.display = wh.style.display = v === 'rango' ? '' : 'none';
+          pintarRondasAfectadas();
+        }
+        radios.forEach(function (r) { r.addEventListener('change', syncAlcance); });
+        ['reemplazo-ronda-unica', 'reemplazo-ronda-desde', 'reemplazo-ronda-hasta'].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.addEventListener('change', pintarRondasAfectadas);
+        });
+        syncAlcance();
+      }
+    })();
+    </script>
   <?php else: ?>
     <div class="card mb-3">
       <div class="card-header">Integridad</div>

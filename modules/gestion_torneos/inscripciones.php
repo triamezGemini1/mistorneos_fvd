@@ -50,19 +50,7 @@ $label_inscribir_nuevo = $modalidad_inscripcion === 3 ? 'Inscribir equipo en sit
                 <span><i class="fas fa-building me-1"></i> <?php echo htmlspecialchars($torneo['club_nombre'] ?? 'N/A'); ?></span>
             </div>
         </div>
-        <div class="text-end">
-            <a href="<?php echo htmlspecialchars($url_panel); ?>" class="btn btn-light btn-sm">
-                <i class="fas fa-arrow-left me-2"></i> Retornar al Panel
-            </a>
-        </div>
     </div>
-</div>
-
-<!-- Botón retorno al panel (visible debajo del header) -->
-<div class="mb-3">
-    <a href="<?php echo htmlspecialchars($url_panel); ?>" class="btn btn-outline-primary btn-sm">
-        <i class="fas fa-arrow-left me-1"></i> Volver al panel del torneo
-    </a>
 </div>
 
 <!-- Botón Agregar Jugador (solo si el torneo no ha iniciado) -->

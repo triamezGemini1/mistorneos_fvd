@@ -5,7 +5,11 @@
  */
 ?>
 <ul class="fvd-top-nav-list list-unstyled mb-0">
-        <?php if ($user['role'] !== 'admin_general'): ?>
+        <?php
+        $nav_role = (string) ($user['role'] ?? '');
+        $nav_asoc_institutional = !empty($layout_institutional_only) && $nav_role === 'admin_club';
+        ?>
+        <?php if ($nav_role !== 'admin_general' && !$nav_asoc_institutional): ?>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('home')) ?>" class="nav-link <?= $current_page === 'home' ? 'active' : '' ?>">
             <i class="fas fa-home me-3"></i>
@@ -14,7 +18,53 @@
         </li>
         <?php endif; ?>
         
-        <?php if ($user['role'] === 'admin_club'): ?>
+        <?php if ($nav_role === 'admin_club'): ?>
+        <?php if (!empty($layout_institutional_only)): ?>
+        <?php
+        $nav_mi_org_asoc_href = null;
+        $nav_mi_org_asoc_active = false;
+        try {
+            if (!class_exists('AsociacionAdminHelper', false)) {
+                require_once __DIR__ . '/../../lib/AsociacionAdminHelper.php';
+            }
+            $nav_mi_org_asoc_href = AsociacionAdminHelper::urlMiOrganizacion(
+                DB::pdo(),
+                (int) ($user['id'] ?? 0),
+                (string) ($user['role'] ?? '')
+            );
+            $nav_mi_org_asoc_active = AsociacionAdminHelper::esPaginaMiOrganizacionActiva(
+                (string) $current_page,
+                $_GET,
+                DB::pdo()
+            );
+        } catch (Throwable $e) {
+            $nav_mi_org_asoc_href = null;
+        }
+        ?>
+        <?php if ($nav_mi_org_asoc_href): ?>
+        <li class="mb-2">
+          <a href="<?= htmlspecialchars($nav_mi_org_asoc_href) ?>" class="nav-link <?= $nav_mi_org_asoc_active ? 'active' : '' ?>">
+            <i class="fas fa-building me-3"></i>
+            <span class="nav-text">Mi organización</span>
+          </a>
+        </li>
+        <?php endif; ?>
+        <?php if ($layout_modulos_extendidos): ?>
+        <li class="mb-2">
+          <a href="<?= htmlspecialchars($dashboard_href('finanzas/resumen_asociacion')) ?>" class="nav-link <?= $current_page === 'finanzas/resumen_asociacion' ? 'active' : '' ?>">
+            <i class="fas fa-coins me-3"></i>
+            <span class="nav-text">Finanzas asociación</span>
+          </a>
+        </li>
+        <?php endif; ?>
+        <li class="mb-2">
+          <a href="<?= htmlspecialchars($menu_url('landing-spa.php')) ?>" class="nav-link">
+            <i class="fas fa-id-card me-3"></i>
+            <span class="nav-text">Portal Público</span>
+            <i class="fas fa-external-link-alt ms-auto" style="font-size: 0.75rem;"></i>
+          </a>
+        </li>
+        <?php else: ?>
         <?php
         // Detectar si estamos en una página de gestión de torneos
         $is_torneo_gestion = ($current_page === 'torneo_gestion');
@@ -36,12 +86,33 @@
         
         $filtro_actual_ac = $_GET['filtro'] ?? '';
         $admin_club_org_id = Auth::getUserOrganizacionId();
+        $admin_club_mi_org_href = null;
+        $admin_club_mi_org_active = false;
+        if (!class_exists('AsociacionAdminHelper', false)) {
+            require_once __DIR__ . '/../../lib/AsociacionAdminHelper.php';
+        }
+        if (Auth::isOperativoSoloAsociacion()) {
+            $admin_club_mi_org_href = AsociacionAdminHelper::urlMiOrganizacion(
+                DB::pdo(),
+                (int) ($user['id'] ?? 0),
+                (string) ($user['role'] ?? '')
+            );
+            $admin_club_mi_org_active = AsociacionAdminHelper::esPaginaMiOrganizacionActiva(
+                (string) $current_page,
+                $_GET,
+                DB::pdo()
+            );
+        } elseif ($admin_club_org_id) {
+            $admin_club_mi_org_href = $dashboard_href('organizaciones', ['id' => $admin_club_org_id]);
+            $admin_club_mi_org_active = ($current_page === 'organizaciones')
+                && (int) ($_GET['id'] ?? 0) === (int) $admin_club_org_id;
+        }
         ?>
         
         <!-- Mi Organización: acceso único y canónico -->
-        <?php if (!$layout_torneos_solo && $admin_club_org_id): ?>
+        <?php if (!$layout_torneos_solo && $admin_club_mi_org_href): ?>
         <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('organizaciones', ['id' => $admin_club_org_id])) ?>" class="nav-link <?= ($current_page === 'organizaciones' && (int)($_GET['id'] ?? 0) === $admin_club_org_id) ? 'active' : '' ?>">
+          <a href="<?= htmlspecialchars($admin_club_mi_org_href) ?>" class="nav-link <?= $admin_club_mi_org_active ? 'active' : '' ?>">
             <i class="fas fa-building me-3"></i>
             <span class="nav-text">Mi Organización</span>
           </a>
@@ -125,9 +196,10 @@
           </a>
         </li>
         <?php endif; ?>
+        <?php endif; ?>
         
         <?php if (Auth::isAdminGeneral()): ?>
-        <?php if ($layout_torneos_solo): ?>
+        <?php if ($layout_torneos_solo && empty($layout_institutional_only)): ?>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('home')) ?>" class="nav-link <?= $current_page === 'home' ? 'active' : '' ?>">
             <i class="fas fa-home me-3"></i>
@@ -149,7 +221,6 @@
         </li>
         <?php else: ?>
         <?php
-        $is_inicio_open = ($current_page === 'home');
         $is_complementos_open = in_array($current_page, [
             'calendario', 'bannerclock', 'directorio_clubes',
             'whatsapp_config', 'comments', 'comments_public',
@@ -159,27 +230,19 @@
             'torneo_split_ranking', 'ranking_numfvd_admin', 'ranking_numfvd_detalle', 'archivos_web', 'fvd_guia_ui',
             'estadisticas_web',
         ], true);
+        if (empty($layout_institutional_only)) {
+            $is_recursos_open = $is_recursos_open || in_array($current_page, ['tournaments'], true);
+        }
         $nav_fvd_org_id = class_exists('FvdConfig') ? FvdConfig::ORGANIZACION_ID : 1;
         $nav_mi_org_href = $dashboard_href('organizaciones', ['id' => $nav_fvd_org_id]);
         $nav_mi_org_active = in_array($current_page, ['organizaciones', 'mi_organizacion'], true)
             && (int) ($_GET['id'] ?? $nav_fvd_org_id) === $nav_fvd_org_id;
         ?>
         <li class="mb-2">
-          <a href="#" class="nav-link <?= $is_inicio_open ? 'active' : '' ?>"
-             onclick="event.preventDefault(); toggleSubmenu('inicio-submenu', this);"
-             style="cursor: pointer;">
+          <a href="<?= htmlspecialchars($dashboard_href('home')) ?>" class="nav-link <?= $current_page === 'home' ? 'active' : '' ?>">
             <i class="fas fa-home me-3"></i>
             <span class="nav-text">Inicio</span>
-            <i class="fas fa-chevron-<?= $is_inicio_open ? 'up' : 'down' ?> ms-auto submenu-icon"></i>
           </a>
-          <ul class="list-unstyled ps-4 mt-1 collapse-submenu <?= $is_inicio_open ? 'show' : '' ?>" id="inicio-submenu">
-            <li class="mb-1">
-              <a href="<?= htmlspecialchars($dashboard_href('home')) ?>" class="nav-link nav-sub-sub-link <?= $current_page === 'home' ? 'active' : '' ?>">
-                <i class="fas fa-tachometer-alt me-2"></i>
-                <span>Dashboard</span>
-              </a>
-            </li>
-          </ul>
         </li>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($nav_mi_org_href) ?>" class="nav-link <?= $nav_mi_org_active ? 'active' : '' ?>">
@@ -201,16 +264,18 @@
             <span class="nav-text">Gestión de Usuarios y Roles</span>
           </a>
         </li>
+        <?php if (!empty($layout_institutional_only)): ?>
+        <li class="mb-2">
+          <a href="<?= htmlspecialchars($dashboard_href('tournaments', ['action' => 'list'])) ?>" class="nav-link <?= $current_page === 'tournaments' ? 'active' : '' ?>">
+            <i class="fas fa-trophy me-3"></i>
+            <span class="nav-text">Campeonatos y torneos</span>
+          </a>
+        </li>
+        <?php endif; ?>
         <li class="mb-2">
           <a href="<?= htmlspecialchars($dashboard_href('auditoria')) ?>" class="nav-link <?= $current_page === 'auditoria' ? 'active' : '' ?>">
             <i class="fas fa-clipboard-list me-3"></i>
             <span class="nav-text">Reporte de actividad</span>
-          </a>
-        </li>
-        <li class="mb-2">
-          <a href="<?= htmlspecialchars($dashboard_href('estadisticas_web')) ?>" class="nav-link <?= $current_page === 'estadisticas_web' ? 'active' : '' ?>">
-            <i class="fas fa-chart-line me-3"></i>
-            <span class="nav-text">Estadísticas web</span>
           </a>
         </li>
         <li class="mb-2">

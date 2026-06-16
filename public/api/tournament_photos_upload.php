@@ -8,9 +8,11 @@ require_once __DIR__ . '/../../config/db_config.php';
 require_once __DIR__ . '/../../config/auth.php';
 require_once __DIR__ . '/../../lib/TournamentPhotoService.php';
 
+require_once __DIR__ . '/../../lib/TournamentAdminAccess.php';
+
 header('Content-Type: application/json');
 
-Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
+TournamentAdminAccess::requireFullTorneoAdminJson();
 
 $pdo = DB::pdo();
 

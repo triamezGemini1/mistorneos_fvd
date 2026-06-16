@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 /**
  * Finanzas consolidadas por asociación (código entidad).
- * - admin_general (FVD): selector de entidad vía GET entidad_id.
- * - Delegado de asociación / admin_club con entidad en sesión: solo su entidad (ignora entidad_id en URL).
+ * Moneda de referencia: EUR. Enlaces a reportes operativos y detalle por concepto.
  */
 
 if (!defined('APP_BOOTSTRAPPED')) {
@@ -17,6 +16,7 @@ require_once __DIR__ . '/../../lib/FvdConfig.php';
 require_once __DIR__ . '/../../lib/app_helpers.php';
 require_once __DIR__ . '/../../lib/AsociacionAdminHelper.php';
 require_once __DIR__ . '/../../lib/FinanzasAsociacionData.php';
+require_once __DIR__ . '/../../lib/FvdMovimientoTorneoHelper.php';
 require_once __DIR__ . '/../../lib/FvdAdminGate.php';
 
 FvdAdminGate::rejectPageIfDisabled('finanzas/resumen_asociacion');
@@ -75,29 +75,122 @@ if ($entidadId > 0) {
 }
 
 $orgFvd = class_exists('FvdConfig') ? (int) FvdConfig::ORGANIZACION_ID : 1;
-$monedaEtiqueta = 'USD';
+$monedaEtiqueta = FinanzasAsociacionData::MONEDA_REFERENCIA;
 $tablaMov = FinanzasAsociacionData::tablaExiste($pdo, 'movimiento_torneo');
+$clubIdFin = $clubOperativo !== null ? (int) ($clubOperativo['id'] ?? 0) : 0;
+
+$torneoIdFin = (int) ($_GET['torneo_id'] ?? 0);
+$modoEventoMasivo = !empty($_GET['evento_masivo']);
+$torneoNombreFin = '';
+
+if ($torneoIdFin <= 0 && !$isAdminGeneral) {
+    $torneoIdFin = (int) (FvdMovimientoTorneoHelper::torneoActivoId($pdo) ?? 0);
+}
+
+if ($torneoIdFin > 0) {
+    $stTor = $pdo->prepare('SELECT nombre, COALESCE(es_evento_masivo, 0) AS es_evento_masivo FROM tournaments WHERE id = ? LIMIT 1');
+    $stTor->execute([$torneoIdFin]);
+    $torRow = $stTor->fetch(PDO::FETCH_ASSOC);
+    if ($torRow) {
+        if ((int) ($torRow['es_evento_masivo'] ?? 0) > 0) {
+            $modoEventoMasivo = true;
+        }
+        $torneoNombreFin = trim((string) ($torRow['nombre'] ?? ''));
+    } else {
+        $torneoIdFin = 0;
+        $modoEventoMasivo = false;
+    }
+}
+
+$conceptoVer = trim((string) ($_GET['concepto'] ?? ''));
+$conceptosFin = [
+    'afiliacion' => [
+        'titulo' => 'Afiliaciones y anualidades',
+        'reporte' => 'asociacion/reportes/afiliaciones',
+        'reporte_label' => 'Reporte de afiliaciones',
+        'pago' => 'asociacion/afiliar_atleta',
+        'pago_label' => 'Afiliar atleta',
+        'border' => 'primary',
+    ],
+    'traspaso' => [
+        'titulo' => 'Traspasos',
+        'reporte' => 'asociacion/reportes/traspasos',
+        'reporte_label' => 'Reporte de traspasos',
+        'pago' => 'asociacion/solicitud',
+        'pago_label' => 'Solicitar traspaso',
+        'pago_extra' => ['tipo' => 'traspaso'],
+        'border' => 'info',
+    ],
+    'carnet' => [
+        'titulo' => 'Carnets / credenciales',
+        'reporte' => 'asociacion/reportes/carnets',
+        'reporte_label' => 'Reporte de carnets',
+        'pago' => 'asociacion/solicitud',
+        'pago_label' => 'Solicitar carnet',
+        'pago_extra' => ['tipo' => 'carnet'],
+        'border' => 'warning',
+    ],
+    'inscripcion' => [
+        'titulo' => 'Inscripciones al torneo',
+        'reporte' => 'torneo_gestion',
+        'reporte_label' => 'Administrador de inscripciones',
+        'reporte_extra' => ['action' => 'inscripciones'],
+        'pago' => 'torneo_gestion',
+        'pago_label' => 'Inscribir en sitio',
+        'pago_extra' => ['action' => 'inscribir_sitio'],
+        'border' => 'success',
+    ],
+    'pagos_torneo' => [
+        'titulo' => 'Pagos reportados (torneo activo)',
+        'reporte' => 'reportes_pago_usuarios',
+        'reporte_label' => 'Gestionar reportes de pago',
+        'pago' => 'torneo_gestion',
+        'pago_label' => 'Validar pagos en inscripciones',
+        'pago_extra' => ['action' => 'inscripciones'],
+        'border' => 'secondary',
+    ],
+];
+if (!isset($conceptosFin[$conceptoVer])) {
+    $conceptoVer = '';
+}
+
+$urlFin = static function (array $extra = []) use ($isAdminGeneral, $entidadId, $torneoIdFin, $modoEventoMasivo): string {
+    $q = $extra;
+    if ($isAdminGeneral && $entidadId > 0 && !isset($q['entidad_id'])) {
+        $q['entidad_id'] = $entidadId;
+    }
+    if ($torneoIdFin > 0 && !isset($q['torneo_id'])) {
+        $q['torneo_id'] = $torneoIdFin;
+    }
+    if ($modoEventoMasivo && !isset($q['evento_masivo'])) {
+        $q['evento_masivo'] = 1;
+    }
+
+    return AppHelpers::dashboard('finanzas/resumen_asociacion', $q);
+};
+
+$urlModulo = static function (string $page, array $extra = []) use ($torneoIdFin): string {
+    $q = $extra;
+    if ($torneoIdFin > 0 && !isset($q['torneo_id'])) {
+        $q['torneo_id'] = $torneoIdFin;
+    }
+
+    return AppHelpers::dashboard($page, $q);
+};
+
+$fmtMoney = static function (float $n): string {
+    return FinanzasAsociacionData::formatearImporte($n);
+};
 
 $cardAfili = ['recaudado' => 0.0, 'pendiente' => 0.0, 'registros' => 0];
 $cardTras = ['recaudado' => 0.0, 'pendiente' => 0.0, 'registros' => 0];
 $cardCarnet = ['recaudado' => 0.0, 'pendiente' => 0.0, 'registros' => 0];
 $cardInscr = ['recaudado' => 0.0, 'pendiente' => 0.0, 'inscripciones' => 0];
 $historial = [];
-$torneoIdFin = (int) ($_GET['torneo_id'] ?? 0);
-$modoEventoMasivo = !empty($_GET['evento_masivo']);
-$torneoNombreFin = '';
-$clubIdFin = $clubOperativo !== null ? (int) ($clubOperativo['id'] ?? 0) : 0;
+$historialPagosTorneo = [];
+$filtroTorneoMov = $torneoIdFin > 0 ? $torneoIdFin : 0;
 
 if ($entidadId > 0) {
-    if ($torneoIdFin > 0) {
-        $stTor = $pdo->prepare('SELECT nombre, COALESCE(es_evento_masivo, 0) AS es_evento_masivo FROM tournaments WHERE id = ? LIMIT 1');
-        $stTor->execute([$torneoIdFin]);
-        $torRow = $stTor->fetch(PDO::FETCH_ASSOC);
-        if ($torRow && (int) ($torRow['es_evento_masivo'] ?? 0) > 0) {
-            $modoEventoMasivo = true;
-        }
-        $torneoNombreFin = trim((string) ($torRow['nombre'] ?? ''));
-    }
     if ($modoEventoMasivo && $torneoIdFin > 0) {
         $resTor = FinanzasAsociacionData::resumenInscripcionesTorneoAsociacion($pdo, $torneoIdFin, $entidadId, $clubIdFin);
         $cardInscr = [
@@ -108,45 +201,101 @@ if ($entidadId > 0) {
             'pendientes_cnt' => (int) ($resTor['pendientes'] ?? 0),
         ];
         $historial = FinanzasAsociacionData::historialInscripcionesTorneoAsociacion($pdo, $torneoIdFin, $entidadId, $clubIdFin, 400);
+        $historialPagosTorneo = FinanzasAsociacionData::historialReportesPagoTorneoAsociacion($pdo, $torneoIdFin, $entidadId, $clubIdFin, 400);
     } else {
-        $cardAfili = FinanzasAsociacionData::totalesMovimientoConcepto($pdo, $entidadId, '(m.afiliacion + m.anualidad)');
-        $cardTras = FinanzasAsociacionData::totalesMovimientoConcepto($pdo, $entidadId, 'm.traspaso');
-        $cardCarnet = FinanzasAsociacionData::totalesMovimientoConcepto($pdo, $entidadId, 'm.carnet');
-        $cardInscr = FinanzasAsociacionData::totalesInscripcionesTorneoFvd($pdo, $entidadId, $orgFvd);
-        $historial = FinanzasAsociacionData::historialTransacciones($pdo, $entidadId, $orgFvd, 400);
+        $cardAfili = FinanzasAsociacionData::totalesMovimientoConcepto($pdo, $entidadId, '(m.afiliacion + m.anualidad)', $filtroTorneoMov);
+        $cardTras = FinanzasAsociacionData::totalesMovimientoConcepto($pdo, $entidadId, 'm.traspaso', $filtroTorneoMov);
+        $cardCarnet = FinanzasAsociacionData::totalesMovimientoConcepto($pdo, $entidadId, 'm.carnet', $filtroTorneoMov);
+        if ($torneoIdFin > 0) {
+            $resTor = FinanzasAsociacionData::resumenInscripcionesTorneoAsociacion($pdo, $torneoIdFin, $entidadId, $clubIdFin);
+            $cardInscr = [
+                'recaudado' => (float) ($resTor['recaudado'] ?? 0),
+                'pendiente' => (float) ($resTor['pendiente_monto'] ?? 0),
+                'inscripciones' => (int) ($resTor['total'] ?? 0),
+                'confirmados' => (int) ($resTor['confirmados'] ?? 0),
+                'pendientes_cnt' => (int) ($resTor['pendientes'] ?? 0),
+            ];
+            $historialPagosTorneo = FinanzasAsociacionData::historialReportesPagoTorneoAsociacion($pdo, $torneoIdFin, $entidadId, $clubIdFin, 400);
+        } else {
+            $cardInscr = FinanzasAsociacionData::totalesInscripcionesTorneoFvd($pdo, $entidadId, $orgFvd);
+        }
+
+        if ($conceptoVer !== '' && $conceptoVer !== 'inscripcion' && $conceptoVer !== 'pagos_torneo') {
+            $historial = FinanzasAsociacionData::historialMovimientoPorConcepto($pdo, $entidadId, $conceptoVer, $filtroTorneoMov, 400);
+        } elseif ($conceptoVer === 'inscripcion' && $torneoIdFin > 0) {
+            $historial = FinanzasAsociacionData::historialInscripcionesTorneoAsociacion($pdo, $torneoIdFin, $entidadId, $clubIdFin, 400);
+        } elseif ($conceptoVer === 'pagos_torneo' && $torneoIdFin > 0) {
+            $historial = $historialPagosTorneo;
+        } elseif ($torneoIdFin > 0) {
+            $historial = array_merge(
+                FinanzasAsociacionData::historialInscripcionesTorneoAsociacion($pdo, $torneoIdFin, $entidadId, $clubIdFin, 200),
+                $historialPagosTorneo
+            );
+            usort($historial, static fn (array $a, array $b): int => strcmp($b['fecha'] ?? '', $a['fecha'] ?? ''));
+            $historial = array_slice($historial, 0, 400);
+        } else {
+            $historial = FinanzasAsociacionData::historialTransacciones($pdo, $entidadId, $orgFvd, 400);
+        }
     }
 }
 
-$fmtMoney = static function (float $n): string {
-    return '$' . number_format($n, 2, '.', ',');
-};
-
 $urlForm = AppHelpers::url('index.php');
+$urlPanel = AppHelpers::dashboard('asociacion_panel', array_filter(['torneo_id' => $torneoIdFin ?: null]));
+$urlInformes = $urlModulo('asociacion/informes');
 ?>
-<div class="container-fluid py-3">
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb mb-0">
-            <li class="breadcrumb-item"><a href="<?= htmlspecialchars($modoEventoMasivo && $torneoIdFin > 0 ? AppHelpers::dashboard('asociacion_panel', ['tab' => 2, 'torneo_id' => $torneoIdFin]) : AppHelpers::dashboard($isAdminGeneral ? 'home' : 'asociacion_panel')) ?>">Inicio</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Finanzas por asociación</li>
+<div class="container-fluid py-3 fvd-finanzas-asoc-page">
+    <nav aria-label="breadcrumb" class="mb-2">
+        <ol class="breadcrumb mb-0 small">
+            <li class="breadcrumb-item">
+                <a href="<?= htmlspecialchars($modoEventoMasivo && $torneoIdFin > 0 ? $urlPanel : AppHelpers::dashboard($isAdminGeneral ? 'home' : 'asociacion_panel')) ?>">Inicio</a>
+            </li>
+            <?php if ($conceptoVer !== ''): ?>
+                <li class="breadcrumb-item"><a href="<?= htmlspecialchars($urlFin()) ?>">Finanzas</a></li>
+                <li class="breadcrumb-item active"><?= htmlspecialchars($conceptosFin[$conceptoVer]['titulo']) ?></li>
+            <?php else: ?>
+                <li class="breadcrumb-item active">Finanzas por asociación</li>
+            <?php endif; ?>
         </ol>
     </nav>
 
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
         <div>
-            <h1 class="h3 mb-1 fw-bold text-primary">
-                <i class="fas fa-coins me-2"></i><?= $modoEventoMasivo ? 'Estado de cuenta · evento masivo' : 'Finanzas por asociación' ?>
+            <h1 class="h4 mb-1 fw-bold text-primary">
+                <i class="fas fa-coins me-2"></i>
+                <?php if ($conceptoVer !== ''): ?>
+                    <?= htmlspecialchars($conceptosFin[$conceptoVer]['titulo']) ?>
+                <?php elseif ($modoEventoMasivo): ?>
+                    Estado de cuenta · evento masivo
+                <?php else: ?>
+                    Finanzas por asociación
+                <?php endif; ?>
             </h1>
             <p class="text-muted mb-0 small">
-                <?php if ($modoEventoMasivo && $torneoNombreFin !== ''): ?>
-                    Inscripciones de su asociación en <strong><?= htmlspecialchars($torneoNombreFin) ?></strong> (tabla <code>inscritos</code>). Torneo organizado por la FVD.
+                Moneda de referencia: <strong><?= htmlspecialchars($monedaEtiqueta) ?></strong>.
+                <?php if ($torneoIdFin > 0 && $torneoNombreFin !== ''): ?>
+                    Torneo activo: <strong><?= htmlspecialchars($torneoNombreFin) ?></strong> (ID <?= (int) $torneoIdFin ?>).
+                <?php endif; ?>
+                <?php if ($modoEventoMasivo): ?>
+                    Inscripciones de su asociación en <code>inscritos</code>.
+                <?php elseif ($filtroTorneoMov > 0): ?>
+                    Movimientos filtrados al torneo activo.
                 <?php else: ?>
-                    Consolidado administrativo (sin pasarelas de pago). Moneda de referencia: <strong><?= htmlspecialchars($monedaEtiqueta) ?></strong>.
-                    Los importes de afiliaciones, traspasos y carnets provienen de la tabla <code>movimiento_torneo</code> cuando existe en la base de datos.
+                    Consolidado administrativo (sin pasarelas). Importes en <code>movimiento_torneo</code> e inscripciones FVD.
                 <?php endif; ?>
             </p>
-            <?php if ($modoEventoMasivo): ?>
-                <a href="<?= htmlspecialchars(AppHelpers::dashboard('asociacion_panel', ['tab' => 2, 'torneo_id' => $torneoIdFin])) ?>" class="btn btn-sm btn-outline-primary mt-2">
-                    <i class="fas fa-arrow-left me-1"></i>Volver al panel
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <?php if ($torneoIdFin > 0): ?>
+                <a href="<?= htmlspecialchars($urlModulo('reportes_pago_usuarios', ['torneo_id' => $torneoIdFin])) ?>" class="btn btn-sm btn-success">
+                    <i class="fas fa-hand-holding-usd me-1"></i>Gestionar pagos
+                </a>
+            <?php endif; ?>
+            <a href="<?= htmlspecialchars($urlInformes) ?>" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-chart-bar me-1"></i>Informes FVD
+            </a>
+            <?php if (!$isAdminGeneral): ?>
+                <a href="<?= htmlspecialchars($urlPanel) ?>" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-th-large me-1"></i>Panel
                 </a>
             <?php endif; ?>
         </div>
@@ -157,16 +306,22 @@ $urlForm = AppHelpers::url('index.php');
     <?php endif; ?>
 
     <?php if ($isAdminGeneral): ?>
-        <div class="card border-primary shadow-sm mb-4">
+        <div class="card border-primary shadow-sm mb-3">
             <div class="card-header bg-primary text-white py-2">
                 <i class="fas fa-map-marked-alt me-2"></i>Asociación (entidad)
             </div>
-            <div class="card-body">
-                <form method="get" action="<?= htmlspecialchars($urlForm) ?>" class="row g-3 align-items-end">
+            <div class="card-body py-2">
+                <form method="get" action="<?= htmlspecialchars($urlForm) ?>" class="row g-2 align-items-end">
                     <input type="hidden" name="page" value="finanzas/resumen_asociacion">
+                    <?php if ($torneoIdFin > 0): ?>
+                        <input type="hidden" name="torneo_id" value="<?= (int) $torneoIdFin ?>">
+                    <?php endif; ?>
+                    <?php if ($conceptoVer !== ''): ?>
+                        <input type="hidden" name="concepto" value="<?= htmlspecialchars($conceptoVer) ?>">
+                    <?php endif; ?>
                     <div class="col-md-8 col-lg-6">
-                        <label for="entidad_id" class="form-label fw-semibold">Seleccionar asociación</label>
-                        <select name="entidad_id" id="entidad_id" class="form-select" required onchange="this.form.submit()">
+                        <label for="entidad_id" class="form-label fw-semibold small mb-1">Seleccionar asociación</label>
+                        <select name="entidad_id" id="entidad_id" class="form-select form-select-sm" required onchange="this.form.submit()">
                             <option value="">— Elija una entidad —</option>
                             <?php foreach ($entidadesLista as $en): ?>
                                 <option value="<?= (int) $en['id'] ?>" <?= $entidadId === (int) $en['id'] ? 'selected' : '' ?>>
@@ -175,132 +330,170 @@ $urlForm = AppHelpers::url('index.php');
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-4 col-lg-3">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-sync-alt me-1"></i>Consultar
-                        </button>
-                    </div>
                 </form>
                 <?php if (!$tablaMov): ?>
-                    <p class="text-warning small mb-0 mt-3">
+                    <p class="text-warning small mb-0 mt-2">
                         <i class="fas fa-exclamation-triangle me-1"></i>
-                        La tabla <code>movimiento_torneo</code> no está creada: las tarjetas de afiliaciones, traspasos y carnets mostrarán cero hasta ejecutar el SQL del proyecto (<code>sql/create_movimiento_torneo.sql</code>).
+                        Falta <code>movimiento_torneo</code> (<code>sql/create_movimiento_torneo.sql</code>).
                     </p>
                 <?php endif; ?>
             </div>
         </div>
-    <?php else: ?>
-        <div class="alert alert-info shadow-sm mb-4">
-            <i class="fas fa-shield-alt me-2"></i>
-            <strong>Vista restringida:</strong> solo se muestran datos de su asociación
-            <?php if ($entidadNombre !== ''): ?>
-                (<strong><?= htmlspecialchars($entidadNombre) ?></strong>, entidad ID <?= (int) $entidadId ?>).
-            <?php elseif ($entidadId > 0): ?>
-                (entidad ID <?= (int) $entidadId ?>).
-            <?php endif; ?>
-            <?php if (!$tablaMov): ?>
-                <span class="d-block mt-2 small">La tabla <code>movimiento_torneo</code> no existe aún en esta base de datos.</span>
-            <?php endif; ?>
+    <?php elseif ($entidadNombre !== ''): ?>
+        <div class="alert alert-info py-2 small mb-3">
+            <i class="fas fa-shield-alt me-1"></i>
+            <strong><?= htmlspecialchars($entidadNombre) ?></strong> (entidad <?= (int) $entidadId ?>)
         </div>
     <?php endif; ?>
 
     <?php if ($entidadId <= 0 && $isAdminGeneral): ?>
         <div class="alert alert-secondary">Seleccione una asociación para cargar indicadores e historial.</div>
     <?php elseif ($entidadId <= 0): ?>
-        <div class="alert alert-danger">Su usuario no tiene una entidad (asociación) asignada. Contacte al administrador FVD.</div>
+        <div class="alert alert-danger">Su usuario no tiene una entidad (asociación) asignada.</div>
     <?php else: ?>
 
-        <div class="row g-3 mb-4">
+        <?php if ($conceptoVer === ''): ?>
+        <div class="row g-2 mb-3">
             <?php if (!$modoEventoMasivo): ?>
+            <?php
+            $cardsResumen = [
+                ['key' => 'afiliacion', 'data' => $cardAfili, 'border' => 'primary'],
+                ['key' => 'traspaso', 'data' => $cardTras, 'border' => 'info'],
+                ['key' => 'carnet', 'data' => $cardCarnet, 'border' => 'warning'],
+            ];
+            foreach ($cardsResumen as $cr):
+                $cfg = $conceptosFin[$cr['key']];
+                $dat = $cr['data'];
+                $extraPago = $cfg['pago_extra'] ?? [];
+            ?>
             <div class="col-md-6 col-xl-3">
-                <div class="card h-100 border-0 shadow-sm border-start border-primary border-4">
-                    <div class="card-body">
-                        <div class="text-muted small text-uppercase fw-semibold mb-1">Afiliaciones y anualidades</div>
-                        <div class="fs-5 fw-bold text-success"><?= $fmtMoney($cardAfili['recaudado']) ?> <span class="small fw-normal text-muted">recaudado</span></div>
-                        <div class="fs-6 text-warning fw-bold"><?= $fmtMoney($cardAfili['pendiente']) ?> <span class="small fw-normal text-muted">pendiente</span></div>
-                        <div class="small text-muted mt-2"><?= (int) $cardAfili['registros'] ?> movimientos</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-xl-3">
-                <div class="card h-100 border-0 shadow-sm border-start border-info border-4">
-                    <div class="card-body">
-                        <div class="text-muted small text-uppercase fw-semibold mb-1">Traspasos</div>
-                        <div class="fs-5 fw-bold text-success"><?= $fmtMoney($cardTras['recaudado']) ?> <span class="small fw-normal text-muted">recaudado</span></div>
-                        <div class="fs-6 text-warning fw-bold"><?= $fmtMoney($cardTras['pendiente']) ?> <span class="small fw-normal text-muted">pendiente</span></div>
-                        <div class="small text-muted mt-2"><?= (int) $cardTras['registros'] ?> movimientos</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-xl-3">
-                <div class="card h-100 border-0 shadow-sm border-start border-warning border-4">
-                    <div class="card-body">
-                        <div class="text-muted small text-uppercase fw-semibold mb-1">Carnets / credenciales</div>
-                        <div class="fs-5 fw-bold text-success"><?= $fmtMoney($cardCarnet['recaudado']) ?> <span class="small fw-normal text-muted">recaudado</span></div>
-                        <div class="fs-6 text-warning fw-bold"><?= $fmtMoney($cardCarnet['pendiente']) ?> <span class="small fw-normal text-muted">pendiente</span></div>
-                        <div class="small text-muted mt-2"><?= (int) $cardCarnet['registros'] ?> movimientos</div>
-                    </div>
-                </div>
-            </div>
-            <?php endif; ?>
-            <div class="<?= $modoEventoMasivo ? 'col-md-12' : 'col-md-6 col-xl-3' ?>">
-                <div class="card h-100 border-0 shadow-sm border-start border-success border-4">
-                    <div class="card-body">
-                        <div class="text-muted small text-uppercase fw-semibold mb-1"><?= $modoEventoMasivo ? 'Inscripciones del evento (inscritos)' : 'Inscripciones (torneos FVD)' ?></div>
-                        <div class="fs-5 fw-bold text-success"><?= $fmtMoney($cardInscr['recaudado']) ?> <span class="small fw-normal text-muted">recaudado</span></div>
-                        <div class="fs-6 text-warning fw-bold"><?= $fmtMoney($cardInscr['pendiente']) ?> <span class="small fw-normal text-muted">pendiente</span></div>
-                        <div class="small text-muted mt-2">
-                            <?= (int) $cardInscr['inscripciones'] ?> inscripciones
-                            <?php if ($modoEventoMasivo): ?>
-                                · <?= (int) ($cardInscr['confirmados'] ?? 0) ?> confirmados · <?= (int) ($cardInscr['pendientes_cnt'] ?? 0) ?> pendientes
-                            <?php else: ?>
-                                · org. <?= (int) $orgFvd ?>
-                            <?php endif; ?>
+                <div class="card h-100 border-0 shadow-sm border-start border-<?= $cr['border'] ?> border-4">
+                    <div class="card-body py-2">
+                        <div class="text-muted small text-uppercase fw-semibold mb-1"><?= htmlspecialchars($cfg['titulo']) ?></div>
+                        <div class="fs-6 fw-bold text-success"><?= $fmtMoney((float) $dat['recaudado']) ?> <span class="small fw-normal text-muted">recaudado</span></div>
+                        <div class="small text-warning fw-bold"><?= $fmtMoney((float) $dat['pendiente']) ?> <span class="fw-normal text-muted">pendiente</span></div>
+                        <div class="small text-muted"><?= (int) $dat['registros'] ?> movimientos</div>
+                        <div class="d-flex flex-wrap gap-1 mt-2">
+                            <a href="<?= htmlspecialchars($urlFin(['concepto' => $cr['key']])) ?>" class="btn btn-xs btn-outline-<?= $cr['border'] ?> btn-sm py-0">Ver detalle</a>
+                            <a href="<?= htmlspecialchars($urlModulo($cfg['reporte'], $cfg['reporte_extra'] ?? [])) ?>" class="btn btn-xs btn-outline-secondary btn-sm py-0"><?= htmlspecialchars($cfg['reporte_label']) ?></a>
+                            <a href="<?= htmlspecialchars($urlModulo($cfg['pago'], $extraPago)) ?>" class="btn btn-xs btn-<?= $cr['border'] ?> btn-sm py-0"><?= htmlspecialchars($cfg['pago_label']) ?></a>
                         </div>
                     </div>
                 </div>
             </div>
+            <?php endforeach; ?>
+            <?php endif; ?>
+
+            <?php $cfgInscr = $conceptosFin['inscripcion']; ?>
+            <div class="<?= $modoEventoMasivo ? 'col-md-12' : 'col-md-6 col-xl-3' ?>">
+                <div class="card h-100 border-0 shadow-sm border-start border-success border-4">
+                    <div class="card-body py-2">
+                        <div class="text-muted small text-uppercase fw-semibold mb-1"><?= $modoEventoMasivo ? 'Inscripciones del evento' : $cfgInscr['titulo'] ?></div>
+                        <div class="fs-6 fw-bold text-success"><?= $fmtMoney((float) $cardInscr['recaudado']) ?> <span class="small fw-normal text-muted">recaudado</span></div>
+                        <div class="small text-warning fw-bold"><?= $fmtMoney((float) $cardInscr['pendiente']) ?> <span class="fw-normal text-muted">pendiente</span></div>
+                        <div class="small text-muted">
+                            <?= (int) $cardInscr['inscripciones'] ?> inscripciones
+                            <?php if (isset($cardInscr['confirmados'])): ?>
+                                · <?= (int) $cardInscr['confirmados'] ?> confirmados · <?= (int) ($cardInscr['pendientes_cnt'] ?? 0) ?> pendientes
+                            <?php endif; ?>
+                        </div>
+                        <?php if ($torneoIdFin > 0): ?>
+                        <div class="d-flex flex-wrap gap-1 mt-2">
+                            <a href="<?= htmlspecialchars($urlFin(['concepto' => 'inscripcion'])) ?>" class="btn btn-outline-success btn-sm py-0">Ver detalle</a>
+                            <a href="<?= htmlspecialchars($urlModulo($cfgInscr['reporte'], ['action' => 'inscripciones', 'torneo_id' => $torneoIdFin])) ?>" class="btn btn-outline-secondary btn-sm py-0">Inscripciones</a>
+                            <a href="<?= htmlspecialchars($urlModulo('reportes_pago_usuarios', ['torneo_id' => $torneoIdFin])) ?>" class="btn btn-success btn-sm py-0">Reportar / validar pago</a>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <?php if ($torneoIdFin > 0 && $historialPagosTorneo !== []): ?>
+            <div class="col-md-12">
+                <div class="card border-0 shadow-sm border-start border-secondary border-4">
+                    <div class="card-body py-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <strong><i class="fas fa-receipt me-1"></i>Pagos reportados en el torneo activo</strong>
+                            <span class="text-muted small ms-1">(<?= count($historialPagosTorneo) ?> registros)</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1">
+                            <a href="<?= htmlspecialchars($urlFin(['concepto' => 'pagos_torneo'])) ?>" class="btn btn-outline-secondary btn-sm">Ver listado</a>
+                            <a href="<?= htmlspecialchars($urlModulo('reportes_pago_usuarios', ['torneo_id' => $torneoIdFin])) ?>" class="btn btn-success btn-sm">Gestionar pagos</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
+        <?php else: ?>
+        <?php $cfgDet = $conceptosFin[$conceptoVer]; ?>
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-body py-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span class="small text-muted">Detalle solicitado desde el resumen financiero</span>
+                <div class="d-flex flex-wrap gap-1">
+                    <a href="<?= htmlspecialchars($urlFin()) ?>" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Volver al resumen</a>
+                    <a href="<?= htmlspecialchars($urlModulo($cfgDet['reporte'], $cfgDet['reporte_extra'] ?? ['torneo_id' => $torneoIdFin])) ?>" class="btn btn-outline-primary btn-sm"><?= htmlspecialchars($cfgDet['reporte_label']) ?></a>
+                    <a href="<?= htmlspecialchars($urlModulo($cfgDet['pago'], array_merge($cfgDet['pago_extra'] ?? [], $torneoIdFin > 0 ? ['torneo_id' => $torneoIdFin] : []))) ?>" class="btn btn-primary btn-sm"><?= htmlspecialchars($cfgDet['pago_label']) ?></a>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <div class="card shadow-sm border-0">
-            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <span class="fw-bold text-primary mb-0"><i class="fas fa-list-ul me-2"></i><?= $modoEventoMasivo ? 'Detalle de inscripciones' : 'Historial de transacciones' ?></span>
-                <span class="small text-muted"><?= count($historial) ?> registros mostrados</span>
+            <div class="card-header bg-white border-bottom py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span class="fw-bold text-primary mb-0 small">
+                    <i class="fas fa-list-ul me-1"></i>
+                    <?php
+                    if ($conceptoVer === 'pagos_torneo') {
+                        echo 'Pagos realizados / reportados';
+                    } elseif ($conceptoVer === 'inscripcion') {
+                        echo 'Detalle de inscripciones';
+                    } elseif ($conceptoVer !== '') {
+                        echo 'Detalle de movimientos';
+                    } elseif ($modoEventoMasivo || $torneoIdFin > 0) {
+                        echo 'Movimientos del torneo activo';
+                    } else {
+                        echo 'Historial de transacciones';
+                    }
+                    ?>
+                </span>
+                <span class="small text-muted"><?= count($historial) ?> registros</span>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0 align-middle">
+                    <table class="table table-hover table-sm mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
                                 <th scope="col">Fecha</th>
                                 <th scope="col">Atleta / Club</th>
                                 <th scope="col">Concepto</th>
-                                <th scope="col" class="text-end">Monto (<?= htmlspecialchars($monedaEtiqueta) ?>)</th>
+                                <th scope="col" class="text-end"><?= htmlspecialchars($monedaEtiqueta) ?></th>
                                 <th scope="col">Estatus</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if ($historial === []): ?>
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted py-5"><?= $modoEventoMasivo ? 'No hay inscripciones de su asociación en este evento.' : 'No hay movimientos ni reportes de pago registrados para esta asociación.' ?></td>
+                                    <td colspan="5" class="text-center text-muted py-4 small">Sin registros para este criterio.</td>
                                 </tr>
                             <?php else: ?>
                                 <?php foreach ($historial as $h): ?>
                                     <tr>
                                         <td class="text-nowrap small"><?= htmlspecialchars($h['fecha'] ?? '') ?></td>
-                                        <td><?= htmlspecialchars($h['atleta_club'] ?? '') ?></td>
-                                        <td><?= htmlspecialchars($h['concepto'] ?? '') ?></td>
-                                        <td class="text-end fw-semibold"><?= $fmtMoney((float) ($h['monto'] ?? 0)) ?></td>
+                                        <td class="small"><?= htmlspecialchars($h['atleta_club'] ?? '') ?></td>
+                                        <td class="small"><?= htmlspecialchars($h['concepto'] ?? '') ?></td>
+                                        <td class="text-end fw-semibold small"><?= $fmtMoney((float) ($h['monto'] ?? 0)) ?></td>
                                         <td>
                                             <?php
                                             $est = (string) ($h['estatus'] ?? '');
-                                            $badge = 'bg-secondary';
                                             if ($est === 'Pagado') {
                                                 $badge = 'bg-success';
                                             } elseif ($est === 'Pendiente') {
                                                 $badge = 'bg-warning text-dark';
                                             } elseif ($est === 'Rechazado') {
                                                 $badge = 'bg-danger';
+                                            } else {
+                                                $badge = 'bg-secondary';
                                             }
                                             ?>
                                             <span class="badge <?= $badge ?>"><?= htmlspecialchars($est) ?></span>

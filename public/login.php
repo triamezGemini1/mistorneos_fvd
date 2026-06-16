@@ -8,6 +8,9 @@ ob_start();
 try {
     require_once __DIR__ . '/../config/bootstrap.php';
     require_once __DIR__ . '/../config/db_config.php';
+    require_once __DIR__ . '/../config/auth.php';
+    require_once __DIR__ . '/../lib/TournamentAdminAccess.php';
+    require_once __DIR__ . '/../lib/app_helpers.php';
 } catch (Throwable $e) {
     error_log("login.php: Error cargando conexión - " . $e->getMessage());
     ob_end_clean();
@@ -28,7 +31,6 @@ if (!empty($_GET['return_url'])) {
 // Si ya hay sesión activa, redirigir al dashboard o return_url (302). Usar base de la petición para no ir a raíz del dominio.
 if (isset($_SESSION['user'])) {
     require __DIR__ . '/../modules/auth/after_login_check.php';
-    require_once __DIR__ . '/../lib/app_helpers.php';
     ob_end_clean();
     $entry_base = AppHelpers::getRequestEntryUrl();
     if ($return_url && (strpos($return_url, '?') !== false || strpos($return_url, '.php') !== false)) {
@@ -37,7 +39,8 @@ if (isset($_SESSION['user'])) {
             : $entry_base . '/' . ltrim($return_url, '/');
         header("Location: " . $target, true, 302);
     } else {
-        header("Location: " . $entry_base . "/index.php?page=home", true, 302);
+        $default = TournamentAdminAccess::postLoginUrl($entry_base);
+        header("Location: " . $default, true, 302);
     }
     exit;
 }
@@ -92,7 +95,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     error_log('[SESSION] Auth::login resultado=' . ($login_ok ? 'true' : 'false') . ' | username=' . $username);
     if ($login_ok) {
-        require_once __DIR__ . '/../lib/app_helpers.php';
         if (getenv('SESSION_DEBUG')) error_log('[SESSION_DEBUG] login.php | login OK | session_id=' . session_id() . ' | user_id=' . (Auth::user()['id'] ?? '') . ' | username=' . (Auth::user()['username'] ?? ''));
         ob_end_clean();
 
@@ -179,12 +181,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($sid !== '') {
             setcookie($sname, $sid, $cookie_opts);
         }
-        $redirect_target = $entry_base . '/index.php?page=home';
+        $redirect_target = TournamentAdminAccess::postLoginUrl($entry_base);
         if ($redirect && preg_match('#^[a-zA-Z0-9_\-/\.\?=&]+$#', $redirect) && !preg_match('#^(https?|javascript|data):#i', $redirect)) {
             if (strpos($redirect, '?') !== false || strpos($redirect, '.php') !== false) {
                 $redirect_target = (strpos($redirect, 'http') === 0 || strpos($redirect, '/') === 0)
                     ? $redirect
                     : $entry_base . '/' . ltrim($redirect, '/');
+            }
+        }
+        if (! TournamentAdminAccess::canAccessTorneoPanel()) {
+            $rtLower = strtolower((string) $redirect_target);
+            if (strpos($rtLower, 'index.php') !== false
+                && strpos($rtLower, 'users/profile') === false
+                && strpos($rtLower, 'users/change_password') === false
+                && strpos($rtLower, 'page=torneo') === false) {
+                $redirect_target = AppHelpers::publicPortalUrl();
             }
         }
         if ($redirect_target !== '' && !headers_sent()) {

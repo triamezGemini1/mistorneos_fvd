@@ -14,6 +14,12 @@ final class FinanzasAsociacionData
 {
     private const MOV_TABLA = 'movimiento_torneo';
 
+    /** Moneda de referencia en reportes financieros de asociación. */
+    public const MONEDA_REFERENCIA = 'EUR';
+
+    /** Símbolo para importes en pantalla. */
+    public const MONEDA_SIMBOLO = '€';
+
     /** @var array<string, bool|null> */
     private static array $movColumnCache = [];
 
@@ -166,12 +172,16 @@ final class FinanzasAsociacionData
     /**
      * @return array{recaudado: float, pendiente: float, registros: int}
      */
-    public static function totalesMovimientoConcepto(PDO $pdo, int $entidadId, string $montoSql): array
+    public static function totalesMovimientoConcepto(PDO $pdo, int $entidadId, string $montoSql, int $torneoId = 0): array
     {
         if (!self::tablaExiste($pdo, self::MOV_TABLA) || $entidadId <= 0) {
             return ['recaudado' => 0.0, 'pendiente' => 0.0, 'registros' => 0];
         }
         [$w, $wp] = self::whereMovimientoEnEntidad($pdo, 'm', $entidadId);
+        if ($torneoId > 0) {
+            $w .= ' AND m.torneo_id = ?';
+            $wp[] = $torneoId;
+        }
         $sql = "SELECT 
             COALESCE(SUM(CASE WHEN m.estatus = " . self::MOV_ESTATUS_PAGADO . " THEN ($montoSql) ELSE 0 END), 0) AS recaudado,
             COALESCE(SUM(CASE WHEN m.estatus <> " . self::MOV_ESTATUS_PAGADO . " OR m.estatus IS NULL THEN ($montoSql) ELSE 0 END), 0) AS pendiente,
@@ -430,6 +440,139 @@ final class FinanzasAsociacionData
         unset($r);
 
         return $rows;
+    }
+
+    /**
+     * Detalle de movimientos por concepto (afiliacion, traspaso, carnet, inscripcion_mov).
+     *
+     * @return list<array{fecha:string,atleta_club:string,concepto:string,monto:float,estatus:string}>
+     */
+    public static function historialMovimientoPorConcepto(
+        PDO $pdo,
+        int $entidadId,
+        string $concepto,
+        int $torneoId = 0,
+        int $limite = 400
+    ): array {
+        if ($entidadId <= 0 || !self::tablaExiste($pdo, self::MOV_TABLA)) {
+            return [];
+        }
+        $concepto = strtolower(trim($concepto));
+        if ($concepto === 'afiliacion') {
+            $montoSql = '(m.afiliacion + m.anualidad)';
+        } elseif ($concepto === 'traspaso') {
+            $montoSql = 'm.traspaso';
+        } elseif ($concepto === 'carnet') {
+            $montoSql = 'm.carnet';
+        } elseif ($concepto === 'inscripcion_mov') {
+            $montoSql = 'm.inscripcion';
+        } else {
+            $montoSql = '';
+        }
+        if ($montoSql === '') {
+            return [];
+        }
+        $limite = max(20, min(800, $limite));
+        $clubColMov = self::movimientoClubColumn($pdo);
+        [$wM, $pM] = self::whereMovimientoEnEntidad($pdo, 'm', $entidadId);
+        if ($torneoId > 0) {
+            $wM .= ' AND m.torneo_id = ?';
+            $pM[] = $torneoId;
+        }
+        $joinClub = $clubColMov !== null
+            ? 'LEFT JOIN clubes c ON c.id = m.' . $clubColMov
+            : 'LEFT JOIN clubes c ON 1=0';
+        $sqlM = "
+            SELECT m.created_at AS fecha,
+                   COALESCE(u.nombre, m.cedula) AS atleta,
+                   COALESCE(c.nombre, '') AS club_nombre,
+                   ($montoSql) AS monto,
+                   m.afiliacion, m.anualidad, m.traspaso, m.carnet, m.inscripcion,
+                   m.estatus AS mov_estatus
+            FROM " . self::MOV_TABLA . " m
+            LEFT JOIN usuarios u ON u.id = m.id_usuario
+            {$joinClub}
+            WHERE $wM AND ($montoSql) > 0
+            ORDER BY COALESCE(m.created_at, FROM_UNIXTIME(0)) DESC, m.id DESC
+            LIMIT " . (int) $limite;
+        $st = $pdo->prepare($sqlM);
+        $st->execute($pM);
+        $rows = [];
+        while ($r = $st->fetch(PDO::FETCH_ASSOC)) {
+            $monto = (float) ($r['monto'] ?? 0);
+            if ($monto <= 0) {
+                continue;
+            }
+            $est = ((int) ($r['mov_estatus'] ?? 0)) === self::MOV_ESTATUS_PAGADO ? 'Pagado' : 'Pendiente';
+            $rows[] = [
+                'fecha' => self::fmtFecha($r['fecha'] ?? ''),
+                'atleta_club' => self::fmtAtletaClub($r['atleta'] ?? '', $r['club_nombre'] ?? ''),
+                'concepto' => self::etiquetarConceptoMovimiento($r),
+                'monto' => $monto,
+                'estatus' => $est,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Reportes de pago de inscripciones (tabla reportes_pago_usuarios) del torneo para la asociación.
+     *
+     * @return list<array{fecha:string,atleta_club:string,concepto:string,monto:float,estatus:string}>
+     */
+    public static function historialReportesPagoTorneoAsociacion(
+        PDO $pdo,
+        int $torneoId,
+        int $entidadId,
+        int $clubId = 0,
+        int $limite = 400
+    ): array {
+        if ($torneoId <= 0 || $entidadId <= 0 || !self::tablaExiste($pdo, 'reportes_pago_usuarios')) {
+            return [];
+        }
+        $limite = max(20, min(500, $limite));
+        [$wInsc, $pInsc] = self::whereInscritoEnEntidad($pdo, 'i', $entidadId);
+        if ($clubId > 0) {
+            $wInsc = '(' . $wInsc . ' OR i.id_club = ?)';
+            $pInsc[] = $clubId;
+        }
+        $sql = "SELECT COALESCE(r.created_at, TIMESTAMP(r.fecha, r.hora), TIMESTAMP(r.fecha, '00:00:00')) AS fecha,
+                       COALESCE(u.nombre, u.cedula, '') AS atleta,
+                       COALESCE(c.nombre, '') AS club_nombre,
+                       CAST(r.monto AS DECIMAL(12,2)) AS monto,
+                       r.estatus AS rep_estatus,
+                       t.nombre AS torneo_nombre
+                FROM reportes_pago_usuarios r
+                INNER JOIN inscritos i ON i.id = r.inscrito_id
+                INNER JOIN tournaments t ON t.id = i.torneo_id
+                LEFT JOIN usuarios u ON u.id = i.id_usuario
+                LEFT JOIN clubes c ON c.id = i.id_club
+                WHERE i.torneo_id = ? AND $wInsc
+                ORDER BY fecha DESC, r.id DESC
+                LIMIT " . (int) $limite;
+        $st = $pdo->prepare($sql);
+        $st->execute(array_merge([$torneoId], $pInsc));
+        $rows = [];
+        while ($r = $st->fetch(PDO::FETCH_ASSOC)) {
+            $estRaw = (string) ($r['rep_estatus'] ?? 'pendiente');
+            $est = $estRaw === 'confirmado' ? 'Pagado' : ($estRaw === 'rechazado' ? 'Rechazado' : 'Pendiente');
+            $torNombre = trim((string) ($r['torneo_nombre'] ?? 'Torneo'));
+            $rows[] = [
+                'fecha' => self::fmtFecha((string) ($r['fecha'] ?? '')),
+                'atleta_club' => self::fmtAtletaClub((string) ($r['atleta'] ?? ''), (string) ($r['club_nombre'] ?? '')),
+                'concepto' => 'Reporte de pago · ' . $torNombre,
+                'monto' => (float) ($r['monto'] ?? 0),
+                'estatus' => $est,
+            ];
+        }
+
+        return $rows;
+    }
+
+    public static function formatearImporte(float $monto): string
+    {
+        return self::MONEDA_SIMBOLO . number_format($monto, 2, ',', '.');
     }
 
     /**

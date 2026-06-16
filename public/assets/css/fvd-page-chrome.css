@@ -1,0 +1,95 @@
+/**
+ * Área de contenido del dashboard: buscador en página, breadcrumb alineado.
+ */
+body.fvd-dashboard-compact main.fvd-main-scroll {
+  padding: 0;
+}
+
+.fvd-page-chrome,
+.fvd-page-body {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 992px) {
+  .fvd-page-chrome,
+  .fvd-page-body {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+.fvd-page-chrome {
+  padding-top: 0.85rem;
+  padding-bottom: 0;
+}
+
+.fvd-page-body {
+  padding-top: 0.35rem;
+  padding-bottom: 1rem;
+}
+
+.fvd-page-toolbar-search {
+  max-width: 100%;
+}
+
+.fvd-page-toolbar-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.fvd-page-toolbar-row .fvd-page-toolbar-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.fvd-page-toolbar-logo {
+  flex: 0 0 auto;
+  line-height: 0;
+  padding-bottom: 1px;
+}
+
+body.page-mi-org-club-detail .fvd-page-chrome {
+  padding-top: 0.5rem;
+}
+
+body.page-mi-org-club-detail .fvd-page-body {
+  padding-top: 0.15rem;
+}
+
+@media (min-width: 768px) {
+  .fvd-page-toolbar-search {
+    max-width: 28rem;
+  }
+}
+
+.fvd-page-toolbar-search__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.fvd-page-chrome #global-volver-container.nav-origin-global {
+  margin-bottom: 0.65rem;
+}
+
+.fvd-page-body nav[aria-label="breadcrumb"],
+.fvd-page-body .breadcrumb-modern {
+  margin-bottom: 0.75rem;
+}
+
+.fvd-page-body .fvd-afiliacion-wrap nav[aria-label="breadcrumb"],
+.fvd-page-body .asoc-fvd-wrap nav[aria-label="breadcrumb"] {
+  margin-top: 0.15rem;
+}
+
+.fvd-topbar-search {
+  display: none !important;
+}

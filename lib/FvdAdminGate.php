@@ -7,7 +7,7 @@ require_once __DIR__ . '/FvdConfig.php';
 /**
  * Modo restringido (FVD_ADMIN_ENABLED=false): apaga módulos de administración FVD
  * (afiliación, delegados, finanzas, comentarios portal, inscripción pública en línea).
- * La gestión de torneos (torneo_gestion y acciones asociadas) permanece habilitada.
+ * Con FVD_INSTITUTIONAL_ONLY=true la operación de mesas/rondas también queda fuera de esta app.
  */
 final class FvdAdminGate
 {

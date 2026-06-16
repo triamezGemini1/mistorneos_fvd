@@ -1,7 +1,10 @@
 <?php
 /**
- * Vista: Asignar mesas de una ronda a operadores (previamente asignados al club del torneo).
+ * Vista: Asignar mesas de una ronda a operadores (ámbito nacional: cualquier operador activo).
  */
+if (!class_exists('AppHelpers', false)) {
+    require_once __DIR__ . '/../../lib/app_helpers.php';
+}
 $script_actual = basename($_SERVER['PHP_SELF'] ?? '');
 $use_standalone = in_array($script_actual, ['admin_torneo.php', 'panel_torneo.php']);
 $base_url = $use_standalone ? $script_actual : 'index.php?page=torneo_gestion';
@@ -10,6 +13,12 @@ $operadores = $operadores ?? [];
 $mesas_numeros = $mesas_numeros ?? [];
 $asignaciones = $asignaciones ?? [];
 $tabla_existe = $tabla_existe ?? false;
+$url_gestionar_operadores = class_exists('AppHelpers')
+    ? AppHelpers::dashboard('admin_torneo_operadores', [
+        'tab' => 'operadores',
+        'return_torneo_id' => (int) ($torneo_id ?? 0),
+    ])
+    : '';
 ?>
 <div class="container-fluid">
     <div class="row mb-4">
@@ -56,7 +65,13 @@ $tabla_existe = $tabla_existe ?? false;
     <?php if (empty($operadores)): ?>
         <div class="alert alert-warning">
             <i class="fas fa-exclamation-triangle me-2"></i>
-            No hay operadores asignados al club de este torneo. Asigne operadores desde <strong>Admin Torneo y Operadores</strong> (por club) y luego vuelva aquí para asignar las mesas que atenderá cada uno.
+            No hay operadores registrados en la plataforma.
+            <?php if ($url_gestionar_operadores !== ''): ?>
+                <a href="<?= htmlspecialchars($url_gestionar_operadores) ?>" class="alert-link">Registrar o asignar operadores</a>
+                (de cualquier asociación) y luego vuelva aquí para asignar las mesas.
+            <?php else: ?>
+                Registre operadores desde <strong>Admin Torneo y Operadores</strong> y luego vuelva aquí.
+            <?php endif; ?>
         </div>
     <?php elseif (empty($mesas_numeros)): ?>
         <div class="alert alert-info">
@@ -90,8 +105,17 @@ $tabla_existe = $tabla_existe ?? false;
                                             <select name="asignacion[<?= (int)$num_mesa; ?>]" class="form-select form-select-sm w-auto">
                                                 <option value="0">— Sin asignar —</option>
                                                 <?php foreach ($operadores as $op): ?>
+                                                    <?php
+                                                    $opLabel = htmlspecialchars($op['nombre']);
+                                                    if (!empty($op['username'])) {
+                                                        $opLabel .= ' (' . htmlspecialchars($op['username']) . ')';
+                                                    }
+                                                    if (!empty($op['club_nombre'])) {
+                                                        $opLabel .= ' — ' . htmlspecialchars($op['club_nombre']);
+                                                    }
+                                                    ?>
                                                     <option value="<?= (int)$op['id']; ?>" <?= (($asignaciones[$num_mesa] ?? 0) == (int)$op['id']) ? 'selected' : ''; ?>>
-                                                        <?= htmlspecialchars($op['nombre']); ?> (<?= htmlspecialchars($op['username'] ?? ''); ?>)
+                                                        <?= $opLabel; ?>
                                                     </option>
                                                 <?php endforeach; ?>
                                             </select>

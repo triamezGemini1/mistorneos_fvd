@@ -174,7 +174,7 @@ $user = Auth::user();
 if (getenv('SESSION_DEBUG')) error_log('[SESSION_DEBUG] index.php | usuario OK | id=' . ($user['id'] ?? '') . ' | role=' . ($user['role'] ?? ''));
 
 // Restringir panel admin a roles válidos del sistema
-$allowed_roles = ['admin_general', 'admin_torneo', 'admin_club', 'usuario', 'operador'];
+$allowed_roles = ['admin_general', 'superadmin', 'admin_torneo', 'admin_club', 'usuario', 'operador'];
 if (!in_array($user['role'] ?? '', $allowed_roles, true)) {
     Auth::logout();
     $redirect_login = defined('URL_BASE') ? (URL_BASE . 'login.php?error=requiere_autenticacion') : AppHelpers::url('login.php', ['error' => 'requiere_autenticacion']);
@@ -182,29 +182,20 @@ if (!in_array($user['role'] ?? '', $allowed_roles, true)) {
     exit;
 }
 
-// Redirigir usuarios normales al portal de jugador, salvo vistas permitidas (perfil, cambio contraseña, resumen/posiciones)
-if ($user['role'] === 'usuario' && (($user['role_original'] ?? '') !== 'admin_general')) {
-    $page = $_GET['page'] ?? '';
-    $action = $_GET['action'] ?? '';
-    $torneo_id = (int)($_GET['torneo_id'] ?? 0);
-    $inscrito_id = (int)($_GET['inscrito_id'] ?? 0);
-    $allow_profile = in_array($page, ['users/profile', 'users/change_password'], true);
-    $allow_view = ($page === 'torneo_gestion' && $torneo_id > 0 && in_array($action, ['resumen_individual', 'posiciones']));
-    if ($allow_view && $action === 'resumen_individual') {
-        $allow_view = ($inscrito_id > 0 && $inscrito_id === Auth::id());
-    }
-    if (!$allow_profile && !$allow_view) {
-        $redirect_portal = defined('URL_BASE') ? (URL_BASE . 'user_portal.php') : AppHelpers::url('user_portal.php');
-        header('Location: ' . $redirect_portal, true, 302);
-        exit;
-    }
-}
-
 // Obtener página solicitada
 $page = $_GET['page'] ?? 'home';
 
 // Sanitizar nombre de página (solo letras, números, guiones y barras)
 $page = preg_replace('/[^a-zA-Z0-9_\/\-]/', '', $page);
+$action = trim((string) ($_GET['action'] ?? ''));
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $page === 'torneo_gestion') {
+    $action = trim((string) ($_POST['action'] ?? $action));
+}
+
+require_once APP_ROOT . '/lib/TournamentAdminAccess.php';
+require_once APP_ROOT . '/lib/FvdInstitutionalScope.php';
+FvdInstitutionalScope::enforceAccess($page, $action);
+TournamentAdminAccess::rejectPageAccess($page, $action);
 
 require_once APP_ROOT . '/lib/FvdAdminGate.php';
 FvdAdminGate::rejectPageIfDisabled($page);
@@ -220,8 +211,9 @@ if ($page === 'analytics_uso') {
     exit;
 }
 
-// Admin operativo de asociación: inicio = panel acotado (sin dashboard general)
-if (Auth::isOperativoSoloAsociacion()) {
+// Admin asociación / operativo: inicio = panel acotado (sin dashboard general ni torneos operativos)
+if (Auth::isOperativoSoloAsociacion()
+    || (FvdInstitutionalScope::isEnabled() && ($user['role'] ?? '') === 'admin_club')) {
     require_once __DIR__ . '/../lib/app_helpers.php';
     require_once __DIR__ . '/../lib/AsociacionAdminHelper.php';
     if ($page === 'home' || $page === '') {
@@ -237,11 +229,12 @@ if (Auth::isOperativoSoloAsociacion()) {
 }
 
 // Pre-despacho para solicitudes POST y GET con acciones que requieren redirección
-$action = trim((string)($_GET['action'] ?? ''));
 $actions_requiring_redirect = ['delete', 'save', 'update'];
 
-// Operativo asociación: validar torneo_gestion / tournament_admin ANTES del layout (evita headers already sent)
-if (Auth::isOperativoSoloAsociacion() && in_array($page, ['torneo_gestion', 'tournament_admin'], true)) {
+// Operativo / admin asociación: validar torneo_gestion / tournament_admin ANTES del layout
+$asociacionTorneoScope = Auth::isOperativoSoloAsociacion()
+    || (FvdInstitutionalScope::isEnabled() && ($user['role'] ?? '') === 'admin_club');
+if ($asociacionTorneoScope && in_array($page, ['torneo_gestion', 'tournament_admin'], true)) {
     $accionOper = $action !== '' ? $action : trim((string) ($_GET['action'] ?? 'index'));
     if ($page === 'torneo_gestion' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $accionOper = trim((string) ($_POST['action'] ?? $accionOper));

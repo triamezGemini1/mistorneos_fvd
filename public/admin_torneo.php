@@ -9,11 +9,13 @@ require_once __DIR__ . '/../config/csrf.php';
 require_once __DIR__ . '/../config/db_config.php';
 require_once __DIR__ . '/../config/auth_service.php';
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../lib/TournamentAdminAccess.php';
+require_once __DIR__ . '/../lib/FvdInstitutionalScope.php';
 AuthService::requireAuth();
 $user = Auth::user();
 
-// Verificar permisos
-Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
+FvdInstitutionalScope::rejectStandaloneOperationalEntry();
+TournamentAdminAccess::requireTorneoPanelAccess();
 
 // Obtener acción
 $action = $_GET['action'] ?? 'index';

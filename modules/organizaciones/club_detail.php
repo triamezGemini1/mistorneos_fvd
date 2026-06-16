@@ -1,9 +1,6 @@
 <?php
 require_once __DIR__ . '/../../lib/FvdPaginacionCompacta.php';
 
-$logo_club = !empty($club['logo']) && class_exists('AppHelpers')
-    ? AppHelpers::imageUrl($club['logo'])
-    : null;
 $afiliados_page = isset($afiliados_page) ? (int) $afiliados_page : 1;
 $afiliados_per_page = isset($afiliados_per_page) ? (int) $afiliados_per_page : FvdPaginacionCompacta::PER_PAGE_DEFAULT;
 $afiliados_total_rows = isset($afiliados_total_rows) ? (int) $afiliados_total_rows : count($afiliados ?? []);
@@ -19,8 +16,10 @@ if ($club_pk > 0) {
     $qsBase = $qsOrg . '&entidad_id=' . $entidad_cod;
 }
 $pag_base_url = $qsBase . '&sexo=' . urlencode($sexo);
+$ocultar_volver_mi_org = class_exists('Auth', false) && Auth::isOperativoSoloAsociacion();
 ?>
-<div class="container-fluid fvd-listado-page py-2" id="top-page">
+<div class="container-fluid fvd-listado-page fvd-listado-page--mi-org py-1" id="top-page">
+    <?php if (!$ocultar_volver_mi_org): ?>
     <nav aria-label="breadcrumb" class="mb-1">
         <ol class="breadcrumb mb-0">
             <li class="breadcrumb-item"><a href="index.php?page=home">Inicio</a></li>
@@ -28,17 +27,20 @@ $pag_base_url = $qsBase . '&sexo=' . urlencode($sexo);
             <li class="breadcrumb-item active"><?= htmlspecialchars($club['nombre']) ?></li>
         </ol>
     </nav>
+    <?php endif; ?>
 
-    <div class="fvd-listado-toolbar">
+    <div class="fvd-listado-toolbar fvd-listado-toolbar--compact mb-1">
+        <?php if (!$ocultar_volver_mi_org): ?>
         <a href="<?= htmlspecialchars($qsOrg) ?>" class="btn btn-outline-secondary btn-sm btn-volver">
             <i class="fas fa-arrow-left me-1"></i>Volver
         </a>
+        <?php endif; ?>
         <div class="fvd-listado-toolbar-main">
             <div class="min-w-0">
-                <h1 class="fvd-listado-title">
+                <h1 class="fvd-listado-title mb-0">
                     <i class="fas fa-sitemap me-1 opacity-75"></i><?= htmlspecialchars($club['nombre']) ?>
                 </h1>
-                <?php if ($entidad_cod > 0): ?>
+                <?php if ($entidad_cod > 0 && !$ocultar_volver_mi_org): ?>
                     <p class="fvd-listado-subtitle mb-0">ID entidad: <?= $entidad_cod ?></p>
                 <?php endif; ?>
             </div>
@@ -50,7 +52,7 @@ $pag_base_url = $qsBase . '&sexo=' . urlencode($sexo);
         </div>
     </div>
 
-    <div class="row g-2 fvd-listado-kpis mb-2">
+    <div class="row g-1 fvd-listado-kpis mb-1">
         <div class="col-4">
             <div class="fvd-listado-kpi fvd-listado-kpi--sky">
                 <strong><?= (int) ($afiliados_resumen['total'] ?? 0) ?></strong>

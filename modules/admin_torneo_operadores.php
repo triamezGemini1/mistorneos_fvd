@@ -1,8 +1,8 @@
 <?php
 /**
  * Página dedicada: Administrador de Torneo y Operadores.
- * Admin Organización puede asignar/registrar admin_torneo y operadores para su club.
- * Dos bloques: Administrador de Torneo | Operadores de Torneo (menús superiores).
+ * Admin Organización: operadores de su organización.
+ * Admin General (ámbito nacional): operadores de cualquier asociación.
  */
 
 if (!defined('APP_BOOTSTRAPPED')) {
@@ -12,18 +12,20 @@ require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../lib/ClubHelper.php';
 
-Auth::requireRole(['admin_general', 'admin_club']);
+Auth::requireRole(['admin_general', 'admin_club', 'superadmin']);
 
 $current_user = Auth::user();
 $is_admin_club = $current_user['role'] === 'admin_club';
 $pdo = DB::pdo();
 
-// Club a gestionar: admin_club = todos los clubes de su organización; admin_general = GET o primer club
+$return_torneo_id = isset($_GET['return_torneo_id']) ? (int) $_GET['return_torneo_id'] : 0;
+
+// Club a gestionar: admin_club = su organización; admin_general = filtro opcional (0 = todas las asociaciones)
 $club_id = null;
 if ($is_admin_club) {
     $club_id = (int)($current_user['club_id'] ?? 0);
 } else {
-    $club_id = isset($_GET['club_id']) ? (int)$_GET['club_id'] : null;
+    $club_id = isset($_GET['club_id']) ? (int) $_GET['club_id'] : 0;
 }
 
 $tab = trim($_GET['tab'] ?? 'admin_torneo');
@@ -36,14 +38,12 @@ $clubes_options = [];
 if (!$is_admin_club) {
     $stmt = $pdo->query("SELECT id, nombre FROM clubes WHERE estatus = 1 ORDER BY nombre ASC");
     $clubes_options = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    if ($club_id === null && !empty($clubes_options)) {
-        $club_id = (int)$clubes_options[0]['id'];
-    }
 }
 
-// Usuarios admin_torneo y operadores: admin_club ve TODOS los de su organización (todos los clubes), no solo club_id personal
+// Usuarios admin_torneo y operadores
 $admin_torneo_list = [];
 $operadores_list = [];
+$club_ids = [];
 
 if ($is_admin_club) {
     $club_ids = ClubHelper::getClubesByAdminClubId((int)$current_user['id']);
@@ -52,11 +52,29 @@ if ($is_admin_club) {
     }
 } elseif ($club_id > 0) {
     $club_ids = [$club_id];
-} else {
-    $club_ids = [];
 }
 
-if (!empty($club_ids)) {
+if (!$is_admin_club && $club_id <= 0) {
+    $stmt = $pdo->query("
+        SELECT u.id, u.cedula, u.nombre, u.username, u.email, u.celular, u.role, u.status, u.created_at,
+               c.nombre as club_nombre
+        FROM usuarios u
+        LEFT JOIN clubes c ON u.club_id = c.id
+        WHERE u.role = 'admin_torneo'
+        ORDER BY c.nombre ASC, u.nombre ASC
+    ");
+    $admin_torneo_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $stmt = $pdo->query("
+        SELECT u.id, u.cedula, u.nombre, u.username, u.email, u.celular, u.role, u.status, u.created_at,
+               c.nombre as club_nombre
+        FROM usuarios u
+        LEFT JOIN clubes c ON u.club_id = c.id
+        WHERE u.role = 'operador'
+        ORDER BY c.nombre ASC, u.nombre ASC
+    ");
+    $operadores_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} elseif (!empty($club_ids)) {
     $placeholders = implode(',', array_fill(0, count($club_ids), '?'));
     $params = $club_ids;
 

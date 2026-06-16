@@ -10,6 +10,8 @@ class Auth {
     'admin_gral' => 'admin_general',
     'admingral' => 'admin_general',
     'admin general' => 'admin_general',
+    'super_admin' => 'superadmin',
+    'super admin' => 'superadmin',
   ];
 
   private static function normalizeRole(?string $role): string {

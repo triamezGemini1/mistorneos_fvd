@@ -167,12 +167,118 @@ final class CampeonatoTorneoHelper
         return self::validarElegibilidadInscripcion($torneo, $usuario);
     }
 
-    /** Slot de planilla Access: 1 = masculino, 2 = femenino. */
+    /** Slot de planilla Access: 1 = masculino, 2 = femenino; categoría SUB: 1 = SUB 12, 2 = SUB 15, 3 = SUB 18. */
     public static function slotTorneoDesdeCelda(string $raw): int
     {
         $n = (int) preg_replace('/\D/', '', trim($raw));
 
-        return ($n === 1 || $n === 2) ? $n : 0;
+        return ($n >= 1 && $n <= 3) ? $n : 0;
+    }
+
+    /** Torneos SUB 12 / SUB 15: importación Access sin validar cédula ni usuario en plataforma. */
+    public static function importacionDirectaSub1215(PDO $pdo, int $torneoId): bool
+    {
+        $torneo = self::cargarTorneo($pdo, $torneoId);
+        if (!$torneo) {
+            return false;
+        }
+
+        return self::grupoEsImportacionDirectaSub1215((string) ($torneo['campeonato_grupo'] ?? ''));
+    }
+
+    public static function grupoEsImportacionDirectaSub1215(string $campeonatoGrupo): bool
+    {
+        $g = strtoupper(trim($campeonatoGrupo));
+
+        return $g === 'SUB 12' || $g === 'SUB 15';
+    }
+
+    /**
+     * Mapa multi-torneo por categoría SUB (columna torneo: 1=SUB12, 2=SUB15, 3=SUB18).
+     *
+     * @return array{
+     *   activo: int,
+     *   tipo: string,
+     *   max_slot: int,
+     *   slots: array<int, array{id: int, genero: string, nombre: string, campeonato_grupo: string, importacion_directa: bool}>,
+     *   torneo_ids: list<int>
+     * }|null
+     */
+    public static function mapaImportacionCampeonatoCategoriaSub(PDO $pdo, int $torneoIdPanel): ?array
+    {
+        $grupo = self::torneosGrupoEvento($pdo, $torneoIdPanel);
+        if (count($grupo) < 2) {
+            return null;
+        }
+
+        $orden = ['SUB 12' => 1, 'SUB 15' => 2, 'SUB 18' => 3];
+        $slots = [];
+        foreach ($grupo as $t) {
+            $cg = strtoupper(trim((string) ($t['campeonato_grupo'] ?? '')));
+            if (!isset($orden[$cg])) {
+                continue;
+            }
+            $slot = $orden[$cg];
+            $slots[$slot] = [
+                'id' => (int) ($t['id'] ?? 0),
+                'genero' => '',
+                'nombre' => (string) ($t['nombre'] ?? ''),
+                'campeonato_grupo' => $cg,
+                'importacion_directa' => self::grupoEsImportacionDirectaSub1215($cg),
+            ];
+        }
+        if (count($slots) < 2) {
+            return null;
+        }
+        ksort($slots);
+
+        return [
+            'activo' => $torneoIdPanel,
+            'tipo' => 'categoria_sub',
+            'max_slot' => max(array_keys($slots)),
+            'slots' => $slots,
+            'torneo_ids' => array_values(array_map(static fn (array $s): int => (int) $s['id'], $slots)),
+        ];
+    }
+
+    /**
+     * Campeonato por género o por categoría SUB (multi-torneo en un archivo Access).
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function mapaImportacionCampeonato(PDO $pdo, int $torneoIdPanel): ?array
+    {
+        $genero = self::mapaImportacionCampeonatoGenero($pdo, $torneoIdPanel);
+        if ($genero !== null) {
+            $genero['tipo'] = 'genero';
+            $genero['max_slot'] = 2;
+            foreach ($genero['slots'] as $slot => $data) {
+                $genero['slots'][$slot]['importacion_directa'] = false;
+            }
+
+            return $genero;
+        }
+
+        return self::mapaImportacionCampeonatoCategoriaSub($pdo, $torneoIdPanel);
+    }
+
+    /** @param array<string, mixed>|null $mapa */
+    public static function importacionDirectaSub1215DesdeMapa(?array $mapa, int $slot, int $torneoIdFallback, PDO $pdo): bool
+    {
+        if ($mapa !== null && $slot > 0 && isset($mapa['slots'][$slot])) {
+            return !empty($mapa['slots'][$slot]['importacion_directa']);
+        }
+        if ($mapa !== null && $slot <= 0) {
+            foreach ($mapa['slots'] as $s) {
+                if (!empty($s['importacion_directa'])) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return self::importacionDirectaSub1215($pdo, $torneoIdFallback);
     }
 
     public static function sexoNormalizado(string $sexo): string

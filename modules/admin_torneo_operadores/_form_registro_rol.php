@@ -2,7 +2,19 @@
 $modal_role = $modal_role ?? 'admin_torneo';
 $rol_label = $modal_role === 'operador' ? 'Operador' : 'Admin Torneo';
 $club_id_val = $club_id ?? 0;
+$clubes_options = $clubes_options ?? [];
 ?>
+<?php if (!$is_admin_club && (int)$club_id_val <= 0 && !empty($clubes_options)): ?>
+<div class="mb-3">
+    <label class="form-label">Asociación *</label>
+    <select class="form-select form-select-sm" id="club_asignar_<?= $modal_role ?>">
+        <option value="">-- Seleccione asociación --</option>
+        <?php foreach ($clubes_options as $c): ?>
+            <option value="<?= (int)$c['id'] ?>"><?= htmlspecialchars($c['nombre']) ?></option>
+        <?php endforeach; ?>
+    </select>
+</div>
+<?php endif; ?>
 <div class="mb-3">
     <label class="form-label">¿Cómo desea agregar?</label>
     <div class="btn-group w-100 mb-3" role="group">
@@ -60,10 +72,20 @@ $club_id_val = $club_id ?? 0;
     var base = '<?= htmlspecialchars($api_base ?? '') ?>';
     var formAction = '<?= htmlspecialchars($form_action_users ?? 'index.php?page=users') ?>';
     var clubId = '<?= (int)$club_id_val ?>';
+    var returnTorneoId = '<?= (int)($return_torneo_id ?? 0) ?>';
     var modalRole = '<?= $modal_role ?>';
     var rolLabel = '<?= htmlspecialchars($rol_label) ?>';
 
     window.buscarPersonaRol = function(role) {
+        var clubSel = document.getElementById('club_asignar_' + role);
+        var clubIdEffective = clubId;
+        if (clubSel && clubSel.value) {
+            clubIdEffective = clubSel.value;
+        }
+        if (!clubIdEffective) {
+            document.getElementById('busqueda_resultado_'+role).innerHTML = '<div class="alert alert-warning py-2">Seleccione la asociación a la que pertenecerá el operador.</div>';
+            return;
+        }
         var buscarPorRadio = document.querySelector('input[name="buscar_por_'+role+'"]:checked');
         var buscarPor = buscarPorRadio ? buscarPorRadio.value : 'id_usuario';
         var resultado = document.getElementById('busqueda_resultado_'+role);
@@ -73,13 +95,13 @@ $club_id_val = $club_id ?? 0;
             var idUsuario = document.getElementById('id_usuario_'+role).value.trim();
             if (!idUsuario) { resultado.innerHTML = '<div class="alert alert-warning py-2">Ingrese el ID de usuario</div>'; return; }
             apiUrl = base + '/api/search_user_persona.php?buscar_por=id&user_id=' + encodeURIComponent(idUsuario);
-            if (clubId) apiUrl += '&club_id=' + clubId;
+            if (clubIdEffective) apiUrl += '&club_id=' + clubIdEffective;
         } else if (buscarPor === 'cedula') {
             var cedula = document.getElementById('cedula_'+role).value.trim();
             var nac = document.getElementById('nacionalidad_'+role).value;
             if (!cedula) { resultado.innerHTML = '<div class="alert alert-warning py-2">Ingrese cédula</div>'; return; }
             apiUrl = base + '/api/search_user_persona.php?cedula=' + encodeURIComponent(cedula) + '&nacionalidad=' + encodeURIComponent(nac);
-            if (clubId) apiUrl += '&club_id=' + clubId;
+            if (clubIdEffective) apiUrl += '&club_id=' + clubIdEffective;
         }
         
         resultado.innerHTML = '<div class="text-center py-2"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
@@ -93,9 +115,10 @@ $club_id_val = $club_id ?? 0;
                     '<input type="hidden" name="action" value="' + action + '">' +
                     '<input type="hidden" name="return_to" value="admin_torneo_operadores">' +
                     '<input type="hidden" name="return_tab" value="' + (role === 'operador' ? 'operadores' : role) + '">' +
-                    '<input type="hidden" name="return_club_id" value="' + (clubId || '') + '">' +
+                    '<input type="hidden" name="return_club_id" value="' + (clubIdEffective || '') + '">' +
+                    (returnTorneoId ? '<input type="hidden" name="return_torneo_id" value="' + returnTorneoId + '">' : '') +
                     '<input type="hidden" name="user_id" value="' + u.id + '">' +
-                    '<input type="hidden" name="club_id" value="' + (clubId || u.club_id || '') + '">';
+                    '<input type="hidden" name="club_id" value="' + (clubIdEffective || u.club_id || '') + '">';
                 formHtml += '<button type="submit" class="btn btn-success btn-sm"><i class="fas fa-user-tag me-1"></i> Asignar como ' + rolLabel + '</button></form>';
                 resultado.innerHTML = '<div class="alert alert-success py-2"><i class="fas fa-check-circle"></i> Usuario encontrado. Puede asignarlo como ' + rolLabel + '.<br><strong>ID: ' + u.id + '</strong> - ' + (u.nombre||'') + ' (' + (u.username||'') + ')<br>Cédula: ' + (u.cedula||'N/A') + formHtml + '</div>';
                 return;

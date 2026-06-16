@@ -5,13 +5,16 @@
 if (!class_exists('AppHelpers', false)) {
     require_once __DIR__ . '/../../../lib/app_helpers.php';
 }
+if (!class_exists('FvdInstitutionalScope', false)) {
+    require_once __DIR__ . '/../../../lib/FvdInstitutionalScope.php';
+}
 $pb = $panel_badges ?? [
     'solicitudes_afiliacion_total' => 0,
     'solicitudes_afiliacion_pendiente' => 0,
     'comentarios_pendientes' => 0,
 ];
 $orgPk = (int) ($fvd_org_id ?? 1);
-$actasP = (int) ($actas_pendientes ?? 0);
+$institutional = FvdInstitutionalScope::isEnabled();
 
 $u = static function (string $page, array $q = []): string {
     return htmlspecialchars(AppHelpers::dashboard($page, $q));
@@ -28,8 +31,8 @@ $modulosExtendidos = class_exists('FvdConfig', false) && FvdConfig::adminModuleE
 ?>
 <section class="admin-general-panel-operativo">
     <header>
-        <h2>Panel operativo</h2>
-        <p>Federación Venezolana de Dominó</p>
+        <h2>Panel operativo FVD</h2>
+        <p>Federación Venezolana de Dominó — organización, afiliados y campeonatos</p>
     </header>
 
     <div class="admin-general-panel-operativo__grid">
@@ -74,10 +77,9 @@ $modulosExtendidos = class_exists('FvdConfig', false) && FvdConfig::adminModuleE
                     <span>Afiliaciones pendientes</span>
                     <?= $b((int) $pb['solicitudes_afiliacion_pendiente']) ?>
                 </a>
-                <a href="<?= $u('torneo_gestion', ['action' => 'verificar_actas_index']) ?>" class="<?= $link ?>" title="Actas / QR pendientes">
-                    <i class="fas fa-id-card"></i>
-                    <span>Carnets / actas QR</span>
-                    <?= $b($actasP) ?>
+                <a href="<?= $u('solicitudes_asociacion') ?>" class="<?= $link ?>">
+                    <i class="fas fa-file-signature"></i>
+                    <span>Solicitudes de asociaciones</span>
                 </a>
                 <a href="<?= $u('admin_atletas_sync') ?>" class="<?= $link ?>">
                     <i class="fas fa-exchange-alt"></i>
@@ -102,17 +104,25 @@ $modulosExtendidos = class_exists('FvdConfig', false) && FvdConfig::adminModuleE
                 <i class="fas fa-cogs me-1"></i>Operaciones
             </div>
             <div class="admin-general-panel-operativo__card-body">
+                <?php if ($institutional): ?>
+                <a href="<?= $u('tournaments', ['action' => 'list']) ?>" class="<?= $linkDestacado ?>">
+                    <i class="fas fa-trophy"></i>
+                    <span>Campeonatos y torneos</span>
+                    <i class="fas fa-chevron-right ms-auto small text-muted"></i>
+                </a>
+                <a href="<?= $u('tournaments', ['action' => 'new']) ?>" class="<?= $link ?>">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Crear campeonato</span>
+                </a>
+                <?php else: ?>
                 <a href="<?= $u('torneo_gestion', ['action' => 'index']) ?>" class="<?= $link ?>">
                     <i class="fas fa-trophy"></i>
                     <span>Torneos</span>
                 </a>
+                <?php endif; ?>
                 <a href="<?= $u('auditoria') ?>" class="<?= $link ?>">
                     <i class="fas fa-chart-bar"></i>
                     <span>Informes y auditoría</span>
-                </a>
-                <a href="<?= $u('estadisticas_web') ?>" class="<?= $link ?>">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Estadísticas web (Umami)</span>
                 </a>
                 <a href="<?= $u('control_admin') ?>" class="<?= $link ?>">
                     <i class="fas fa-tachometer-alt"></i>
@@ -121,11 +131,6 @@ $modulosExtendidos = class_exists('FvdConfig', false) && FvdConfig::adminModuleE
                 <a href="<?= $u('notificaciones_masivas') ?>" class="<?= $link ?>">
                     <i class="fas fa-bell"></i>
                     <span>Notificaciones masivas</span>
-                </a>
-                <a href="<?= $u('torneo_gestion', ['action' => 'verificar_actas_index']) ?>" class="<?= $link ?>" title="Actas / QR pendientes">
-                    <i class="fas fa-id-card"></i>
-                    <span>Carnets / actas QR</span>
-                    <?= $b($actasP) ?>
                 </a>
             </div>
         </div>
@@ -139,10 +144,6 @@ $modulosExtendidos = class_exists('FvdConfig', false) && FvdConfig::adminModuleE
                 <a href="<?= $u('finances') ?>" class="<?= $link ?>">
                     <i class="fas fa-balance-scale"></i>
                     <span>Estado de cuentas</span>
-                </a>
-                <a href="<?= $u('importacion_torneo_externo') ?>" class="<?= $link ?>">
-                    <i class="fas fa-file-import"></i>
-                    <span>Importación externa</span>
                 </a>
                 <a href="<?= $u('ranking_numfvd_admin') ?>" class="<?= $link ?>">
                     <i class="fas fa-medal"></i>

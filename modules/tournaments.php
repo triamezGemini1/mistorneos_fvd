@@ -5,8 +5,16 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/csrf.php';
 require_once __DIR__ . '/../lib/Pagination.php';
 
+if (!class_exists('FvdInstitutionalScope', false)) {
+    require_once __DIR__ . '/../lib/FvdInstitutionalScope.php';
+}
+
 // Verificar permisos
-Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
+if (FvdInstitutionalScope::isEnabled()) {
+    Auth::requireRole(['admin_general']);
+} else {
+    Auth::requireRole(['admin_general', 'admin_torneo', 'admin_club']);
+}
 
 // POST crear/actualizar torneo: procesar en el mismo entry point (index.php) para mantener sesión
 $action_get = $_GET['action'] ?? '';

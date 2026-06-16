@@ -8,10 +8,11 @@ require_once __DIR__ . '/../../config/db_config.php';
 require_once __DIR__ . '/../../config/csrf.php';
 require_once __DIR__ . '/../../config/auth.php';
 require_once __DIR__ . '/../../lib/ImportacionAccessExternoService.php';
+require_once __DIR__ . '/../../lib/TournamentAdminAccess.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-Auth::requireRoleJson(['admin_general']);
+TournamentAdminAccess::requireFullTorneoAdminJson();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'error' => 'Método no permitido']);
